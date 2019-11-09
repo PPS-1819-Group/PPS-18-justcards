@@ -13,23 +13,36 @@ class UserManagerTest() extends TestKit(ActorSystem("ActorTest")) with ImplicitS
     TestKit.shutdownActorSystem(system)
   }
 
-  "The user manager" should {
+  "The user manager" when {
 
     val userManager = system.actorOf(UserManager())
 
-    "register a user" in {
-      userManager ! LogIn("test-username")
-      expectMsgType[Logged]
+    "created" should {
+
+      "not contain any logged user" in {
+        userManager ! RetrieveAllPlayers(testActor)
+        expectMsg(Players(Set()))
+      }
+
     }
 
-    "save the user after its registration" in {
-      userManager ! RetrieveAllPlayers(testActor)
-      expectMsg(Players(Set(UserInfo("test-username", testActor))))
-    }
+    "is at runtime" should {
 
-    "not register a user if the username is already present" in {
-      userManager ! LogIn("test-username")
-      expectMsgType[ErrorOccurred]
+      "register a user" in {
+        userManager ! LogIn("test-username")
+        expectMsgType[Logged]
+      }
+
+      "save the user after its registration" in {
+        userManager ! RetrieveAllPlayers(testActor)
+        expectMsg(Players(Set(UserInfo("test-username", testActor))))
+      }
+
+      "not register a user if the username is already present" in {
+        userManager ! LogIn("test-username")
+        expectMsgType[ErrorOccurred]
+      }
+
     }
 
   }
