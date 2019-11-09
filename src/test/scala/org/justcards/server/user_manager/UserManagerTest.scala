@@ -44,6 +44,13 @@ class UserManagerTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSen
         expectMsgType[ErrorOccurred]
       }
 
+      "not allow to the same user to register twice with different username" in {
+        userManager ! LogIn(DOUBLE_USER_USERNAME)
+        receiveN(1)
+        userManager ! LogIn(DOUBLE_USER_USERNAME + "-retry")
+        expectMsgType[ErrorOccurred]
+      }
+
       "unregister a user" in {
         userManager ! UserLogout(TEST_USERNAME, testActor)
         expectNoMessage(1 seconds)

@@ -10,8 +10,11 @@ private[user_manager] class PlayerManager extends Actor {
 
   private def defaultBehaviour(users: Map[String, ActorRef] = Map()): Receive = {
     case UserLogIn(message, user) =>
-      if (users contains message.username)
+      val loggedUsers = users.filter(userData => userData._2 == user || userData._1 == message.username)
+      if (loggedUsers contains message.username)
         user ! ErrorOccurred(message.username + " is already present!")
+      else if (loggedUsers.nonEmpty)
+        user ! ErrorOccurred("You're already logged with another username!")
       else {
         user ! Logged(message.username)
         val updatedUsers = users + (message.username -> user)
