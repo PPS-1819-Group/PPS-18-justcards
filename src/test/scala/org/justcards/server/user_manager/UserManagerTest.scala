@@ -53,7 +53,7 @@ class UserManagerTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSen
 
       "unregister a user" in {
         userManager ! UserLogout(TEST_USERNAME, testActor)
-        expectNoMessage(1 seconds)
+        expectNoMessage()
         expectNoUsers(userManager)
       }
 

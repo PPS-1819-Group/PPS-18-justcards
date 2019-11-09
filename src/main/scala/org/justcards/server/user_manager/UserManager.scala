@@ -1,7 +1,7 @@
 package org.justcards.server.user_manager
 
 import akka.actor.{Actor, ActorRef, Props}
-import org.justcards.commons.LogIn
+import org.justcards.commons.{LogIn, LogOut}
 
 class UserManager extends Actor {
 
@@ -10,6 +10,7 @@ class UserManager extends Actor {
 
   override def receive: Receive = {
     case msg: LogIn => playerManager ! UserLogIn(msg, sender())
+    case msg: LogOut => playerManager ! UserLogout(msg.username, sender())
     case _: Players =>
     case msg: UserManagerMessage => playerManager ! msg
   }

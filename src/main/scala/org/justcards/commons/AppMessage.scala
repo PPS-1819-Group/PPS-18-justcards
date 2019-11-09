@@ -23,6 +23,12 @@ case class ErrorOccurred(message: String) extends AppMessage
 case class LogIn(username: String) extends AppMessage
 
 /**
+  * Message to log out of the system.
+  * @param username user's username
+  */
+case class LogOut(username: String) extends AppMessage
+
+/**
   * Message to indicate that the login is successful.
   */
 case class Logged(username: String = "") extends AppMessage
@@ -90,6 +96,7 @@ object AppMessage {
   private[this] implicit val lobbyFormat: OFormat[LobbyId] = Json.format[LobbyId]
 
   private[this] implicit val loginFormat: OFormat[LogIn] = Json.format[LogIn]
+  private[this] implicit val logoutFormat: OFormat[LogOut] = Json.format[LogOut]
   private[this] implicit val loggedFormat: OFormat[Logged] = Json.format[Logged]
   private[this] implicit val retrAvailGamesFormat: OFormat[RetrieveAvailableGames] = Json.format[RetrieveAvailableGames]
   private[this] implicit val availGamesFormat: OFormat[AvailableGames] = Json.format[AvailableGames]
