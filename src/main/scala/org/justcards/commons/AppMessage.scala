@@ -25,7 +25,7 @@ case class LogIn(username: String) extends AppMessage
 /**
   * Message to indicate that the login is successful.
   */
-case class Logged(message: String = "") extends AppMessage
+case class Logged(username: String = "") extends AppMessage
 
 /**
   * Message to request to the server all the available games.

@@ -9,14 +9,17 @@ private[user_manager] class PlayerManager extends Actor {
   override def receive: Receive = defaultBehaviour()
 
   private def defaultBehaviour(users: Map[String, ActorRef] = Map()): Receive = {
-    case LogInMessage(message, user) =>
+    case UserLogIn(message, user) =>
       if (users contains message.username)
         user ! ErrorOccurred(message.username + " is already present!")
       else {
-        user ! Logged()
+        user ! Logged(message.username)
         val updatedUsers = users + (message.username -> user)
         context become defaultBehaviour(updatedUsers)
       }
+    case UserLogout(username, user) =>
+      if (users exists ( _ == (username, user)))
+        context become defaultBehaviour(users - username)
     case RetrieveAllPlayers(msgSender) =>
       val usersSet: Set[UserInfo] = users.map(data => UserInfo(data._1, data._2)).toSet
       msgSender ! Players(usersSet)

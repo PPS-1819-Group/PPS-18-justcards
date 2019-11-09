@@ -9,8 +9,9 @@ class UserManager extends Actor {
   private val playerManager = context.actorOf(PlayerManager())
 
   override def receive: Receive = {
-    case msg: LogIn => playerManager ! LogInMessage(msg, sender())
-    case msg: RetrieveAllPlayers => playerManager ! msg
+    case msg: LogIn => playerManager ! UserLogIn(msg, sender())
+    case _: Players =>
+    case msg: UserManagerMessage => playerManager ! msg
   }
 
 }
@@ -24,9 +25,14 @@ object UserManager {
 }
 
 private[user_manager] object UserManagerMessage {
-  case class LogInMessage(message: LogIn, user: ActorRef)
-  case class RetrieveAllPlayers(sender: ActorRef)
-  case class Players(players: Set[UserInfo])
+
+  sealed trait UserManagerMessage
+
+  case class UserLogIn(message: LogIn, user: ActorRef) extends UserManagerMessage
+  case class UserLogout(username: String, user: ActorRef) extends UserManagerMessage
+
+  case class RetrieveAllPlayers(sender: ActorRef) extends UserManagerMessage
+  case class Players(players: Set[UserInfo]) extends UserManagerMessage
 
   case class UserInfo(username: String, userRef: ActorRef)
 
