@@ -25,12 +25,12 @@ case class LogIn(username: String) extends AppMessage
 /**
   * Message to indicate that the login is successful.
   */
-case class Logged() extends AppMessage
+case class Logged(message: String = "") extends AppMessage
 
 /**
   * Message to request to the server all the available games.
   */
-case class RetrieveAvailableGames() extends AppMessage
+case class RetrieveAvailableGames(message: String = "") extends AppMessage
 
 /**
   * Message that contains all the available games.
@@ -73,8 +73,7 @@ case class LobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends AppMessage
 /**
   * Message to indicate that a game is started.
   */
-case class GameStarted() extends AppMessage
-
+case class GameStarted(message: String = "") extends AppMessage
 
 object AppMessage {
 
@@ -86,6 +85,10 @@ object AppMessage {
    * it will raise an exception due to the confusion between the class specific
    * element and the trait one.
    */
+  private[this] implicit val userFormat: OFormat[UserId] = Json.format[UserId]
+  private[this] implicit val gameFormat: OFormat[GameId] = Json.format[GameId]
+  private[this] implicit val lobbyFormat: OFormat[LobbyId] = Json.format[LobbyId]
+
   private[this] implicit val loginFormat: OFormat[LogIn] = Json.format[LogIn]
   private[this] implicit val loggedFormat: OFormat[Logged] = Json.format[Logged]
   private[this] implicit val retrAvailGamesFormat: OFormat[RetrieveAvailableGames] = Json.format[RetrieveAvailableGames]
