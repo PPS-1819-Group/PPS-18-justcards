@@ -25,12 +25,12 @@ case class LogIn(username: String) extends AppMessage
 /**
   * Message to indicate that the login is successful.
   */
-case class Logged() extends AppMessage
+case class Logged(username: String = "") extends AppMessage
 
 /**
   * Message to request to the server all the available games.
   */
-case class RetrieveAvailableGames() extends AppMessage
+case class RetrieveAvailableGames(options: String = "") extends AppMessage
 
 /**
   * Message that contains all the available games.
@@ -73,7 +73,7 @@ case class LobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends AppMessage
 /**
   * Message to indicate that a game is started.
   */
-case class GameStarted() extends AppMessage
+case class GameStarted(options: String = "") extends AppMessage
 
 
 object AppMessage {
@@ -97,6 +97,9 @@ object AppMessage {
   private[this] implicit val lobbyUpdateFormat: OFormat[LobbyUpdate] = Json.format[LobbyUpdate]
   private[this] implicit val gameStartedFormat: OFormat[GameStarted] = Json.format[GameStarted]
   private[this] implicit val errorOccurredFormat: OFormat[ErrorOccurred] = Json.format[ErrorOccurred]
+  private[this] implicit val gameIdFormat: OFormat[GameId] = Json.format[GameId]
+  private[this] implicit val userIdFormat: OFormat[UserId] = Json.format[UserId]
+  private[this] implicit val lobbyIdFormat: OFormat[LobbyId] = Json.format[LobbyId]
 
   /*
    * Implicit for the conversion of the trait
