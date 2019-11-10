@@ -7,6 +7,11 @@ import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import org.justcards.server.user_manager.User
 
+/**
+  * TCP connection manager that works as a server
+  * @param port the port to connect to
+  * @param userManager the userManager that the users will talk to
+  */
 class ServerConnectionManager(private val port: Int, private val userManager: ActorRef) extends Actor {
 
   import ServerConnectionManager._

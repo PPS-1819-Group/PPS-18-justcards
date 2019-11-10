@@ -44,17 +44,59 @@ private[user_manager] object LobbyManager {
   private val GAME_NOT_EXISTING = "The game doesn't exist!"
 }
 
+/**
+  * Class that represents all the information of a lobby
+  */
 sealed trait Lobby {
+  /**
+    * Getter
+    * @return the lobby is
+    */
   def id: Long
+
+  /**
+    * Getter
+    * @return the lobby owner
+    */
   def owner: UserInfo
+
+  /**
+    * Add a new owner to the lobby
+    * @param newOwner the new owner of the lobby
+    * @return a new lobby with the new lobby
+    */
   def -->(newOwner: UserInfo): Lobby
+
+  /**
+    * Getter.
+    * @return the lobby members
+    */
   def members: Traversable[String]
+
+  /**
+    * Add a member to the lobby
+    * @param member the new member
+    * @return a new lobby that contains the new member
+    */
   def +(member: UserInfo): Lobby
+
+  /**
+    * Remove a member from the lobby
+    * @param member the member to remove
+    * @return a new lobby where the member is not present
+    */
   def -(member: UserInfo): Lobby
 }
 
 object Lobby {
 
+  /**
+    * Creates a new lobby
+    * @param id the lobby id
+    * @param owner the owner of the lobby
+    * @param game the game
+    * @return a new lobby
+    */
   def apply(id: Long, owner: UserInfo, game: GameId): Lobby = LobbyImpl(id, owner, game)
 
   private[this] case class LobbyImpl(id: Long, owner: UserInfo, private val game: GameId,

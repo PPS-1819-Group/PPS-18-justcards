@@ -7,6 +7,10 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import org.justcards.commons._
 
+/**
+  * Actor that manages all the users in the system
+  * @param knowledgeEngine the system knowledgeEngine
+  */
 class UserManager(knowledgeEngine: ActorRef) extends Actor {
 
   import UserManagerMessage._
