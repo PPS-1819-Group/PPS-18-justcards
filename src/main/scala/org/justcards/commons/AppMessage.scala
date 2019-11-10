@@ -57,6 +57,17 @@ case class CreateLobby(game: GameId) extends AppMessage
 case class LobbyCreated(lobby: LobbyId) extends AppMessage
 
 /**
+  * Message to ask which are the available lobbies.
+  */
+case class RetrieveAvailableLobbies(message: String = "") extends AppMessage
+
+/**
+  * Message that contains all the available lobbies
+  * @param lobbies all the available lobbies
+  */
+case class AvailableLobbies(lobbies: Set[LobbyId]) extends AppMessage
+
+/**
   * Message to use to join a lobby.
   * @param lobby the lobby that you want to join in
   */
@@ -102,6 +113,8 @@ object AppMessage {
   private[this] implicit val availGamesFormat: OFormat[AvailableGames] = Json.format[AvailableGames]
   private[this] implicit val createLobbyFormat: OFormat[CreateLobby] = Json.format[CreateLobby]
   private[this] implicit val lobbyCreatedFormat: OFormat[LobbyCreated] = Json.format[LobbyCreated]
+  private[this] implicit val retrAvailLobbiesFormat: OFormat[RetrieveAvailableLobbies] = Json.format[RetrieveAvailableLobbies]
+  private[this] implicit val availLobbiesFormat: OFormat[AvailableLobbies] = Json.format[AvailableLobbies]
   private[this] implicit val joinLobbyFormat: OFormat[JoinLobby] = Json.format[JoinLobby]
   private[this] implicit val lobbyJoinedFormat: OFormat[LobbyJoined] = Json.format[LobbyJoined]
   private[this] implicit val lobbyUpdateFormat: OFormat[LobbyUpdate] = Json.format[LobbyUpdate]
