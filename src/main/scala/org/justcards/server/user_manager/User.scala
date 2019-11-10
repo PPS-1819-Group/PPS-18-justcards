@@ -34,7 +34,9 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case message: AppMessage => userRef ==> message
   }
 
-  protected def errorBehaviour(username: String): Receive
+  protected def errorBehaviour(username: String): Receive = {
+    case msg => server.log("User -> " + username + " | unhandled message | " + msg)
+  }
 
   private def behaviour(currentBehaviour: Receive, username: String = ""): Receive =
     currentBehaviour orElse receiveMessage orElse errorBehaviour(username)

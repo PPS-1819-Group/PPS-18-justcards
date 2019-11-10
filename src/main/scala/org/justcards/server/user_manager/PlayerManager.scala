@@ -8,12 +8,14 @@ private[user_manager] class PlayerManager extends Actor {
 
   override def receive: Receive = defaultBehaviour()
 
-  private def defaultBehaviour(users: Map[String, ActorRef] = Map()): Receive = {
+  private def defaultBehaviour(users: Set[(String, ActorRef)] = Set()): Receive = {
     case UserLogIn(message, user) =>
-      val loggedUsers = users.filter(userData => userData._2 == user || userData._1 == message.username)
-      if (loggedUsers contains message.username)
+      val loggedUser = users find(userData =>
+        userData._2 == user || userData._1 == message.username
+      ) map(_._1)
+      if (loggedUser.isDefined && loggedUser.get == message.username)
         user ! ErrorOccurred(message.username + " is already present!")
-      else if (loggedUsers.nonEmpty)
+      else if (loggedUser.isDefined)
         user ! ErrorOccurred("You're already logged with another username!")
       else {
         user ! Logged(message.username)
@@ -21,11 +23,15 @@ private[user_manager] class PlayerManager extends Actor {
         context become defaultBehaviour(updatedUsers)
       }
     case UserLogout(username, user) =>
-      if (users exists ( _ == (username, user)))
-        context become defaultBehaviour(users - username)
+      if (users contains (username -> user))
+        context become defaultBehaviour(users - (username -> user))
     case RetrieveAllPlayers(msgSender) =>
-      val usersSet: Set[UserInfo] = users.map(data => UserInfo(data._1, data._2)).toSet
+      val usersSet: Set[UserInfo] = users map(data => UserInfo(data._1, data._2))
       msgSender ! Players(usersSet)
+    case PlayerLogged(user) =>
+      val userRes = users.find(_._2 == user).map(_._1)
+      if(userRes.isDefined) sender() ! PlayerLoggedResult(found = true, userRes.get)
+      else sender() ! PlayerLoggedResult(found = false, "")
   }
 }
 
