@@ -11,7 +11,7 @@ class ServerConnectionManager(private val port: Int, private val userManager: Ac
 
   import ServerConnectionManager._
   import context.system
-  IO(Tcp) ! Bind(self, new InetSocketAddress(serverUrl, port))
+  IO(Tcp) ! Bind(self, new InetSocketAddress(SERVER_URL, port))
 
   override def receive: Receive = {
     case CommandFailed(_: Bind) => context.stop(self)
@@ -25,5 +25,5 @@ class ServerConnectionManager(private val port: Int, private val userManager: Ac
 
 object ServerConnectionManager {
   def apply(port: Int, userManager: ActorRef): Props = Props(classOf[ServerConnectionManager], port, userManager)
-  private val serverUrl = "localhost"
+  private val SERVER_URL = "localhost"
 }

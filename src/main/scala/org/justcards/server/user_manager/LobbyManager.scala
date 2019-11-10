@@ -11,6 +11,8 @@ import org.justcards.server.user_manager.UserManagerMessage.{GetLobbies, UserCre
 
 private[user_manager] class LobbyManager(knowledgeEngine: ActorRef) extends Actor {
 
+  import LobbyManager._
+
   override def receive: Receive = defaultBehaviour()
 
   private def defaultBehaviour(lobbies: Map[Long, Lobby] = Map()): Receive = {
@@ -23,7 +25,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef) extends Acto
       request filter {
         case GameExistenceResponse(response) => response
       } onComplete { result =>
-        if(result.isFailure) userInfo.userRef ! ErrorOccurred("The game doesn't exist!")
+        if(result.isFailure) userInfo.userRef ! ErrorOccurred(GAME_NOT_EXISTING)
         else {
           val newLobby = Lobby(System.currentTimeMillis(), userInfo, gameId)
           userInfo.userRef ! LobbyCreated(LobbyId(newLobby.id))
@@ -38,6 +40,8 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef) extends Acto
 
 private[user_manager] object LobbyManager {
   def apply(knowledgeEngine: ActorRef): Props = Props(classOf[LobbyManager], knowledgeEngine)
+
+  private val GAME_NOT_EXISTING = "The game doesn't exist!"
 }
 
 sealed trait Lobby {

@@ -6,6 +6,8 @@ import org.justcards.server.user_manager.UserManagerMessage._
 
 private[user_manager] class PlayerManager extends Actor {
 
+  import PlayerManager._
+
   override def receive: Receive = defaultBehaviour()
 
   private def defaultBehaviour(users: Set[(String, ActorRef)] = Set()): Receive = {
@@ -14,9 +16,9 @@ private[user_manager] class PlayerManager extends Actor {
         userData._2 == user || userData._1 == message.username
       ) map(_._1)
       if (loggedUser.isDefined && loggedUser.get == message.username)
-        user ! ErrorOccurred(message.username + " is already present!")
+        user ! ErrorOccurred(getUsernameError(message.username))
       else if (loggedUser.isDefined)
-        user ! ErrorOccurred("You're already logged with another username!")
+        user ! ErrorOccurred(ALREADY_LOGGED)
       else {
         user ! Logged(message.username)
         val updatedUsers = users + (message.username -> user)
@@ -37,4 +39,7 @@ private[user_manager] class PlayerManager extends Actor {
 
 private[user_manager] object PlayerManager {
   def apply(): Props = Props(classOf[PlayerManager])
+
+  private val getUsernameError: String => String = username => username + " is already present!"
+  private val ALREADY_LOGGED = "You're already logged with another username!"
 }

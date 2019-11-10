@@ -10,6 +10,7 @@ import org.justcards.commons._
 class UserManager(knowledgeEngine: ActorRef) extends Actor {
 
   import UserManagerMessage._
+  import UserManager._
   import context.dispatcher
   private implicit val timeout = Timeout(3 seconds)
   private val playerManager = context.actorOf(PlayerManager())
@@ -22,13 +23,13 @@ class UserManager(knowledgeEngine: ActorRef) extends Actor {
       val user = sender()
       checkLogInAnd(user) (
         _ => lobbyManager ! GetLobbies(user),
-        () => user ! ErrorOccurred("You're not logged")
+        () => user ! ErrorOccurred(NOT_LOGGED)
       )
     case msg: CreateLobby =>
       val user = sender()
       checkLogInAnd(user) (
         username => lobbyManager ! UserCreateLobby(msg, UserInfo(username, user)),
-        () => user ! ErrorOccurred("You're not logged")
+        () => user ! ErrorOccurred(NOT_LOGGED)
       )
     case _: Players =>
     case msg: UserManagerMessage => playerManager ! msg
@@ -48,6 +49,8 @@ class UserManager(knowledgeEngine: ActorRef) extends Actor {
 
 object UserManager {
   def apply(knowledgeEngine: ActorRef): Props = Props(classOf[UserManager], knowledgeEngine)
+
+  private val NOT_LOGGED = "You're not logged"
 }
 
 private[user_manager] object UserManagerMessage {

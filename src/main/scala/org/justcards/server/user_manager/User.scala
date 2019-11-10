@@ -11,6 +11,8 @@ import org.justcards.server.user_manager.UserManagerMessage.UserLogout
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends Actor {
 
+  import User._
+
   override def receive: Receive = behaviour(notLogged)
 
   private def receiveMessage: Receive = {
@@ -26,11 +28,11 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   }
 
   private def logged(username: String): Receive = {
-    case Outer(_: LogIn) => userRef ==> ErrorOccurred("You have already logged in!")
+    case Outer(_: LogIn) => userRef ==> ErrorOccurred(ALREADY_LOGGED_IN)
     case Outer(LogOut(`username`)) =>
       userManager ! LogOut(username)
       context stop self
-    case Outer(_: LogOut) => userRef ==> ErrorOccurred("The given username isn't yours!")
+    case Outer(_: LogOut) => userRef ==> ErrorOccurred(WRONG_USERNAME)
     case message: AppMessage => userRef ==> message
   }
 
@@ -47,15 +49,20 @@ object User {
 
   def apply(userRef: ActorRef, userManager: ActorRef): Props = Props(classOf[UserActorWithTcp], userRef, userManager)
 
+  private[user_manager] val ALREADY_LOGGED_IN = "You have already logged in!"
+  private[user_manager] val WRONG_USERNAME = "The given username isn't yours!"
+  private[user_manager] val CONNECTION_CLOSED = "Connection with user has been closed"
+  private[user_manager] val COMMAND_FAILED = "Write failed, trying to send => "
+
   private[this] class UserActorWithTcp(private val userRef: ActorRef, private val userManager: ActorRef)
     extends BasicUserActor(userRef, userManager) with ActorWithTcp {
 
     override def errorBehaviour(username: String): Receive = {
       case CommandFailed(w: Write) =>
         // O/S buffer was full
-        server.log("Write failed, trying to send => " + extractMessage(w.data))
+        server.log(COMMAND_FAILED + extractMessage(w.data))
       case _: ErrorClosed | PeerClosed =>
-        server.log("Connection with user has been closed")
+        server.log(CONNECTION_CLOSED)
         if (!username.isEmpty) userManager ! UserLogout(username, self)
         context stop self
     }
