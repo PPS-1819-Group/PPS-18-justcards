@@ -65,7 +65,7 @@ case class RetrieveAvailableLobbies(message: String = "") extends AppMessage
   * Message that contains all the available lobbies
   * @param lobbies all the available lobbies
   */
-case class AvailableLobbies(lobbies: Set[LobbyId]) extends AppMessage
+case class AvailableLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends AppMessage
 
 /**
   * Message to use to join a lobby.

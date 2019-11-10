@@ -35,6 +35,12 @@ class UserManager(knowledgeEngine: ActorRef) extends Actor {
         username => lobbyManager ! UserCreateLobby(msg, UserInfo(username, user)),
         () => user ! ErrorOccurred(NOT_LOGGED)
       )
+    case msg: JoinLobby =>
+      val user = sender()
+      checkLogInAnd(user) (
+        username => lobbyManager ! UserJoinLobby(msg, UserInfo(username, user)),
+        () => user ! ErrorOccurred(NOT_LOGGED)
+      )
     case _: Players =>
     case msg: UserManagerMessage => playerManager ! msg
   }
@@ -71,6 +77,7 @@ private[user_manager] object UserManagerMessage {
 
   case class GetLobbies(sender: ActorRef) extends UserManagerMessage
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
+  case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
 
   case class UserInfo(username: String, userRef: ActorRef)
 
