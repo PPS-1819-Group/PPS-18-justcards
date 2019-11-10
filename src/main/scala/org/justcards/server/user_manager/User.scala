@@ -2,7 +2,7 @@ package org.justcards.server.user_manager
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.io.Tcp._
-import org.justcards.commons.{AppMessage, ErrorOccurred, LogOut, Logged}
+import org.justcards.commons._
 import org.justcards.commons.AppMessage._
 import org.justcards.commons.actor_connection.ActorWithTcp
 import org.justcards.commons.actor_connection.Outer
@@ -26,9 +26,11 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   }
 
   private def logged(username: String): Receive = {
-    case Outer(msg: LogOut) =>
-      userManager ! msg
+    case Outer(_: LogIn) => userRef ==> ErrorOccurred("You have already logged in!")
+    case Outer(LogOut(`username`)) =>
+      userManager ! LogOut(username)
       context stop self
+    case Outer(_: LogOut) => userRef ==> ErrorOccurred("The given username isn't yours!")
     case message: AppMessage => userRef ==> message
   }
 

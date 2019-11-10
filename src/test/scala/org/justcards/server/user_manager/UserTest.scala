@@ -1,6 +1,6 @@
 package org.justcards.server.user_manager
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.commons._
@@ -48,9 +48,27 @@ class UserTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSender wit
       "inform the userManager if the user logs out" in {
         val user = system.actorOf(User(testActor, userManagerStub))
         user ! Logged(TEST_USERNAME)
+        receiveN(1)
         user ! Outer(LogOut(TEST_USERNAME))
-        val msgReceived = receiveN(2)
-        msgReceived should contain (Replicate(LogOut(TEST_USERNAME)))
+        expectMsg(Replicate(LogOut(TEST_USERNAME)))
+      }
+
+      "not log out if the given username isn't the one previously given" in {
+        val user = system.actorOf(User(testActor, userManagerStub))
+        user ! Logged(TEST_USERNAME)
+        receiveN(1)
+        user ! Outer(LogOut(FAKE_USERNAME))
+        val msgReceived = receiveN(1)
+        msgReceived should not be Replicate(LogOut(FAKE_USERNAME))
+      }
+
+      "not allow to log in another time" in {
+        val user = system.actorOf(User(testActor, userManagerStub))
+        user ! Logged(TEST_USERNAME)
+        receiveN(1)
+        user ! Outer(LogIn(TEST_USERNAME))
+        val msgReceived = receiveN(1)
+        msgReceived should not contain Replicate(LogIn(TEST_USERNAME))
       }
 
     }
@@ -62,6 +80,7 @@ class UserTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSender wit
 object UserTest {
 
   val TEST_USERNAME: String = "test-username"
+  val FAKE_USERNAME: String = "fake-username"
   case class Replicate(msg: Any)
 
   def createReplicateActor(testActor: ActorRef): Props = Props(classOf[ReplicateMessageActor], testActor)
