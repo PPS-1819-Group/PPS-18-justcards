@@ -19,7 +19,9 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
 
   private def notLogged: Receive = {
     case Outer(_: LogOut) =>
-    case Logged(username) => context become behaviour(logged(username), username)
+    case Logged(username) =>
+      userRef ==> Logged(username)
+      context become behaviour(logged(username), username)
     case msg: ErrorOccurred => userRef ==> msg
   }
 

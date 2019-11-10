@@ -49,7 +49,8 @@ class UserTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSender wit
         val user = system.actorOf(User(testActor, userManagerStub))
         user ! Logged(TEST_USERNAME)
         user ! Outer(LogOut(TEST_USERNAME))
-        expectMsg(Replicate(LogOut(TEST_USERNAME)))
+        val msgReceived = receiveN(2)
+        msgReceived should contain (Replicate(LogOut(TEST_USERNAME)))
       }
 
     }
