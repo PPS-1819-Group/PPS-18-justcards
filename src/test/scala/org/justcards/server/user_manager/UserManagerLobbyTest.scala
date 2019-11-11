@@ -65,10 +65,8 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
       }
 
       "allow to join a lobby" in {
-        val joiner = system.actorOf(createActor(testActor, userManager))
+        val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         doLogIn(userManager, TEST_USERNAME)
-        joiner ! LogIn(JOINER_USERNAME)
-        receiveN(1)
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
         val users = Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME))
@@ -77,14 +75,19 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
       }
 
       "inform all the members of a lobby when a new user joins" in {
-        val joiner = system.actorOf(createActor(testActor, userManager))
+        val joiner1 = createJoinerAndLogIn(userManager, JOINER_USERNAME)
+        val joiner2 = createJoinerAndLogIn(userManager, JOINER_USERNAME + "2")
         doLogIn(userManager, TEST_USERNAME)
-        joiner ! LogIn(JOINER_USERNAME)
-        receiveN(1)
         val lobbyInfo = createLobby(userManager)
-        joiner ! JoinLobby(lobbyInfo.lobby)
-        val users = Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME))
-        expectMsgAllOf(LobbyJoined(lobbyInfo.lobby, users), LobbyUpdate(lobbyInfo.lobby, users))
+        joiner1 ! JoinLobby(lobbyInfo.lobby)
+        receiveN(2)
+        joiner2 ! JoinLobby(lobbyInfo.lobby)
+        val users = Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME), UserId(1, JOINER_USERNAME + 2))
+        expectMsgAllOf(
+          LobbyJoined(lobbyInfo.lobby, users),
+          LobbyUpdate(lobbyInfo.lobby, users),
+          LobbyUpdate(lobbyInfo.lobby, users)
+        )
       }
 
       "not allow to join a lobby if not logged" in {
@@ -106,10 +109,8 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
       }
 
       "return all the current members of a lobby" in {
-        val joiner = system.actorOf(createActor(testActor, userManager))
+        val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         doLogIn(userManager, TEST_USERNAME)
-        joiner ! LogIn(JOINER_USERNAME)
-        receiveN(1)
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
         receiveN(2)
@@ -125,6 +126,13 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
   private def doLogIn(userManager: ActorRef, username: String): Unit = {
     userManager ! LogIn(username)
     receiveN(1)
+  }
+
+  private def createJoinerAndLogIn(userManager: ActorRef, username: String): ActorRef = {
+    val joiner = system.actorOf(createActor(testActor, userManager))
+    joiner ! LogIn(username)
+    receiveN(1)
+    joiner
   }
 
   private def createLobby(userManager: ActorRef): LobbyCreated = {
@@ -159,6 +167,7 @@ object UserManagerLobbyTest {
     override def receive: Receive = {
       case a: Logged => testActor ! a
       case a: LobbyJoined => testActor ! a
+      case a: LobbyUpdate => testActor ! a
       case msg => userManager ! msg
     }
   }
