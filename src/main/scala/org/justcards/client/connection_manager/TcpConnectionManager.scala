@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorRef, Props, Stash}
 import akka.io.{IO, Tcp}
 import akka.io.Tcp.{Connect, Connected, Received, Register}
-import org.justcards.commons.{AppMessage, LogIn}
+import org.justcards.commons.{AppMessage, LogIn, RetrieveAvailableGames}
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
 import org.justcards.commons.AppMessage._
 
@@ -33,7 +33,7 @@ object TcpConnectionManager {
     }
 
     private def ready(server: ActorRef): Receive = {
-      case LogIn(username) => server ==> LogIn(username)
+      case m: AppMessage => server ==> m
       case Outer(m: AppMessage) => appController ! m
       case _ =>
     }

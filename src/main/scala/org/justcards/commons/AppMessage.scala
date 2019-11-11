@@ -86,6 +86,9 @@ object AppMessage {
    * it will raise an exception due to the confusion between the class specific
    * element and the trait one.
    */
+  private[this] implicit val gameIdFormat: OFormat[GameId] = Json.format[GameId]
+  private[this] implicit val userIdFormat: OFormat[UserId] = Json.format[UserId]
+  private[this] implicit val lobbyIdFormat: OFormat[LobbyId] = Json.format[LobbyId]
   private[this] implicit val loginFormat: OFormat[LogIn] = Json.format[LogIn]
   private[this] implicit val loggedFormat: OFormat[Logged] = Json.format[Logged]
   private[this] implicit val retrAvailGamesFormat: OFormat[RetrieveAvailableGames] = Json.format[RetrieveAvailableGames]
@@ -97,9 +100,6 @@ object AppMessage {
   private[this] implicit val lobbyUpdateFormat: OFormat[LobbyUpdate] = Json.format[LobbyUpdate]
   private[this] implicit val gameStartedFormat: OFormat[GameStarted] = Json.format[GameStarted]
   private[this] implicit val errorOccurredFormat: OFormat[ErrorOccurred] = Json.format[ErrorOccurred]
-  private[this] implicit val gameIdFormat: OFormat[GameId] = Json.format[GameId]
-  private[this] implicit val userIdFormat: OFormat[UserId] = Json.format[UserId]
-  private[this] implicit val lobbyIdFormat: OFormat[LobbyId] = Json.format[LobbyId]
 
   /*
    * Implicit for the conversion of the trait
