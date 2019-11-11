@@ -3,9 +3,9 @@ package org.justcards.server.user_manager
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
-import scala.concurrent.duration._
 import org.justcards.commons.{LobbyJoined, _}
 import org.justcards.server.knowledge_engine.KnowledgeEngine
+import org.justcards.server.user_manager.UserManagerMessage.LogOutAndExitFromLobby
 
 class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) with ImplicitSender with WordSpecLike
   with Matchers with BeforeAndAfterAll with BeforeAndAfter {
@@ -135,6 +135,24 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         userManager ! RetrieveAvailableLobbies()
         val tuple = lobbyInfo.lobby -> Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME))
         expectMsg(AvailableLobbies(Set(tuple)))
+      }
+
+      "exit a user from a lobby if it logs out" in {
+        doLogIn(userManager, TEST_USERNAME)
+        val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
+        val lobbyInfo = createLobby(userManager)
+        joiner ! JoinLobby(lobbyInfo.lobby)
+        receiveN(2)
+        userManager ! LogOutAndExitFromLobby(TEST_USERNAME, lobbyInfo.lobby)
+        expectMsg(LobbyUpdate(lobbyInfo.lobby, Set(UserId(1, JOINER_USERNAME))))
+      }
+
+      "delete a lobby if it remains empty" in {
+        doLogIn(userManager, TEST_USERNAME)
+        val lobbyInfo = createLobby(userManager)
+        userManager ! LogOutAndExitFromLobby(TEST_USERNAME, lobbyInfo.lobby)
+        doLogIn(userManager, TEST_USERNAME)
+        expectNoLobby(userManager)
       }
 
     }

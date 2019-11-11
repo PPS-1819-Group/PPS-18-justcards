@@ -7,48 +7,72 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import org.justcards.commons._
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
-import org.justcards.server.user_manager.UserManagerMessage.{GetLobbies, UserCreateLobby, UserInfo, UserJoinLobby}
+import org.justcards.server.user_manager.UserManagerMessage._
 
 private[user_manager] class LobbyManager(knowledgeEngine: ActorRef) extends Actor {
+
+  type LobbyDatabase = Map[Long, Lobby]
 
   import LobbyManager._
 
   override def receive: Receive = defaultBehaviour()
 
-  private def defaultBehaviour(lobbies: Map[Long, Lobby] = Map()): Receive = {
+  private def defaultBehaviour(lobbies: LobbyDatabase = Map()): Receive = {
     case GetLobbies(sender) =>
       val availableLobbies = lobbies.filter(!_._2.isFull).map(lobbyInfo =>
         LobbyId(lobbyInfo._1) -> lobbyInfo._2.members.map(user => UserId(1,user.username))
       )
       sender ! AvailableLobbies(availableLobbies.toSet)
-    case UserCreateLobby(CreateLobby(gameId), userInfo) =>
-      import context.dispatcher
-      implicit val timeout = Timeout(3 seconds)
-      val request = knowledgeEngine ? GameExistenceRequest(gameId)
-      request filter {
-        case GameExistenceResponse(response) => response
-      } onComplete { result =>
-        if(result.isFailure) userInfo.userRef ! ErrorOccurred(GAME_NOT_EXISTING)
+    case UserCreateLobby(CreateLobby(gameId), userInfo) => createLobby(lobbies)(gameId, userInfo)
+    case UserJoinLobby(JoinLobby(lobbyId), userInfo) => joinUserToLobby(lobbies)(lobbyId, userInfo)
+    case UserExitFromLobby(lobbyId, userInfo) => exitUserFromLobby(lobbies)(lobbyId, userInfo)
+  }
+
+  private def createLobby(lobbies: LobbyDatabase)(gameId: GameId, userInfo: UserManagerMessage.UserInfo): Unit = {
+    import context.dispatcher
+    implicit val timeout = Timeout(3 seconds)
+    val request = knowledgeEngine ? GameExistenceRequest(gameId)
+    request filter {
+      case GameExistenceResponse(response) => response
+    } onComplete { result =>
+      if(result.isFailure) userInfo.userRef ! ErrorOccurred(GAME_NOT_EXISTING)
+      else {
+        val newLobby = Lobby(System.currentTimeMillis(), userInfo, gameId)
+        userInfo.userRef ! LobbyCreated(LobbyId(newLobby.id))
+        context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
+      }
+    }
+  }
+
+  private def joinUserToLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Unit = {
+    if(!(lobbies contains lobbyId.id)) userInfo.userRef ! ErrorOccurred(LOBBY_NOT_EXISTING)
+    else {
+      val userInAnotherLobby = lobbies find (_._2.members contains userInfo)
+      if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(ALREADY_IN_A_LOBBY)
+      else {
+        val lobby = lobbies(lobbyId.id)
+        if(lobby isFull) userInfo.userRef ! ErrorOccurred(LOBBY_FULL)
         else {
-          val newLobby = Lobby(System.currentTimeMillis(), userInfo, gameId)
-          userInfo.userRef ! LobbyCreated(LobbyId(newLobby.id))
+          val newLobby = addUserToLobby(lobby, lobbyId, userInfo)
           context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
         }
       }
-    case UserJoinLobby(JoinLobby(lobbyId), userInfo) =>
-      if(!(lobbies contains lobbyId.id)) userInfo.userRef ! ErrorOccurred(LOBBY_NOT_EXISTING)
-      else {
-        val userInAnotherLobby = lobbies find (_._2.members contains userInfo)
-        if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(ALREADY_IN_A_LOBBY)
-        else {
-          val lobby = lobbies(lobbyId.id)
-          if(lobby isFull) userInfo.userRef ! ErrorOccurred(LOBBY_FULL)
-          else {
-            val newLobby = addUserToLobby(lobby, lobbyId, userInfo)
-            context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
-          }
+    }
+  }
+
+  private def exitUserFromLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Unit = {
+    if((lobbies contains lobbyId.id) && (lobbies(lobbyId.id).members contains userInfo) ) {
+      val newLobby = lobbies(lobbyId.id) - userInfo
+      if(newLobby isDefined) {
+        val newLobbyVal = newLobby.get
+        val newMembers = newLobbyVal.members map (user => UserId(1, user.username))
+        newLobbyVal.members foreach {
+          _.userRef ! LobbyUpdate(lobbyId, newMembers)
         }
-      }
+        context become defaultBehaviour(lobbies + (lobbyId.id -> newLobbyVal))
+      } else
+        context become defaultBehaviour(lobbies - lobbyId.id)
+    }
   }
 
   private def addUserToLobby(lobby: Lobby, lobbyId: LobbyId, userInfo: UserInfo): Lobby = {
@@ -112,9 +136,10 @@ sealed trait Lobby {
   /**
     * Remove a member from the lobby
     * @param member the member to remove
-    * @return a new lobby where the member is not present
+    * @return a new lobby where the member is not present if the lobby contains more than a user,
+    *         nothing otherwise
     */
-  def -(member: UserInfo): Lobby
+  def -(member: UserInfo): Option[Lobby]
 
   /**
     * Know if the lobby is full
@@ -146,7 +171,13 @@ object Lobby {
 
     override def +(member: UserInfo): Lobby = LobbyImpl(id, owner, game, members + member)
 
-    override def -(member: UserInfo): Lobby = LobbyImpl(id, owner, game, members - member)
+    override def -(member: UserInfo): Option[Lobby] = member match {
+      case `owner` if members.size == 1 => None
+      case `owner` =>
+        val members = this.members - member
+        Some(LobbyImpl(id, members.head, game, members))
+      case _ => Some(LobbyImpl(id, owner, game, members - member))
+    }
 
     override def isFull: Boolean = members.size == MAX_LOBBY_MEMBERS
   }

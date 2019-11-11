@@ -22,7 +22,10 @@ class UserManager(knowledgeEngine: ActorRef) extends Actor {
 
   override def receive: Receive = {
     case msg: LogIn => playerManager ! UserLogIn(msg, sender())
-    case msg: LogOut => playerManager ! UserLogout(msg.username, sender())
+    case LogOut(username) => playerManager ! UserLogout(username, sender())
+    case LogOutAndExitFromLobby(username, lobbyId) =>
+      playerManager ! UserLogout(username, sender())
+      lobbyManager ! UserExitFromLobby(lobbyId, UserInfo(username, sender()))
     case _: RetrieveAvailableLobbies =>
       val user = sender()
       checkLogInAnd(user) (
@@ -69,6 +72,7 @@ private[user_manager] object UserManagerMessage {
 
   case class UserLogIn(message: LogIn, user: ActorRef) extends UserManagerMessage
   case class UserLogout(username: String, user: ActorRef) extends UserManagerMessage
+  case class LogOutAndExitFromLobby(username: String, lobbyId: LobbyId) extends  UserManagerMessage
 
   case class RetrieveAllPlayers(sender: ActorRef) extends UserManagerMessage
   case class Players(players: Set[UserInfo]) extends UserManagerMessage
@@ -78,6 +82,7 @@ private[user_manager] object UserManagerMessage {
   case class GetLobbies(sender: ActorRef) extends UserManagerMessage
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
   case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
+  case class UserExitFromLobby(lobbyId: LobbyId, userInfo: UserInfo) extends UserManagerMessage
 
   case class UserInfo(username: String, userRef: ActorRef)
 

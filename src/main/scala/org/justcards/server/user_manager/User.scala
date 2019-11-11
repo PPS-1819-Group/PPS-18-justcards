@@ -7,13 +7,13 @@ import org.justcards.commons.AppMessage._
 import org.justcards.commons.actor_connection.ActorWithTcp
 import org.justcards.commons.actor_connection.Outer
 import org.justcards.server
-import org.justcards.server.user_manager.UserManagerMessage.UserLogout
+import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserLogout}
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends Actor {
 
   import User._
 
-  override def receive: Receive = behaviour(notLogged)
+  override def receive: Receive = completeBehaviour(notLogged)
 
   private def receiveMessage: Receive = {
     case Outer(msg) => userManager ! msg
@@ -23,7 +23,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(_: LogOut) =>
     case Logged(username) =>
       userRef ==> Logged(username)
-      context become behaviour(logged(username), username)
+      context become completeBehaviour(logged(username), username)
     case msg: ErrorOccurred => userRef ==> msg
   }
 
@@ -33,15 +33,28 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
       userManager ! LogOut(username)
       context stop self
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(WRONG_USERNAME)
+    case LobbyJoined(lobby, members) =>
+      userRef ==> LobbyJoined(lobby, members)
+      context become completeBehaviour(
+        inLobby(username, lobby) orElse logged(username),
+        username
+      )
     case message: AppMessage => userRef ==> message
+  }
+
+  private def inLobby(username: String, lobby: LobbyId): Receive = {
+    case Outer(LogOut(`username`)) =>
+      userManager ! LogOutAndExitFromLobby(username, lobby)
+      context stop self
+    case LobbyJoined(_,_) =>
   }
 
   protected def errorBehaviour(username: String): Receive = {
     case msg => server.log("User -> " + username + " | unhandled message | " + msg)
   }
 
-  private def behaviour(currentBehaviour: Receive, username: String = ""): Receive =
-    currentBehaviour orElse receiveMessage orElse errorBehaviour(username)
+  private def completeBehaviour(behaviour: Receive, username: String = ""): Receive =
+    behaviour orElse receiveMessage orElse errorBehaviour(username)
 
 }
 
