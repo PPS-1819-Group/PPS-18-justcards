@@ -41,16 +41,20 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef) extends Acto
         val userInAnotherLobby = lobbies find (_._2.members contains userInfo)
         if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(ALREADY_IN_A_LOBBY)
         else {
-          val newLobby = lobbies(lobbyId.id) + userInfo
-          val newMembers = newLobby.members map (user => UserId(1, user.username))
-          userInfo.userRef ! LobbyJoined(lobbyId, newMembers)
-          newLobby.members filter (_ != userInfo) foreach {
-            _.userRef ! LobbyUpdate(lobbyId, newMembers)
-          }
+          val newLobby = addUserToLobby(lobbies(lobbyId.id), lobbyId, userInfo)
           context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
         }
       }
+  }
 
+  private def addUserToLobby(lobby: Lobby, lobbyId: LobbyId, userInfo: UserInfo): Lobby = {
+    val newLobby =  lobby + userInfo
+    val newMembers = newLobby.members map (user => UserId(1, user.username))
+    userInfo.userRef ! LobbyJoined(lobbyId, newMembers)
+    newLobby.members filter (_ != userInfo) foreach {
+      _.userRef ! LobbyUpdate(lobbyId, newMembers)
+    }
+    newLobby
   }
 
 
@@ -121,8 +125,7 @@ object Lobby {
 
   private[this] case class LobbyImpl(id: Long, owner: UserInfo, private val game: GameId,
                                      members: Set[UserInfo]) extends Lobby {
-
-
+    
     override def -->(newOwner: UserInfo): Lobby = LobbyImpl(id, newOwner, game, members)
 
     override def +(member: UserInfo): Lobby = LobbyImpl(id, owner, game, members + member)
