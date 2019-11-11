@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.commons.{LobbyJoined, _}
-import org.justcards.server.knowledge_engine.KnowledgeEngine
+import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
 import org.justcards.server.user_manager.UserManagerMessage.LogOutAndExitFromLobby
 
 class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) with ImplicitSender with WordSpecLike
@@ -12,15 +12,20 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
 
   import UserManagerLobbyTest._
 
-  private val knowledgeEngine = system.actorOf(KnowledgeEngine())
+  private val knowledgeEngine = system.actorOf(createKnowledgeEngine(_ => true))
   private var userManager: ActorRef = _
+  private var tempActors: Set[ActorRef] = Set()
 
   before {
     userManager = system.actorOf(UserManager(knowledgeEngine))
+    tempActors = tempActors + userManager
   }
 
   after {
-    userManager ! PoisonPill
+    tempActors foreach {
+      _ ! PoisonPill
+    }
+    tempActors = tempActors.empty
   }
 
   override def afterAll: Unit = {
@@ -51,6 +56,16 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         expectMsgType[ErrorOccurred]
       }
 
+      "not allow to create a lobby if the game doesn't exist" in {
+        val knowledgeEngineWithNoGames = system.actorOf(createKnowledgeEngine(_ => false))
+        val myUserManager = system.actorOf(UserManager(knowledgeEngineWithNoGames))
+        this.tempActors = this.tempActors ++ Set(knowledgeEngineWithNoGames, myUserManager)
+
+        doLogIn(myUserManager, TEST_USERNAME)
+        myUserManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
+        expectMsgType[ErrorOccurred]
+      }
+
       "allow to see the available lobbies" in {
         doLogIn(userManager, TEST_USERNAME)
         val msg = createLobby(userManager)
@@ -58,6 +73,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
       }
 
       "not allow to see the available lobbies if not logged" in {
+        doLogIn(userManager, TEST_USERNAME)
         createLobby(userManager)
         userManager ! LogOut(TEST_USERNAME)
         userManager ! RetrieveAvailableLobbies()
@@ -73,6 +89,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
 
       "allow to join a lobby" in {
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
+        this.tempActors = this.tempActors + joiner
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
@@ -84,6 +101,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
       "inform all the members of a lobby when a new user joins" in {
         val joiner1 = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         val joiner2 = createJoinerAndLogIn(userManager, JOINER_USERNAME + "2")
+        this.tempActors = this.tempActors ++ Set(joiner1,joiner2)
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         joiner1 ! JoinLobby(lobbyInfo.lobby)
@@ -110,8 +128,8 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
 
       "not allow to join a lobby if the user is already in another lobby" in {
         doLogIn(userManager, TEST_USERNAME)
-        createLobby(userManager)
-        userManager ! JoinLobby(LobbyId(1))
+        val lobbyId = createLobby(userManager)
+        userManager ! JoinLobby(lobbyId.lobby)
         expectMsgType[ErrorOccurred]
       }
 
@@ -119,15 +137,17 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         /* create lobby and let enter n-1 people */
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
-        fillLobby(lobbyInfo.lobby)
+        this.tempActors = this.tempActors ++ fillLobby(lobbyInfo.lobby)
         /* now the lobby is full */
         val lastJoiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + "-illegal")
+        this.tempActors = this.tempActors + lastJoiner
         lastJoiner ! JoinLobby(lobbyInfo.lobby)
         expectMsgType[ErrorOccurred]
       }
 
       "return all the current members of a lobby" in {
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
+        this.tempActors = this.tempActors + joiner
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
@@ -140,6 +160,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
       "exit a user from a lobby if it logs out" in {
         doLogIn(userManager, TEST_USERNAME)
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
+        this.tempActors = this.tempActors + joiner
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
         receiveN(2)
@@ -172,7 +193,6 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
   }
 
   private def createLobby(userManager: ActorRef): LobbyCreated = {
-    doLogIn(userManager, TEST_USERNAME)
     userManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
     receiveN(1).map(_.asInstanceOf[LobbyCreated]).head
   }
@@ -208,6 +228,9 @@ object UserManagerLobbyTest {
   def createActor(testActor: ActorRef, userManager: ActorRef): Props =
     Props(classOf[SimpleActor], testActor: ActorRef, userManager)
 
+  def createKnowledgeEngine(operation: GameExistenceRequest => Boolean): Props =
+    Props(classOf[KnowledgeEngineStub], operation)
+
   private[this] class SimpleActor(testActor: ActorRef, userManager: ActorRef) extends Actor {
     override def receive: Receive = {
       case a: Logged => testActor ! a
@@ -215,6 +238,12 @@ object UserManagerLobbyTest {
       case a: LobbyUpdate => testActor ! a
       case a: ErrorOccurred => testActor ! a
       case msg => userManager ! msg
+    }
+  }
+
+  private[this] class KnowledgeEngineStub(acceptMessage: GameExistenceRequest => Boolean) extends Actor {
+    override def receive: Receive = {
+      case msg: GameExistenceRequest => sender() ! GameExistenceResponse(acceptMessage(msg))
     }
   }
 
