@@ -157,7 +157,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         expectMsg(AvailableLobbies(Set(tuple)))
       }
 
-      "exit a user from a lobby if it logs out" in {
+      "remove a user from a lobby if it logs out" in {
         doLogIn(userManager, TEST_USERNAME)
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         this.tempActors = this.tempActors + joiner

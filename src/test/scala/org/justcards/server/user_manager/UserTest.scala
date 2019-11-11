@@ -62,7 +62,7 @@ class UserTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSender wit
         msgReceived should not be Replicate(LogOut(FAKE_USERNAME))
       }
 
-      "not allow to log in another time" in {
+      "not allow to log in twice" in {
         val user = system.actorOf(User(testActor, userManagerStub))
         user ! Logged(TEST_USERNAME)
         receiveN(1)
