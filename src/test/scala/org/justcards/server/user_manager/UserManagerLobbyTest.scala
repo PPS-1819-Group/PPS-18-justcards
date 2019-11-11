@@ -2,8 +2,8 @@ package org.justcards.server.user_manager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
-
 import akka.testkit.{ImplicitSender, TestKit}
+import scala.concurrent.duration._
 import org.justcards.commons.{LobbyJoined, _}
 import org.justcards.server.knowledge_engine.KnowledgeEngine
 
@@ -64,6 +64,13 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         expectMsgType[ErrorOccurred]
       }
 
+      "not allow to see a lobby if it's full" in {
+        doLogIn(userManager, TEST_USERNAME)
+        val lobbyInfo = createLobby(userManager)
+        fillLobby(lobbyInfo.lobby)
+        expectNoLobby(userManager)
+      }
+
       "allow to join a lobby" in {
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         doLogIn(userManager, TEST_USERNAME)
@@ -108,6 +115,17 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         expectMsgType[ErrorOccurred]
       }
 
+      "not allow to join a lobby if it reached maximum capacity" in {
+        /* create lobby and let enter n-1 people */
+        doLogIn(userManager, TEST_USERNAME)
+        val lobbyInfo = createLobby(userManager)
+        fillLobby(lobbyInfo.lobby)
+        /* now the lobby is full */
+        val lastJoiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + "-illegal")
+        lastJoiner ! JoinLobby(lobbyInfo.lobby)
+        expectMsgType[ErrorOccurred]
+      }
+
       "return all the current members of a lobby" in {
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         doLogIn(userManager, TEST_USERNAME)
@@ -141,6 +159,15 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
     receiveN(1).map(_.asInstanceOf[LobbyCreated]).head
   }
 
+  private def fillLobby(lobbyInfo: LobbyId): Seq[ActorRef] = {
+    for(
+      n <- 0 until Lobby.MAX_LOBBY_MEMBERS - 1;
+      joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + n);
+      _ = joiner ! JoinLobby(lobbyInfo);
+      _ = receiveN(n + 2)
+    ) yield joiner
+  }
+
   private def expectLobbies(userManager: ActorRef, lobbies: (LobbyId, Set[UserId])*): Unit = {
     expectLobbies(userManager, lobbies.toSet)
   }
@@ -168,6 +195,7 @@ object UserManagerLobbyTest {
       case a: Logged => testActor ! a
       case a: LobbyJoined => testActor ! a
       case a: LobbyUpdate => testActor ! a
+      case a: ErrorOccurred => testActor ! a
       case msg => userManager ! msg
     }
   }

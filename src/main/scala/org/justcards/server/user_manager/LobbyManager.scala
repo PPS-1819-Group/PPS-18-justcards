@@ -17,7 +17,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef) extends Acto
 
   private def defaultBehaviour(lobbies: Map[Long, Lobby] = Map()): Receive = {
     case GetLobbies(sender) =>
-      val availableLobbies = lobbies.map(lobbyInfo =>
+      val availableLobbies = lobbies.filter(!_._2.isFull).map(lobbyInfo =>
         LobbyId(lobbyInfo._1) -> lobbyInfo._2.members.map(user => UserId(1,user.username))
       )
       sender ! AvailableLobbies(availableLobbies.toSet)
@@ -41,8 +41,12 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef) extends Acto
         val userInAnotherLobby = lobbies find (_._2.members contains userInfo)
         if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(ALREADY_IN_A_LOBBY)
         else {
-          val newLobby = addUserToLobby(lobbies(lobbyId.id), lobbyId, userInfo)
-          context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
+          val lobby = lobbies(lobbyId.id)
+          if(lobby isFull) userInfo.userRef ! ErrorOccurred(LOBBY_FULL)
+          else {
+            val newLobby = addUserToLobby(lobby, lobbyId, userInfo)
+            context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
+          }
         }
       }
   }
@@ -66,6 +70,7 @@ private[user_manager] object LobbyManager {
   private val GAME_NOT_EXISTING = "The game doesn't exist!"
   private val LOBBY_NOT_EXISTING = "The lobby doesn't exist!"
   private val ALREADY_IN_A_LOBBY = "You're already a member of another lobby!"
+  private val LOBBY_FULL = "The lobby you're trying to join is full, you can't enter!"
 }
 
 /**
@@ -110,6 +115,12 @@ sealed trait Lobby {
     * @return a new lobby where the member is not present
     */
   def -(member: UserInfo): Lobby
+
+  /**
+    * Know if the lobby is full
+    * @return if the lobby is full
+    */
+  def isFull: Boolean
 }
 
 object Lobby {
@@ -123,14 +134,21 @@ object Lobby {
     */
   def apply(id: Long, owner: UserInfo, game: GameId): Lobby = LobbyImpl(id, owner, game, Set(owner))
 
+  /**
+    * Maximum capacity of a lobby
+    */
+  val MAX_LOBBY_MEMBERS: Int = 4
+
   private[this] case class LobbyImpl(id: Long, owner: UserInfo, private val game: GameId,
                                      members: Set[UserInfo]) extends Lobby {
-    
+
     override def -->(newOwner: UserInfo): Lobby = LobbyImpl(id, newOwner, game, members)
 
     override def +(member: UserInfo): Lobby = LobbyImpl(id, owner, game, members + member)
 
     override def -(member: UserInfo): Lobby = LobbyImpl(id, owner, game, members - member)
+
+    override def isFull: Boolean = members.size == MAX_LOBBY_MEMBERS
   }
 
 
