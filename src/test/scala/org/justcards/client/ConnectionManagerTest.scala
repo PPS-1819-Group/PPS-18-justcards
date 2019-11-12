@@ -75,6 +75,10 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
       receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(LobbyJoined(Utils.lobby,Set(Utils.user)))
     }
 
+    "send an LobbyUpdate message to the application controller when received from the server" in {
+      receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(LobbyUpdate(Utils.lobby,Set(Utils.user)))
+    }
+
   }
 
   private def receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(message: AppMessage): Unit = {
