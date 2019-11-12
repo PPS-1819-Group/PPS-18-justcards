@@ -91,10 +91,3 @@ case class LobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends AppMessage
   * Message to indicate that a game is started.
   */
 case class GameStarted(options: String = "") extends AppMessage
-
-object AppMessage {
-
-
-
-
-}

@@ -9,7 +9,6 @@ import org.justcards.client.controller.AppController
 import org.justcards.client.view.{View, ViewFactory}
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
 import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, ErrorOccurred, GameId, LobbyCreated, LobbyId, LobbyJoined, LobbyUpdate, Logged, UserId}
-import org.justcards.commons.AppMessage._
 
 object Utils {
   val serverHost = "localhost"
@@ -100,6 +99,7 @@ object Server {
 
 trait SenderServer {
   def send(msg: AppMessage): Unit
+  def kill(): Unit
 }
 
 object SimpleConnectionHandler {
@@ -117,6 +117,8 @@ object SimpleConnectionHandler {
     }
 
     override def send(msg: AppMessage): Unit = connection ==> msg
+
+    override def kill(): Unit = context stop self
 
   }
 

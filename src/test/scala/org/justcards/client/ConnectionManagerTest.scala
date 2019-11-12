@@ -4,14 +4,18 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
+import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
 import org.justcards.client.connection_manager.TcpConnectionManager
+import org.justcards.commons.AppError._
 import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, CreateLobby, ErrorOccurred, GameId, JoinLobby, LobbyCreated, LobbyJoined, LobbyUpdate, LogIn, Logged, RetrieveAvailableGames, RetrieveAvailableLobbies, UserId}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import scala.concurrent.duration._
 
 class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest")) with ImplicitSender with WordSpecLike
   with Matchers with BeforeAndAfterAll {
 
-  private val simpleServerAddress = new InetSocketAddress(Utils.serverHost,6789)
+  private val simpleServerAddress = new InetSocketAddress(Utils.serverHost,6701)
+  private val unreachableServerAddress = new InetSocketAddress(Utils.serverHost,6702)
   private var serverSystem: ActorSystem = _
   private var connectionManager: ActorRef = _
   private var server: SenderServer = _
@@ -79,6 +83,23 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
       receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(LobbyUpdate(Utils.lobby,Set(Utils.user)))
     }
 
+    "inform the application controller that the connection to the server cannot be established" in {
+      val appController = system.actorOf(TestAppController(testActor))
+      val connectionManager = system.actorOf(TcpConnectionManager(unreachableServerAddress)(appController))
+      connectionManager ! InitializeConnection
+      expectMsg(ErrorOccurred(CANNOT_CONNECT))
+    }
+
+    "inform the application controller that the connection was lost" in {
+      val appController = system.actorOf(TestAppController(testActor))
+      serverSystem.actorOf(Server(unreachableServerAddress, SimpleConnectionHandler(testActor, hasToSendRef = true)))
+      val connectionManager = system.actorOf(TcpConnectionManager(unreachableServerAddress)(appController))
+      connectionManager ! InitializeConnection
+      val server = Utils.getRef[SenderServer](receiveN)
+      server kill()
+      expectMsg(ErrorOccurred(CONNECTION_LOST))
+    }
+
   }
 
   private def receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(message: AppMessage): Unit = {
@@ -94,6 +115,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
   private def initAndGetComponents(serverAddress: InetSocketAddress): (ActorRef, SenderServer) = {
     val appController = system.actorOf(TestAppController(testActor))
     val connectionManager = system.actorOf(TcpConnectionManager(serverAddress)(appController))
+    connectionManager ! InitializeConnection
     (connectionManager, Utils.getRef[SenderServer](receiveN))
   }
 }

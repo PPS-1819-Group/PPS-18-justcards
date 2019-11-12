@@ -1,7 +1,8 @@
 package org.justcards.client.controller
 
-import akka.actor.{Actor, Props, Stash}
+import akka.actor.{Actor, Props}
 import org.justcards.client.connection_manager.ConnectionManager
+import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
 import org.justcards.client.view.{View, ViewFactory}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
@@ -27,6 +28,7 @@ object AppController {
 
     private val connectionManagerActor = context.actorOf(connectionManager(self))
     private val view: View = viewFactory(this)
+    connectionManagerActor ! InitializeConnection
 
     override def receive: Receive = default
 
@@ -92,7 +94,12 @@ object AppController {
     }
 
     private def default: Receive = {
-      case ErrorOccurred(message) => view error message
+      case ErrorOccurred(message) => message match {
+        case CONNECTION_LOST =>
+          view error message
+          connectionManagerActor ! InitializeConnection
+        case _ => view error message
+      }
       case _ =>
     }
 
