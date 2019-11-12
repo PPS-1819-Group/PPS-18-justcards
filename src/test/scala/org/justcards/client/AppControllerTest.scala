@@ -13,10 +13,7 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
     TestKit.shutdownActorSystem(system)
   }
 
-  private val username = "username"
-  private val game = GameId(1,"my-game")
-  private val lobby = LobbyId(1)
-  private val errorMessage = "error"
+  import Utils._
 
   "When a user wants to log in the application controller" should {
 
@@ -55,7 +52,7 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
       createLobby
     }
 
-    "inform the user of the creation of a lobby when notified of its creation" in {
+    "inform the user that he created a lobby when notified" in {
       val (_,appController) = createLobby
       val msg = LobbyCreated(lobby)
       appController ! msg
@@ -71,9 +68,42 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
 
   }
 
+  "During the joining of a lobby the application manager" should {
+
+    "send a message to the connection manager to get the available lobbies" in {
+      retrieveAvailableLobbies
+    }
+
+    "inform the user about the available lobbies when received" in {
+      val (_,appController) = retrieveAvailableLobbies
+      val msg = AvailableLobbies(Set(lobby))
+      appController ! msg
+      expectMsg(msg)
+    }
+
+    "send a message to the connection manager to join a lobby, when the user ask for it" in {
+      joinLobby
+    }
+
+    "inform the user that he joined a lobby when notified" in {
+      val (_,appController) = joinLobby
+      val msg = LobbyJoined(lobby, Set(user))
+      appController ! msg
+      expectMsg(msg)
+    }
+
+    "inform the user if an error occurred" in {
+      val error = ErrorOccurred(errorMessage)
+      val (_,appController) = retrieveAvailableLobbies
+      appController ! error
+      expectMsg(error)
+    }
+
+  }
+
   private def initAndGetComponents:(UserCommandHandler, ActorRef) = {
     val appController = system.actorOf(AppController(ReSendConnectionManager(testActor),TestView(testActor, hasToSendRef = true)))
-    val userCommandHandler = Utils.getRef[UserCommandHandler](receiveN)
+    val userCommandHandler = getRef[UserCommandHandler](receiveN)
     (userCommandHandler, appController)
   }
 
@@ -95,6 +125,20 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
     val (userCommandHandler,appController) = retrieveAvailableGames
     userCommandHandler createLobby game
     expectMsg(CreateLobby(game))
+    (userCommandHandler,appController)
+  }
+
+  private def retrieveAvailableLobbies:(UserCommandHandler, ActorRef) = {
+    val (userCommandHandler,appController) = login
+    userCommandHandler menuSelection MenuSelection.joinLobby
+    expectMsgType[RetrieveAvailableLobbies]
+    (userCommandHandler,appController)
+  }
+
+  private def joinLobby: (UserCommandHandler, ActorRef) = {
+    val (userCommandHandler,appController) = retrieveAvailableLobbies
+    userCommandHandler joinLobby Utils.lobby
+    expectMsg(JoinLobby(lobby))
     (userCommandHandler,appController)
   }
 }

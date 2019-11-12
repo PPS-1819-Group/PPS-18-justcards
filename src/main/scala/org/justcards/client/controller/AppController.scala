@@ -10,10 +10,12 @@ trait AppController {
   def login(username: String): Unit
   def menuSelection(choice: String): Unit
   def createLobby(game: GameId): Unit
+  def joinLobby(lobby: LobbyId): Unit
 }
 
 object MenuSelection {
   val createLobby = "create-lobby"
+  val joinLobby = "join-lobby"
 }
 
 object AppController {
@@ -38,6 +40,9 @@ object AppController {
         case MenuSelection.createLobby =>
           changeContext(waitForAvailableGames)
           connectionManagerActor ! RetrieveAvailableGames()
+        case MenuSelection.joinLobby =>
+          changeContext(waitForAvailableLobbies)
+          connectionManagerActor ! RetrieveAvailableLobbies()
         case _ => view error SELECTION_NOT_AVAILABLE
       }
     }
@@ -45,6 +50,11 @@ object AppController {
     override def createLobby(game: GameId): Unit = {
       changeContext(waitForLobbyCreation)
       connectionManagerActor ! CreateLobby(game)
+    }
+
+    override def joinLobby(lobby: LobbyId): Unit = {
+      changeContext(waitForLobbyJoin)
+      connectionManagerActor ! JoinLobby(lobby)
     }
 
     private def waitToBeLogged: Receive = {
@@ -63,6 +73,18 @@ object AppController {
       case LobbyCreated(lobby) =>
         changeContext(inLobby)
         view lobbyCreated lobby
+    }
+
+    private def waitForAvailableLobbies: Receive = {
+      case AvailableLobbies(lobbies) =>
+        context become default
+        view showLobbyJoin lobbies
+    }
+
+    private def waitForLobbyJoin: Receive = {
+      case LobbyJoined(lobby, members) =>
+        changeContext(inLobby)
+        view lobbyJoined (lobby,members)
     }
 
     private def inLobby: Receive = {

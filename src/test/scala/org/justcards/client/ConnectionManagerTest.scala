@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.client.connection_manager.TcpConnectionManager
-import org.justcards.commons.{AppMessage, AvailableGames, CreateLobby, ErrorOccurred, GameId, LobbyCreated, LobbyUpdate, LogIn, Logged, RetrieveAvailableGames, UserId}
+import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, CreateLobby, ErrorOccurred, GameId, JoinLobby, LobbyCreated, LobbyJoined, LobbyUpdate, LogIn, Logged, RetrieveAvailableGames, RetrieveAvailableLobbies, UserId}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest")) with ImplicitSender with WordSpecLike
@@ -57,6 +57,22 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
 
     "send an LobbyCreated message to the application controller when received from the server" in {
       receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(LobbyCreated(Utils.lobby))
+    }
+
+    "send a RetrieveAvailableLobbies message to the server correctly when received from the application controller" in {
+      sendMessageToConnectionManagerAndCheckIfItIsCorrectlyRedirectedToTheServer(RetrieveAvailableLobbies())
+    }
+
+    "send an AvailableLobbies message to the application controller when received from the server" in {
+      receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(AvailableLobbies(Set(Utils.lobby)))
+    }
+
+    "send a JoinLobby message to the server correctly when received from the application controller" in {
+      sendMessageToConnectionManagerAndCheckIfItIsCorrectlyRedirectedToTheServer(JoinLobby(Utils.lobby))
+    }
+
+    "send an LobbyJoined message to the application controller when received from the server" in {
+      receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(LobbyJoined(Utils.lobby,Set(Utils.user)))
     }
 
   }

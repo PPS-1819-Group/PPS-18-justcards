@@ -8,7 +8,7 @@ import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.controller.AppController
 import org.justcards.client.view.{View, ViewFactory}
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
-import org.justcards.commons.{AppMessage, AvailableGames, ErrorOccurred, GameId, LobbyCreated, LobbyId, Logged}
+import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, ErrorOccurred, GameId, LobbyCreated, LobbyId, LobbyJoined, Logged, UserId}
 import org.justcards.commons.AppMessage._
 
 object Utils {
@@ -16,6 +16,7 @@ object Utils {
   val username = "username"
   val game = GameId(1,"my-game")
   val lobby = LobbyId(1)
+  val user = UserId(1,username)
   val errorMessage = "error"
 
   def getRef[X](receiveN: Int => Seq[AnyRef]): X = {
@@ -37,6 +38,7 @@ trait UserCommandHandler {
   def login(username: String): Unit
   def menuSelection(choice: String): Unit
   def createLobby(game: GameId): Unit
+  def joinLobby(lobby: LobbyId): Unit
 }
 
 object TestView {
@@ -53,13 +55,21 @@ object TestView {
 
     override def showLobbyCreation(games: Set[GameId]): Unit = testActor ! AvailableGames(games)
 
+    override def showLobbyJoin(lobbies: Set[LobbyId]): Unit = testActor ! AvailableLobbies(lobbies)
+
     override def lobbyCreated(lobby: LobbyId): Unit = testActor ! LobbyCreated(lobby)
+
+    override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = testActor ! LobbyJoined(lobby, members)
+
+
 
     override def login(username: String): Unit = appController login username
 
     override def menuSelection(choice: String): Unit = appController menuSelection choice
 
     override def createLobby(game: GameId): Unit = appController createLobby game
+
+    override def joinLobby(lobby: LobbyId): Unit = appController joinLobby lobby
   }
 }
 
