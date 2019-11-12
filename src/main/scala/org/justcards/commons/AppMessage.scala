@@ -23,14 +23,20 @@ case class ErrorOccurred(message: String) extends AppMessage
 case class LogIn(username: String) extends AppMessage
 
 /**
+  * Message to log out of the system.
+  * @param username user's username
+  */
+case class LogOut(username: String) extends AppMessage
+
+/**
   * Message to indicate that the login is successful.
   */
-case class Logged() extends AppMessage
+case class Logged(username: String = "") extends AppMessage
 
 /**
   * Message to request to the server all the available games.
   */
-case class RetrieveAvailableGames() extends AppMessage
+case class RetrieveAvailableGames(message: String = "") extends AppMessage
 
 /**
   * Message that contains all the available games.
@@ -49,6 +55,17 @@ case class CreateLobby(game: GameId) extends AppMessage
   * @param lobby the current lobby information
   */
 case class LobbyCreated(lobby: LobbyId) extends AppMessage
+
+/**
+  * Message to ask which are the available lobbies.
+  */
+case class RetrieveAvailableLobbies(message: String = "") extends AppMessage
+
+/**
+  * Message that contains all the available lobbies
+  * @param lobbies all the available lobbies
+  */
+case class AvailableLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends AppMessage
 
 /**
   * Message to use to join a lobby.
@@ -73,8 +90,7 @@ case class LobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends AppMessage
 /**
   * Message to indicate that a game is started.
   */
-case class GameStarted() extends AppMessage
-
+case class GameStarted(message: String = "") extends AppMessage
 
 object AppMessage {
 
@@ -86,12 +102,19 @@ object AppMessage {
    * it will raise an exception due to the confusion between the class specific
    * element and the trait one.
    */
+  private[this] implicit val userFormat: OFormat[UserId] = Json.format[UserId]
+  private[this] implicit val gameFormat: OFormat[GameId] = Json.format[GameId]
+  private[this] implicit val lobbyFormat: OFormat[LobbyId] = Json.format[LobbyId]
+
   private[this] implicit val loginFormat: OFormat[LogIn] = Json.format[LogIn]
+  private[this] implicit val logoutFormat: OFormat[LogOut] = Json.format[LogOut]
   private[this] implicit val loggedFormat: OFormat[Logged] = Json.format[Logged]
   private[this] implicit val retrAvailGamesFormat: OFormat[RetrieveAvailableGames] = Json.format[RetrieveAvailableGames]
   private[this] implicit val availGamesFormat: OFormat[AvailableGames] = Json.format[AvailableGames]
   private[this] implicit val createLobbyFormat: OFormat[CreateLobby] = Json.format[CreateLobby]
   private[this] implicit val lobbyCreatedFormat: OFormat[LobbyCreated] = Json.format[LobbyCreated]
+  private[this] implicit val retrAvailLobbiesFormat: OFormat[RetrieveAvailableLobbies] = Json.format[RetrieveAvailableLobbies]
+  private[this] implicit val availLobbiesFormat: OFormat[AvailableLobbies] = Json.format[AvailableLobbies]
   private[this] implicit val joinLobbyFormat: OFormat[JoinLobby] = Json.format[JoinLobby]
   private[this] implicit val lobbyJoinedFormat: OFormat[LobbyJoined] = Json.format[LobbyJoined]
   private[this] implicit val lobbyUpdateFormat: OFormat[LobbyUpdate] = Json.format[LobbyUpdate]
