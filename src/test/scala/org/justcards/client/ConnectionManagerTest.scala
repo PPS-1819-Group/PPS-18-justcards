@@ -64,7 +64,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
     }
 
     "send an AvailableLobbies message to the application controller when received from the server" in {
-      receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(AvailableLobbies(Set(Utils.lobby)))
+      receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(AvailableLobbies(Set((Utils.lobby,Set(Utils.user)))))
     }
 
     "send a JoinLobby message to the server correctly when received from the application controller" in {

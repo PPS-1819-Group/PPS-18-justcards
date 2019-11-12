@@ -55,7 +55,7 @@ object TestView {
 
     override def showLobbyCreation(games: Set[GameId]): Unit = testActor ! AvailableGames(games)
 
-    override def showLobbyJoin(lobbies: Set[LobbyId]): Unit = testActor ! AvailableLobbies(lobbies)
+    override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = testActor ! AvailableLobbies(lobbies)
 
     override def lobbyCreated(lobby: LobbyId): Unit = testActor ! LobbyCreated(lobby)
 

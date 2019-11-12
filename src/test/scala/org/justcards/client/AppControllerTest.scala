@@ -76,7 +76,7 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
 
     "inform the user about the available lobbies when received" in {
       val (_,appController) = retrieveAvailableLobbies
-      val msg = AvailableLobbies(Set(lobby))
+      val msg = AvailableLobbies(Set((lobby,Set(user))))
       appController ! msg
       expectMsg(msg)
     }

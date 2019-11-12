@@ -8,7 +8,7 @@ trait View {
   def logged(): Unit
   def showLobbyCreation(games: Set[GameId]): Unit
   def lobbyCreated(lobby: LobbyId): Unit
-  def showLobbyJoin(lobbies: Set[LobbyId]): Unit
+  def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit
   def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit
   def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit
 }
