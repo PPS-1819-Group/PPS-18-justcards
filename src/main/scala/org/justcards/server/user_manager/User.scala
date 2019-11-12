@@ -1,15 +1,13 @@
 package org.justcards.server.user_manager
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{ActorRef, Props}
 import akka.io.Tcp._
 import org.justcards.commons._
-import org.justcards.commons.AppMessage._
-import org.justcards.commons.actor_connection.ActorWithTcp
-import org.justcards.commons.actor_connection.Outer
+import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
 import org.justcards.server
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserLogout}
 
-abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends Actor {
+abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection {
 
   import User._
 
@@ -23,7 +21,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(_: LogOut) =>
     case Logged(username) =>
       userRef ==> Logged(username)
-      context become completeBehaviour(logged(username), username)
+      this become completeBehaviour(logged(username), username)
     case msg: ErrorOccurred => userRef ==> msg
   }
 
@@ -35,7 +33,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(WRONG_USERNAME)
     case LobbyJoined(lobby, members) =>
       userRef ==> LobbyJoined(lobby, members)
-      context become completeBehaviour(
+      this become completeBehaviour(
         inLobby(username, lobby) orElse logged(username),
         username
       )
@@ -69,6 +67,8 @@ object User {
 
   private[this] class UserActorWithTcp(private val userRef: ActorRef, private val userManager: ActorRef)
     extends BasicUserActor(userRef, userManager) with ActorWithTcp {
+
+    import org.justcards.commons.actor_connection.ActorWithTcp._
 
     override def errorBehaviour(username: String): Receive = {
       case CommandFailed(w: Write) =>
