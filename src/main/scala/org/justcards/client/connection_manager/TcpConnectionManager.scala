@@ -7,7 +7,6 @@ import akka.io.{IO, Tcp}
 import akka.io.Tcp.{Connect, Connected, Received, Register}
 import org.justcards.commons.{AppMessage, LogIn, RetrieveAvailableGames}
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
-import org.justcards.commons.AppMessage._
 
 object TcpConnectionManager {
 
