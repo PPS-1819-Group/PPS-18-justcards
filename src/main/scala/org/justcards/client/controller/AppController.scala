@@ -3,20 +3,15 @@ package org.justcards.client.controller
 import akka.actor.{Actor, Props}
 import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
-import org.justcards.client.view.{View, ViewFactory}
+import org.justcards.client.view.{MenuChoice, View, ViewFactory}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 
 trait AppController {
   def login(username: String): Unit
-  def menuSelection(choice: String): Unit
+  def menuSelection(choice: MenuChoice.Value): Unit
   def createLobby(game: GameId): Unit
   def joinLobby(lobby: LobbyId): Unit
-}
-
-object MenuSelection {
-  val createLobby = "create-lobby"
-  val joinLobby = "join-lobby"
 }
 
 object AppController {
@@ -37,12 +32,12 @@ object AppController {
       connectionManagerActor ! LogIn(username)
     }
 
-    override def menuSelection(choice: String): Unit = {
+    override def menuSelection(choice: MenuChoice.Value): Unit = {
       choice match {
-        case MenuSelection.createLobby =>
+        case MenuChoice.createLobby =>
           changeContext(waitForAvailableGames)
           connectionManagerActor ! RetrieveAvailableGames()
-        case MenuSelection.joinLobby =>
+        case MenuChoice.joinLobby =>
           changeContext(waitForAvailableLobbies)
           connectionManagerActor ! RetrieveAvailableLobbies()
         case _ => view error SELECTION_NOT_AVAILABLE
@@ -62,7 +57,7 @@ object AppController {
     private def waitToBeLogged: Receive = {
       case Logged(_) =>
         context become default
-        view logged()
+        view showMenu()
     }
 
     private def waitForAvailableGames: Receive = {
@@ -94,12 +89,14 @@ object AppController {
     }
 
     private def default: Receive = {
-      case ErrorOccurred(message) => message match {
-        case CONNECTION_LOST =>
-          view error message
-          connectionManagerActor ! InitializeConnection
-        case _ => view error message
-      }
+      case ErrorOccurred(message) =>
+        val error = AppError.values.find(_.toString == message)
+        if (error.isDefined) error get match {
+          case AppError.CONNECTION_LOST =>
+            view error AppError.CONNECTION_LOST
+            connectionManagerActor ! InitializeConnection
+          case a => view error a
+        }
       case _ =>
     }
 

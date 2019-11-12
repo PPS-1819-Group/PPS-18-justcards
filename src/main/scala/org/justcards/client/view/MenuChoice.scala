@@ -1,4 +1,4 @@
-package org.justcards.client
+package org.justcards.client.view
 
 object MenuChoice extends Enumeration {
   val createLobby: Value = Value(1, "Create a new lobby")

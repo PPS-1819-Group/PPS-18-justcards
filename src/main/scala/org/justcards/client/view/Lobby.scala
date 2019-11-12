@@ -1,4 +1,4 @@
-package org.justcards.client
+package org.justcards.client.view
 
 import org.justcards.commons.{GameId, LobbyId}
 

@@ -1,27 +1,39 @@
-package org.justcards.client
-import org.justcards.commons.{GameId, LobbyId}
+package org.justcards.client.view
+
+import org.justcards.client.controller.AppController
+import org.justcards.commons.{AppError, GameId, LobbyId, UserId}
 
 
-case class ConsoleManagerImpl(controller: AppController) extends ConsoleManager {
-  import ConsoleManagerImpl._
+case class ConsoleManagerImpl(controller: AppController) extends View {
   import ConsoleManager._
+  import ConsoleManagerImpl._
 
 
   override def chooseNickname(): Unit = createTaskAskNickname start()
 
-  override def errorLogin(): Unit = createTaskErrorLogin start()
+  override def error(error: AppError.Value): Unit = createTaskError(error) start()
 
   override def showMenu(): Unit = createTaskMenuChoice start()
 
   override def showLobbyCreation(games: Set[GameId]): Unit = createTaskLobbyCreation(games)  start()
 
-  override def showLobbyJoining(lobbies: List[Lobby]): Unit = createTaskLobbyJoining(lobbies) start()
+  override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = createTaskLobbyJoining(lobbies) start()
 
   private def createTaskAskNickname = Task( () => controller login ask(CHOOSE_NICKNAME))
 
-  private def createTaskErrorLogin = Task( () => {
-    println(NICKNAME_ERROR)
-    controller login ask(CHOOSE_NICKNAME)
+  private def createTaskError(error: AppError.Value) = Task( () => {
+    error match {
+      case AppError.USER_ALREADY_PRESENT =>
+        println(NICKNAME_ERROR)
+        controller login ask(CHOOSE_NICKNAME)
+      case AppError.MESSAGE_SENDING_FAILED =>
+        println(LAST_MESSAGE_LOST)
+      case AppError.CANNOT_CONNECT =>
+        println(CANNOT_CONNECT)
+      case AppError.CONNECTION_LOST =>
+        println(CONNECTION_LOST)
+    }
+
   })
 
   private def createTaskMenuChoice = Task( () => {
@@ -37,12 +49,18 @@ case class ConsoleManagerImpl(controller: AppController) extends ConsoleManager 
     controller createLobby gamesList(choiceSelection(games.size) - 1)
   })
 
-  private def createTaskLobbyJoining(lobbies: List[Lobby]): Task = Task( () => {
+  private def createTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]): Task = Task( () => {
     println(LOBBY_LIST_TITLE)
-    for (index <- 1 to lobbies.size) println(index + ")" + lobbies(index-1))
-    controller joinToLobby lobbies(choiceSelection(lobbies.size) - 1)
+    val lobbiesList = lobbies.toList
+    for (index <- 1 to lobbiesList.size) println(index + ")" + lobbiesList(index-1))
+    controller joinLobby lobbiesList(choiceSelection(lobbies.size) - 1)._1
   })
 
+  override def lobbyCreated(lobby: LobbyId): Unit = ???
+
+  override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = ???
+
+  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = ???
 }
 
 object ConsoleManagerImpl {
@@ -85,11 +103,11 @@ object ConsoleManagerImpl {
 }
 
 object TestConsole extends App{
-  val console = ConsoleManagerImpl(new AppControllerImpl)
+  //val console = ConsoleManagerImpl(new AppControllerImpl)
 
   //console chooseNickname()
   //console errorLogin()
-  console showMenu()
+  //console showMenu()
   //console showLobbyCreation (Set( GameId(10, "Beccaccino"), GameId(20, "Briscola")))
   //console showLobbyJoining(List( Lobby(LobbyId(100), "prima", 1), Lobby(LobbyId(200), "seconda", 4) ))
 }
