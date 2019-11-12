@@ -6,9 +6,9 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.io.{IO, Tcp}
 import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.controller.AppController
-import org.justcards.client.view.{View, ViewFactory}
+import org.justcards.client.view.{MenuChoice, View, ViewFactory}
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
-import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, ErrorOccurred, GameId, LobbyCreated, LobbyId, LobbyJoined, LobbyUpdate, Logged, UserId}
+import org.justcards.commons.{AppError, AppMessage, AvailableGames, AvailableLobbies, ErrorOccurred, GameId, LobbyCreated, LobbyId, LobbyJoined, LobbyUpdate, Logged, UserId}
 
 object Utils {
   val serverHost = "localhost"
@@ -16,7 +16,7 @@ object Utils {
   val game = GameId(1,"my-game")
   val lobby = LobbyId(1)
   val user = UserId(1,username)
-  val errorMessage = "error"
+  val errorMessage: String = AppError.SELECTION_NOT_AVAILABLE.toString
 
   def getRef[X](receiveN: Int => Seq[AnyRef]): X = {
     receiveN(1).head.asInstanceOf[X]
@@ -35,7 +35,7 @@ object ReSendConnectionManager {
 
 trait UserCommandHandler {
   def login(username: String): Unit
-  def menuSelection(choice: String): Unit
+  def menuSelection(choice: MenuChoice.Value): Unit
   def createLobby(game: GameId): Unit
   def joinLobby(lobby: LobbyId): Unit
 }
@@ -48,9 +48,9 @@ object TestView {
 
     if (hasToSendRef) testActor ! this
 
-    override def error(message: String): Unit = testActor ! ErrorOccurred(message)
+    override def error(message: AppError.Value): Unit = testActor ! ErrorOccurred(message.toString)
 
-    override def logged(): Unit = testActor ! Logged()
+    override def showMenu(): Unit = testActor ! Logged()
 
     override def showLobbyCreation(games: Set[GameId]): Unit = testActor ! AvailableGames(games)
 
@@ -62,14 +62,15 @@ object TestView {
 
     override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = testActor ! LobbyUpdate(lobby,members)
 
-
     override def login(username: String): Unit = appController login username
 
-    override def menuSelection(choice: String): Unit = appController menuSelection choice
+    override def menuSelection(choice: MenuChoice.Value): Unit = appController menuSelection choice
 
     override def createLobby(game: GameId): Unit = appController createLobby game
 
     override def joinLobby(lobby: LobbyId): Unit = appController joinLobby lobby
+
+    override def chooseNickname(): Unit = ???
   }
 }
 

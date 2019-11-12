@@ -9,7 +9,6 @@ import org.justcards.client.connection_manager.TcpConnectionManager
 import org.justcards.commons.AppError._
 import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, CreateLobby, ErrorOccurred, GameId, JoinLobby, LobbyCreated, LobbyJoined, LobbyUpdate, LogIn, Logged, RetrieveAvailableGames, RetrieveAvailableLobbies, UserId}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import scala.concurrent.duration._
 
 class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest")) with ImplicitSender with WordSpecLike
   with Matchers with BeforeAndAfterAll {
@@ -87,7 +86,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
       val appController = system.actorOf(TestAppController(testActor))
       val connectionManager = system.actorOf(TcpConnectionManager(unreachableServerAddress)(appController))
       connectionManager ! InitializeConnection
-      expectMsg(ErrorOccurred(CANNOT_CONNECT))
+      expectMsg(ErrorOccurred(CANNOT_CONNECT.toString))
     }
 
     "inform the application controller that the connection was lost" in {
@@ -97,7 +96,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
       connectionManager ! InitializeConnection
       val server = Utils.getRef[SenderServer](receiveN)
       server kill()
-      expectMsg(ErrorOccurred(CONNECTION_LOST))
+      expectMsg(ErrorOccurred(CONNECTION_LOST.toString))
     }
 
   }

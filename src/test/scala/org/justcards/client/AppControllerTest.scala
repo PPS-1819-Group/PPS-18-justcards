@@ -4,7 +4,8 @@ import akka.actor.{ActorRef, ActorSystem}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
-import org.justcards.client.controller.{AppController, MenuSelection}
+import org.justcards.client.controller.AppController
+import org.justcards.client.view.MenuChoice
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 
@@ -129,21 +130,21 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
 
     "inform the user that the system is not available and the application won't work" in {
       val (_, appController) = initAndGetComponents
-      val msg = ErrorOccurred(CANNOT_CONNECT)
+      val msg = ErrorOccurred(CANNOT_CONNECT.toString)
       appController ! msg
       expectMsg(msg)
     }
 
     "try to reconnect to the server and inform the user that the connection was lost" in {
       val (_, appController) = initAndGetComponents
-      val msg = ErrorOccurred(CONNECTION_LOST)
+      val msg = ErrorOccurred(CONNECTION_LOST.toString)
       appController ! msg
       expectMsgAllOf(msg, InitializeConnection)
     }
 
     "inform the user if a message was not correctly delivered" in {
       val (_, appController) = initAndGetComponents
-      val msg = ErrorOccurred(MESSAGE_SENDING_FAILED)
+      val msg = ErrorOccurred(MESSAGE_SENDING_FAILED.toString)
       appController ! msg
       expectMsg(msg)
     }
@@ -166,7 +167,7 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
 
   private def retrieveAvailableGames:(UserCommandHandler, ActorRef) = {
     val (userCommandHandler,appController) = login
-    userCommandHandler menuSelection MenuSelection.createLobby
+    userCommandHandler menuSelection MenuChoice.createLobby
     expectMsgType[RetrieveAvailableGames]
     (userCommandHandler,appController)
   }
@@ -180,7 +181,7 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
 
   private def retrieveAvailableLobbies:(UserCommandHandler, ActorRef) = {
     val (userCommandHandler,appController) = login
-    userCommandHandler menuSelection MenuSelection.joinLobby
+    userCommandHandler menuSelection MenuChoice.joinLobby
     expectMsgType[RetrieveAvailableLobbies]
     (userCommandHandler,appController)
   }

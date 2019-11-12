@@ -1,10 +1,5 @@
 package org.justcards.commons
 
-import akka.actor.ActorRef
-import akka.io.Tcp.{Received, Write}
-import akka.util.ByteString
-import play.api.libs.json.{Json, OFormat}
-
 /**
   * Trait for messages that will be exchanged between application client and server.
   */

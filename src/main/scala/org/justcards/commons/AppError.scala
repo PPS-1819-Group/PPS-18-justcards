@@ -1,9 +1,9 @@
 package org.justcards.commons
 
-object AppError {
-  val USER_ALREADY_PRESENT = "#1"
-  val CONNECTION_LOST = "#2"
-  val SELECTION_NOT_AVAILABLE = "#3"
-  val CANNOT_CONNECT = "#4"
-  val MESSAGE_SENDING_FAILED = "#5"
+object AppError extends Enumeration {
+  val USER_ALREADY_PRESENT: Value  = Value("#1")
+  val CONNECTION_LOST: Value = Value("#2")
+  val SELECTION_NOT_AVAILABLE: Value = Value("#3")
+  val CANNOT_CONNECT: Value = Value("#4")
+  val MESSAGE_SENDING_FAILED: Value = Value("#5")
 }
