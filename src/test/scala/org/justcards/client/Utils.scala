@@ -8,7 +8,7 @@ import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.controller.AppController
 import org.justcards.client.view.{View, ViewFactory}
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
-import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, ErrorOccurred, GameId, LobbyCreated, LobbyId, LobbyJoined, Logged, UserId}
+import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, ErrorOccurred, GameId, LobbyCreated, LobbyId, LobbyJoined, LobbyUpdate, Logged, UserId}
 import org.justcards.commons.AppMessage._
 
 object Utils {
@@ -61,6 +61,7 @@ object TestView {
 
     override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = testActor ! LobbyJoined(lobby, members)
 
+    override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = testActor ! LobbyUpdate(lobby,members)
 
 
     override def login(username: String): Unit = appController login username

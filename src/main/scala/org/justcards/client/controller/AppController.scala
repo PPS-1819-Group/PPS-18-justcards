@@ -88,7 +88,7 @@ object AppController {
     }
 
     private def inLobby: Receive = {
-      case _ => //TODO manage a user in a lobby
+      case LobbyUpdate(lobby, members) => view lobbyUpdate (lobby,members)
     }
 
     private def default: Receive = {

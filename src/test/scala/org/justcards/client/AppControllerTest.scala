@@ -101,6 +101,28 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
 
   }
 
+  "When the user is in a lobby the application controller" should {
+
+    "inform the user if notified of a update regarding the lobby he created" in {
+      val (_,appController) = createLobby
+      appController ! LobbyCreated(lobby)
+      receiveN(1)
+      val msg = LobbyUpdate(lobby,Set(user))
+      appController ! msg
+      expectMsg(msg)
+    }
+
+    "inform the user if notified of a update regarding the lobby he joined" in {
+      val (_,appController) = joinLobby
+      appController ! LobbyJoined(lobby,Set(user))
+      receiveN(1)
+      val msg = LobbyUpdate(lobby,Set(user))
+      appController ! msg
+      expectMsg(msg)
+    }
+
+  }
+
   private def initAndGetComponents:(UserCommandHandler, ActorRef) = {
     val appController = system.actorOf(AppController(ReSendConnectionManager(testActor),TestView(testActor, hasToSendRef = true)))
     val userCommandHandler = getRef[UserCommandHandler](receiveN)

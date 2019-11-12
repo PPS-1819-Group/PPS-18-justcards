@@ -10,6 +10,7 @@ trait View {
   def lobbyCreated(lobby: LobbyId): Unit
   def showLobbyJoin(lobbies: Set[LobbyId]): Unit
   def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit
+  def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit
 }
 
 trait ViewFactory extends (AppController => View)
