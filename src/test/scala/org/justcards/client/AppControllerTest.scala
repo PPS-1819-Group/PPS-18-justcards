@@ -130,21 +130,21 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
 
     "inform the user that the system is not available and the application won't work" in {
       val (_, appController) = initAndGetComponents
-      val msg = ErrorOccurred(CANNOT_CONNECT.toString)
+      val msg = ErrorOccurred(CANNOT_CONNECT)
       appController ! msg
       expectMsg(msg)
     }
 
     "try to reconnect to the server and inform the user that the connection was lost" in {
       val (_, appController) = initAndGetComponents
-      val msg = ErrorOccurred(CONNECTION_LOST.toString)
+      val msg = ErrorOccurred(CONNECTION_LOST)
       appController ! msg
       expectMsgAllOf(msg, InitializeConnection)
     }
 
     "inform the user if a message was not correctly delivered" in {
       val (_, appController) = initAndGetComponents
-      val msg = ErrorOccurred(MESSAGE_SENDING_FAILED.toString)
+      val msg = ErrorOccurred(MESSAGE_SENDING_FAILED)
       appController ! msg
       expectMsg(msg)
     }

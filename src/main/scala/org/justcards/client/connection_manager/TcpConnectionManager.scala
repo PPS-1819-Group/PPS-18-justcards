@@ -2,12 +2,12 @@ package org.justcards.client.connection_manager
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, Props, Stash}
+import akka.actor.{ActorRef, Props, Stash}
 import akka.io.{IO, Tcp}
 import akka.io.Tcp.{CommandFailed, Connect, Connected, ConnectionClosed, Register, Write}
-import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
-import org.justcards.commons.{AppError, AppMessage, ErrorOccurred}
-import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
+import org.justcards.commons.ErrorOccurred
+import org.justcards.commons.AppError._
+import org.justcards.commons.actor_connection.ActorWithTcp
 
 object TcpConnectionManager {
 
@@ -24,7 +24,7 @@ object TcpConnectionManager {
     override protected def initializeConnection(): Unit = IO(Tcp) ! Connect(address)
 
     override protected def init: Receive = {
-      case CommandFailed(_: Connect) => appController ! ErrorOccurred(AppError.CANNOT_CONNECT.toString)
+      case CommandFailed(_: Connect) => appController ! ErrorOccurred(CANNOT_CONNECT)
       case _ @ Connected(_, _) =>
         val server = sender()
         server ! Register(self)
@@ -34,11 +34,11 @@ object TcpConnectionManager {
     }
 
     override protected def connectionErrorHandling(server: ActorRef): Receive = {
-      case CommandFailed(_: Write) => appController ! ErrorOccurred(AppError.MESSAGE_SENDING_FAILED.toString)
+      case CommandFailed(_: Write) => appController ! ErrorOccurred(MESSAGE_SENDING_FAILED)
       case _: ConnectionClosed =>
         unstashAll()
         this become init
-        appController ! ErrorOccurred(AppError.CONNECTION_LOST.toString)
+        appController ! ErrorOccurred(CONNECTION_LOST)
       case _ => stash()
     }
   }

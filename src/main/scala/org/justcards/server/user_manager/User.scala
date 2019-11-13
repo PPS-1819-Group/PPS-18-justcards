@@ -9,9 +9,9 @@ import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLo
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection {
 
-  import User._
+  import org.justcards.commons.AppError._
 
-  override def receive: Receive = completeBehaviour(notLogged)
+  override def receive: Receive = parse orElse completeBehaviour(notLogged)
 
   private def receiveMessage: Receive = {
     case Outer(msg) => userManager ! msg
@@ -26,11 +26,11 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   }
 
   private def logged(username: String): Receive = {
-    case Outer(_: LogIn) => userRef ==> ErrorOccurred(ALREADY_LOGGED_IN)
+    case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
     case Outer(LogOut(`username`)) =>
       userManager ! LogOut(username)
       context stop self
-    case Outer(_: LogOut) => userRef ==> ErrorOccurred(WRONG_USERNAME)
+    case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
     case LobbyJoined(lobby, members) =>
       userRef ==> LobbyJoined(lobby, members)
       this become completeBehaviour(
@@ -60,15 +60,13 @@ object User {
 
   def apply(userRef: ActorRef, userManager: ActorRef): Props = Props(classOf[UserActorWithTcp], userRef, userManager)
 
-  private[user_manager] val ALREADY_LOGGED_IN = "You have already logged in!"
-  private[user_manager] val WRONG_USERNAME = "The given username isn't yours!"
-  private[user_manager] val CONNECTION_CLOSED = "Connection with user has been closed"
-  private[user_manager] val COMMAND_FAILED = "Write failed, trying to send => "
-
   private[this] class UserActorWithTcp(private val userRef: ActorRef, private val userManager: ActorRef)
     extends BasicUserActor(userRef, userManager) with ActorWithTcp {
 
     import org.justcards.commons.actor_connection.ActorWithTcp._
+
+    private[this] val CONNECTION_CLOSED = "Connection with user has been closed"
+    private[this] val COMMAND_FAILED = "Write failed, trying to send => "
 
     override def errorBehaviour(username: String): Receive = {
       case CommandFailed(w: Write) =>

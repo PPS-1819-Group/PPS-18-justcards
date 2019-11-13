@@ -11,7 +11,7 @@ import org.justcards.server.user_manager.UserManagerMessage._
 
 private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase) extends Actor {
 
-  import LobbyManager._
+  import org.justcards.commons.AppError._
 
   override def receive: Receive = defaultBehaviour(lobbyDatabase)
 
@@ -46,7 +46,7 @@ private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lob
     if(!(lobbies contains lobbyId.id)) userInfo.userRef ! ErrorOccurred(LOBBY_NOT_EXISTING)
     else {
       val userInAnotherLobby = lobbies find (_._2.members contains userInfo)
-      if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(ALREADY_IN_A_LOBBY)
+      if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(USER_ALREADY_IN_A_LOBBY)
       else {
         val lobby = lobbies(lobbyId.id)
         if(lobby isFull) userInfo.userRef ! ErrorOccurred(LOBBY_FULL)
@@ -93,9 +93,4 @@ private[user_manager] object LobbyManager {
     knowledgeEngine,
     LobbyDatabase.createMapLobbyDatabase()
   )
-
-  val GAME_NOT_EXISTING = "The game doesn't exist!"
-  val LOBBY_NOT_EXISTING = "The lobby doesn't exist!"
-  val ALREADY_IN_A_LOBBY = "You're already a member of another lobby!"
-  val LOBBY_FULL = "The lobby you're trying to join is full, you can't enter!"
 }

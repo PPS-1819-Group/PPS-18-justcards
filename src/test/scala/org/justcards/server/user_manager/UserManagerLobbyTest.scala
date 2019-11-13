@@ -3,7 +3,8 @@ package org.justcards.server.user_manager
 import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.justcards.commons.{LobbyJoined, _}
+import org.justcards.commons._
+import org.justcards.commons.AppError._
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
 import org.justcards.server.user_manager.UserManagerMessage.LogOutAndExitFromLobby
 
@@ -53,7 +54,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
 
       "not allow to create a lobby if not logged" in {
         userManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(USER_NOT_LOGGED))
       }
 
       "not allow to create a lobby if the game doesn't exist" in {
@@ -63,7 +64,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
 
         doLogIn(myUserManager, TEST_USERNAME)
         myUserManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(GAME_NOT_EXISTING))
       }
 
       "allow to see the available lobbies" in {
@@ -77,7 +78,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         createLobby(userManager)
         userManager ! LogOut(TEST_USERNAME)
         userManager ! RetrieveAvailableLobbies()
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(USER_NOT_LOGGED))
       }
 
       "not allow to see a lobby if it's full" in {
@@ -117,20 +118,20 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
 
       "not allow to join a lobby if not logged" in {
         userManager ! JoinLobby(LobbyId(1))
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(USER_NOT_LOGGED))
       }
 
       "not allow to join a lobby if the lobby doesn't exist" in {
         doLogIn(userManager, TEST_USERNAME)
         userManager ! JoinLobby(LobbyId(1))
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(LOBBY_NOT_EXISTING))
       }
 
       "not allow to join a lobby if the user is already in another lobby" in {
         doLogIn(userManager, TEST_USERNAME)
         val lobbyId = createLobby(userManager)
         userManager ! JoinLobby(lobbyId.lobby)
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(USER_ALREADY_IN_A_LOBBY))
       }
 
       "not allow to join a lobby if it reached maximum capacity" in {
@@ -142,7 +143,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         val lastJoiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + "-illegal")
         this.tempActors = this.tempActors + lastJoiner
         lastJoiner ! JoinLobby(lobbyInfo.lobby)
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(LOBBY_FULL))
       }
 
       "return all the current members of a lobby" in {
