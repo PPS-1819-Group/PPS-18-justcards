@@ -1,0 +1,20 @@
+name: JustCards CI
+
+on: [pull_request, push]
+
+jobs:
+  build:
+    name: JustCards Build and Tests
+    strategy:
+       matrix:
+         java_version: [11]
+         os: [ubuntu-18.04, windows-2019, macOS-10.14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v1
+      - name: Install Java version
+        uses: actions/setup-java@v1
+        with:
+          java-version: ${{ matrix.java_version }}
+      - name: Gradle build and test system
+        run: ./gradlew clean build 
