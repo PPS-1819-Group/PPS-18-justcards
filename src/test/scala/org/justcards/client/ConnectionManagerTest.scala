@@ -86,7 +86,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
       val appController = system.actorOf(TestAppController(testActor))
       val connectionManager = system.actorOf(TcpConnectionManager(unreachableServerAddress)(appController))
       connectionManager ! InitializeConnection
-      expectMsg(ErrorOccurred(CANNOT_CONNECT.toString))
+      expectMsg(ErrorOccurred(CANNOT_CONNECT))
     }
 
     "inform the application controller that the connection was lost" in {
@@ -96,7 +96,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
       connectionManager ! InitializeConnection
       val server = Utils.getRef[SenderServer](receiveN)
       server kill()
-      expectMsg(ErrorOccurred(CONNECTION_LOST.toString))
+      expectMsg(ErrorOccurred(CONNECTION_LOST))
     }
 
   }

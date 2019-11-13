@@ -16,7 +16,7 @@ object Utils {
   val game = GameId(1,"my-game")
   val lobby = LobbyId(1)
   val user = UserId(1,username)
-  val errorMessage: String = AppError.SELECTION_NOT_AVAILABLE.toString
+  val errorMessage: String = AppError.SELECTION_NOT_AVAILABLE
 
   def getRef[X](receiveN: Int => Seq[AnyRef]): X = {
     receiveN(1).head.asInstanceOf[X]
@@ -48,7 +48,7 @@ object TestView {
 
     if (hasToSendRef) testActor ! this
 
-    override def error(message: AppError.Value): Unit = testActor ! ErrorOccurred(message.toString)
+    override def error(message: AppError.Value): Unit = testActor ! ErrorOccurred(message)
 
     override def showMenu(): Unit = testActor ! Logged()
 

@@ -92,8 +92,8 @@ object AppController {
       case ErrorOccurred(message) =>
         val error = AppError.values.find(_.toString == message)
         if (error.isDefined) error get match {
-          case AppError.CONNECTION_LOST =>
-            view error AppError.CONNECTION_LOST
+          case CONNECTION_LOST =>
+            view error CONNECTION_LOST
             connectionManagerActor ! InitializeConnection
           case a => view error a
         }

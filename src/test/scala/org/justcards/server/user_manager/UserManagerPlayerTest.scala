@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.commons._
+import org.justcards.commons.AppError._
 import org.justcards.server.user_manager.UserManagerMessage._
 
 class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")) with ImplicitSender with WordSpecLike
@@ -50,13 +51,13 @@ class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")
       "not register a user if the username is already present" in {
         doLogIn(userManager, TEST_USERNAME)
         userManager ! LogIn(TEST_USERNAME)
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(USER_ALREADY_PRESENT))
       }
 
       "not allow to the same user to register twice with different username" in {
         doLogIn(userManager, DOUBLE_USER_USERNAME)
         userManager ! LogIn(DOUBLE_USER_USERNAME + "-retry")
-        expectMsgType[ErrorOccurred]
+        expectMsg(ErrorOccurred(USER_ALREADY_LOGGED))
       }
 
       "unregister a user" in {
