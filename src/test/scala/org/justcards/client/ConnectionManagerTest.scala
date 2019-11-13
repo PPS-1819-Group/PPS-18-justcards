@@ -94,7 +94,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
       serverSystem.actorOf(Server(unreachableServerAddress, SimpleConnectionHandler(testActor, hasToSendRef = true)))
       val connectionManager = system.actorOf(TcpConnectionManager(unreachableServerAddress)(appController))
       connectionManager ! InitializeConnection
-      val server = Utils.getRef[SenderServer](receiveN)
+      val server = waitToBeConnectedAndGetSenderServer()
       server kill()
       expectMsg(ErrorOccurred(CONNECTION_LOST))
     }
@@ -115,7 +115,12 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
     val appController = system.actorOf(TestAppController(testActor))
     val connectionManager = system.actorOf(TcpConnectionManager(serverAddress)(appController))
     connectionManager ! InitializeConnection
-    (connectionManager, Utils.getRef[SenderServer](receiveN))
+    val server = waitToBeConnectedAndGetSenderServer()
+    (connectionManager, server)
+  }
+
+  private def waitToBeConnectedAndGetSenderServer(): SenderServer = {
+    receiveN(2).find(_.isInstanceOf[SenderServer]).get.asInstanceOf[SenderServer]
   }
 }
 
