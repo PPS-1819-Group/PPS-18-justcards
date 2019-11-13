@@ -2,7 +2,7 @@ package org.justcards.client.controller
 
 import akka.actor.{Actor, Props}
 import org.justcards.client.connection_manager.ConnectionManager
-import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
+import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
 import org.justcards.client.view.{MenuChoice, View, ViewFactory}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
@@ -25,7 +25,7 @@ object AppController {
     private val view: View = viewFactory(this)
     connectionManagerActor ! InitializeConnection
 
-    override def receive: Receive = default
+    override def receive: Receive = waitToBeConnected orElse default
 
     override def login(username: String): Unit = {
       changeContext(waitToBeLogged)
@@ -52,6 +52,12 @@ object AppController {
     override def joinLobby(lobby: LobbyId): Unit = {
       changeContext(waitForLobbyJoin)
       connectionManagerActor ! JoinLobby(lobby)
+    }
+
+    private def waitToBeConnected: Receive = {
+      case Connected =>
+        context become default
+        view chooseNickname()
     }
 
     private def waitToBeLogged: Receive = {
@@ -95,6 +101,7 @@ object AppController {
           case CONNECTION_LOST =>
             view error CONNECTION_LOST
             connectionManagerActor ! InitializeConnection
+            changeContext(waitToBeConnected)
           case a => view error a
         }
       case _ =>
