@@ -12,33 +12,28 @@ import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp
 object TcpConnectionManager {
 
   def apply(address: InetSocketAddress): ConnectionManager =
-    (appController: ActorRef) => Props(classOf[TcpConnectionManagerWithTcp], address, appController)
+    (appController: ActorRef) => Props(classOf[TcpConnectionManager], address, appController)
 
   def apply(host: String, port: Int): ConnectionManager = TcpConnectionManager(new InetSocketAddress(host, port))
 
-  abstract class TcpConnectionManager(address: InetSocketAddress, appController: ActorRef) extends ActorWithConnection with Actor with Stash {
+  private[this] class TcpConnectionManager(address: InetSocketAddress, appController: ActorRef)
+    extends AbstractConnectionManager(appController) with ActorWithTcp with Stash {
 
     import context.system
 
-    override def receive: Receive = parse orElse init
+    override protected def initializeConnection(): Unit = IO(Tcp) ! Connect(address)
 
-    private def init: Receive = {
-      case InitializeConnection => IO(Tcp) ! Connect(address)
+    override protected def init: Receive = {
       case CommandFailed(_: Connect) => appController ! ErrorOccurred(AppError.CANNOT_CONNECT.toString)
       case _ @ Connected(_, _) =>
         val server = sender()
         server ! Register(self)
         unstashAll()
-        this become (ready(server) orElse connectionErrorHandling(server))
+        connected(server)
       case _ => stash()
     }
 
-    private def ready(server: ActorRef): Receive = {
-      case m: AppMessage => server ==> m
-      case Outer(m: AppMessage) => appController ! m
-    }
-
-    private def connectionErrorHandling(server: ActorRef): Receive = {
+    override protected def connectionErrorHandling(server: ActorRef): Receive = {
       case CommandFailed(_: Write) => appController ! ErrorOccurred(AppError.MESSAGE_SENDING_FAILED.toString)
       case _: ConnectionClosed =>
         unstashAll()
@@ -47,8 +42,5 @@ object TcpConnectionManager {
       case _ => stash()
     }
   }
-
-  private[this] class TcpConnectionManagerWithTcp(address: InetSocketAddress, appController: ActorRef)
-    extends TcpConnectionManager(address, appController) with ActorWithTcp
 }
 
