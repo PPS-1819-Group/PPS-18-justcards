@@ -17,9 +17,14 @@ dependencies {
     testImplementation(group = "com.typesafe.akka", name = "akka-actor-testkit-typed_2.12", version = "2.6.0")
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
 tasks.withType<ScalaCompile> {
-    sourceCompatibility = "1.8"
-    targetCompatibility = "1.8"
+    sourceCompatibility = "11"
+    targetCompatibility = "11"
 }
 
 task<JavaExec>("scalaTest") {
