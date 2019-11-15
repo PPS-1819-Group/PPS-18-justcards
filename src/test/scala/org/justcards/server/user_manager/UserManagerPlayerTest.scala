@@ -12,10 +12,11 @@ class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")
 
   import UserManagerPlayerTest._
 
-  var userManager: ActorRef = _
+  private var userManager: ActorRef = _
+  private val knowledgeEngine = system.actorOf(createKnowledgeEngine())
 
   before {
-    userManager = system.actorOf(UserManager(null))
+    userManager = system.actorOf(UserManager(knowledgeEngine))
   }
 
   after {
@@ -79,6 +80,11 @@ class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")
         expectUsers(userManager, actorUsernameSet map (tuple => UserInfo(tuple._2, tuple._1)))
       }
 
+      "ask for available games to the knowledge engine" in {
+        userManager ! RetrieveAvailableGames()
+        expectMsg(KnowledgeEngineMsg(RetrieveAvailableGames()))
+      }
+
     }
 
   }
@@ -107,13 +113,23 @@ object UserManagerPlayerTest {
   val MULTI_TEST_USERNAME: String = "multi-test-username"
   val DOUBLE_USER_USERNAME: String = "double-user"
 
+  case class KnowledgeEngineMsg(msg: Any)
+
   def createActor(testActor: ActorRef, userManager: ActorRef): Props =
-    Props(classOf[SimpleActor], testActor: ActorRef, userManager)
+    Props(classOf[SimpleActor], testActor, userManager)
+
+  def createKnowledgeEngine(): Props = Props(classOf[SimpleKnowledgeEngine])
 
   private[this] class SimpleActor(testActor: ActorRef, userManager: ActorRef) extends Actor {
     override def receive: Receive = {
       case a: Logged => testActor ! a
       case msg => userManager ! msg
+    }
+  }
+
+  private[this] class SimpleKnowledgeEngine() extends Actor {
+    override def receive: Receive = {
+      case m: RetrieveAvailableGames => sender() ! KnowledgeEngineMsg(m)
     }
   }
 
