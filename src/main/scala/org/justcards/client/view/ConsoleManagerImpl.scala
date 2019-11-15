@@ -1,27 +1,38 @@
 package org.justcards.client.view
 
+import java.util.concurrent.Executors
+
 import org.justcards.client.controller.AppController
 import org.justcards.commons.{AppError, GameId, LobbyId, UserId}
+
+import scala.concurrent.{ExecutionContextExecutor, Future}
 
 
 case class ConsoleManagerImpl(controller: AppController) extends View {
   import ConsoleManager._
   import ConsoleManagerImpl._
 
+  implicit val executor: ExecutionContextExecutor =  scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
-  override def chooseNickname(): Unit = createTaskAskNickname start()
+  override def chooseNickname(): Unit = createTaskAskNickname
 
-  override def error(error: AppError.Value): Unit = createTaskError(error) start()
+  override def error(error: AppError.Value): Unit = createTaskError(error)
 
-  override def showMenu(): Unit = createTaskMenuChoice start()
+  override def showMenu(): Unit = createTaskMenuChoice
 
-  override def showLobbyCreation(games: Set[GameId]): Unit = createTaskLobbyCreation(games)  start()
+  override def showLobbyCreation(games: Set[GameId]): Unit = createTaskLobbyCreation(games)
 
-  override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = createTaskLobbyJoining(lobbies) start()
+  override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = createTaskLobbyJoining(lobbies)
 
-  private def createTaskAskNickname = Task( () => controller login ask(CHOOSE_NICKNAME))
+  override def lobbyCreated(lobby: LobbyId): Unit = ???
 
-  private def createTaskError(error: AppError.Value) = Task( () => {
+  override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = ???
+
+  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = ???
+
+  private def createTaskAskNickname = Future {controller login ask(CHOOSE_NICKNAME)}
+
+  private def createTaskError(error: AppError.Value) = Future {
     error match {
       case AppError.USER_ALREADY_PRESENT =>
         println(NICKNAME_ERROR)
@@ -33,44 +44,33 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
       case AppError.CONNECTION_LOST =>
         println(CONNECTION_LOST)
     }
+  }
 
-  })
-
-  private def createTaskMenuChoice = Task( () => {
+  private def createTaskMenuChoice = Future {
     println(MENU_TITLE)
     for (choice <- MenuChoice.values) println(choice.id + ")" + choice)
-    controller menuSelection choiceSelection(MenuChoice.maxId)
-  })
+    controller menuSelection choiceSelection(MenuChoice.maxId - 1) //maxId = 4
+  }
 
-  private def createTaskLobbyCreation(games: Set[GameId]): Task = Task( () => {
+  private def createTaskLobbyCreation(games: Set[GameId]) = Future {
     println(LOBBY_CREATION_TITLE)
     val gamesList = games.toList
     for (index <- 1 to gamesList.size) println(index + ")" + gamesList(index-1).name)
     controller createLobby gamesList(choiceSelection(games.size) - 1)
-  })
+  }
 
-  private def createTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]): Task = Task( () => {
+  private def createTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]) = Future {
     println(LOBBY_LIST_TITLE)
     val lobbiesList = lobbies.toList
     for (index <- 1 to lobbiesList.size) println(index + ")" + lobbiesList(index-1))
     controller joinLobby lobbiesList(choiceSelection(lobbies.size) - 1)._1
-  })
-
-  override def lobbyCreated(lobby: LobbyId): Unit = ???
-
-  override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = ???
-
-  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = ???
+  }
 }
 
 object ConsoleManagerImpl {
   val NUMBER_CHOICE = "Insert number of your choice:"
   val WRONG_VALUE = "Error: unacceptable value"
   val EMPTY_RESPONSE = "Empty answer isn't allowed"
-
-  private case class Task(exec: () => Unit) extends Thread {
-    override def run(): Unit = exec()
-  }
 
   @scala.annotation.tailrec
   private def choiceSelection(maxValue: Int): Int = {
@@ -103,7 +103,7 @@ object ConsoleManagerImpl {
 }
 
 object TestConsole extends App{
-  //val console = ConsoleManagerImpl(new AppControllerImpl)
+  //val console = ConsoleManagerImpl(AppController)
 
   //console chooseNickname()
   //console errorLogin()
