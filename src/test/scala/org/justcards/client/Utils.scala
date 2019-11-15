@@ -13,8 +13,8 @@ import org.justcards.commons.{AppError, AppMessage, AvailableGames, AvailableLob
 object Utils {
   val serverHost = "localhost"
   val username = "username"
-  val game = GameId(1,"my-game")
-  val lobby = LobbyId(1)
+  val game = GameId("my-game")
+  val lobby = LobbyId(1,"owner", game)
   val user = UserId(1,username)
   val errorMessage: String = AppError.SELECTION_NOT_AVAILABLE
 

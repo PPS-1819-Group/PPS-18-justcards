@@ -1,6 +1,5 @@
 package org.justcards.client.view
 
-
 import java.util.concurrent.Executors
 
 import org.justcards.client.controller.AppController
@@ -50,7 +49,7 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
   private def createTaskMenuChoice = Future {
     println(MENU_TITLE)
     for (choice <- MenuChoice.values) println(choice.id + ")" + choice)
-    controller menuSelection choiceSelection(MenuChoice.maxId - 1)
+    controller menuSelection choiceSelection(MenuChoice.maxId - 1) //maxId = 4
   }
 
   private def createTaskLobbyCreation(games: Set[GameId]) = Future {
@@ -72,10 +71,6 @@ object ConsoleManagerImpl {
   val NUMBER_CHOICE = "Insert number of your choice:"
   val WRONG_VALUE = "Error: unacceptable value"
   val EMPTY_RESPONSE = "Empty answer isn't allowed"
-
-  private case class Task(exec: () => Unit) extends Thread {
-    override def run(): Unit = exec()
-  }
 
   @scala.annotation.tailrec
   private def choiceSelection(maxValue: Int): Int = {
