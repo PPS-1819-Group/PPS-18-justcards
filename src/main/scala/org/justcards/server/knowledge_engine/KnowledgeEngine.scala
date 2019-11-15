@@ -39,8 +39,8 @@ object GameKnowledge {
     def gameExists(game: GameId): Boolean = _availableGames contains game
   }
 
-  private val BECCACCINO_GAME = GameId(1, "Beccaccino")
-  private val BRISCOLA_GAME = GameId(1, "Briscola")
+  private val BECCACCINO_GAME = GameId("Beccaccino")
+  private val BRISCOLA_GAME = GameId("Briscola")
 
 
 }

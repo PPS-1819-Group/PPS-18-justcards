@@ -50,8 +50,8 @@ object KnowledgeEngineTest {
     override def gameExists(game: GameId): Boolean = games contains game
   }
 
-  private val BECCACCINO_GAME = GameId(1, "Beccaccino")
-  private val BRISCOLA_GAME = GameId(1, "Briscola")
-  private val NOT_EXISTING_GAME = GameId(-1, "Scopa")
+  private val BECCACCINO_GAME = GameId("Beccaccino")
+  private val BRISCOLA_GAME = GameId("Briscola")
+  private val NOT_EXISTING_GAME = GameId("Scopa")
 
 }
