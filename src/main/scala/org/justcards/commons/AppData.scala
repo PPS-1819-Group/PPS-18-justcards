@@ -1,9 +1,5 @@
 package org.justcards.commons
 
-sealed trait Id {
-  def id: Long
-}
-
-case class GameId(id: Long, name: String) extends Id
-case class UserId(id: Long, name: String) extends Id
-case class LobbyId(id: Long) extends Id
+case class GameId (name: String)
+case class UserId (id: Long, name: String)
+case class LobbyId (id: Long, owner: String, game: GameId)
