@@ -41,6 +41,9 @@ trait UserCommandHandler {
 }
 
 object TestView {
+
+  case object ChooseNickname
+
   def apply(testActor: ActorRef, hasToSendRef: Boolean = false): ViewFactory =
     (appController: AppController) => new TestViewImpl(appController, testActor, hasToSendRef)
 
@@ -70,7 +73,7 @@ object TestView {
 
     override def joinLobby(lobby: LobbyId): Unit = appController joinLobby lobby
 
-    override def chooseNickname(): Unit = ???
+    override def chooseNickname(): Unit = testActor ! ChooseNickname
   }
 }
 
