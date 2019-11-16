@@ -46,8 +46,21 @@ object ConsoleManager {
   val LOBBY_CREATION_TITLE = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE = "LOBBY LIST - Choose the lobby you want to join"
   val CHOOSE_NICKNAME = "Choose your nickname:"
-  val NICKNAME_ERROR = "Error: Nickname already used"
-  val LAST_MESSAGE_LOST = "Last message didn't arrive"
-  val CONNECTION_LOST = "Connection Lost"
-  val CANNOT_CONNECT = "I can't connect"
+
+  val ERROR_CONNECTION_LOST = "Error: Connection Lost"
+  val ERROR_CANNOT_CONNECT = "Error: I can't connect"
+  val ERROR_LAST_MESSAGE_LOST = "Error: Last message didn't arrive"
+
+  val ERROR_USERNAME_ALREADY_USED = "Error: Username already used"
+  val ERROR_USER_NOT_LOGGED = "Error: You're not logged"
+  val ERROR_USER_ALREADY_LOGGED = "Error: You're already logged"
+  val ERROR_USER_ALREADY_IN_LOBBY = "Error: You're already in a lobby"
+  val ERROR_USER_WRONG_USERNAME = "Error: Action not allowed with this username"
+
+  val ERROR_GAME_NOT_EXIST = "Error: Selected game doesn't exist"
+  val ERROR_LOBBY_NOT_EXIST = "Error: Selected lobby doesn't exist"
+  val ERROR_LOBBY_FULL = "Error: Selected lobby is already full"
+
+
+  val ERROR_WRONG_CHOICE = "Error: The selected choice is not available"
 }

@@ -14,15 +14,15 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
 
   implicit val executor: ExecutionContextExecutor =  scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
-  override def chooseNickname(): Unit = createTaskAskNickname
+  override def chooseNickname(): Unit = runTaskAskNickname
 
-  override def error(error: AppError.Value): Unit = createTaskError(error)
+  override def error(error: AppError.Value): Unit = runTaskError(error)
 
-  override def showMenu(): Unit = createTaskMenuChoice
+  override def showMenu(): Unit = runTaskMenuChoice
 
-  override def showLobbyCreation(games: Set[GameId]): Unit = createTaskLobbyCreation(games)
+  override def showLobbyCreation(games: Set[GameId]): Unit = runTaskLobbyCreation(games)
 
-  override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = createTaskLobbyJoining(lobbies)
+  override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = runTaskLobbyJoining(lobbies)
 
   override def lobbyCreated(lobby: LobbyId): Unit = ???
 
@@ -30,36 +30,65 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
 
   override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = ???
 
-  private def createTaskAskNickname = Future {controller login ask(CHOOSE_NICKNAME)}
+  private def runTaskAskNickname = Future {controller login ask(CHOOSE_NICKNAME)}
 
-  private def createTaskError(error: AppError.Value) = Future {
+  private def runTaskError(error: AppError.Value) = Future {
     error match {
-      case AppError.USER_ALREADY_PRESENT =>
-        println(NICKNAME_ERROR)
-        controller login ask(CHOOSE_NICKNAME)
-      case AppError.MESSAGE_SENDING_FAILED =>
-        println(LAST_MESSAGE_LOST)
-      case AppError.CANNOT_CONNECT =>
-        println(CANNOT_CONNECT)
       case AppError.CONNECTION_LOST =>
-        println(CONNECTION_LOST)
+        println(ERROR_CONNECTION_LOST)
+
+      case AppError.CANNOT_CONNECT =>
+        println(ERROR_CANNOT_CONNECT)
+
+      case AppError.MESSAGE_SENDING_FAILED =>
+        println(ERROR_LAST_MESSAGE_LOST)
+
+      case AppError.USER_ALREADY_PRESENT =>
+        println(ERROR_USERNAME_ALREADY_USED)
+        runTaskAskNickname
+
+      case AppError.USER_NOT_LOGGED =>
+        println(ERROR_USER_NOT_LOGGED)
+        runTaskAskNickname
+
+      case AppError.USER_ALREADY_LOGGED =>
+        println(ERROR_USER_ALREADY_LOGGED)
+
+      case AppError.USER_ALREADY_IN_A_LOBBY =>
+        println(ERROR_USER_ALREADY_IN_LOBBY)
+
+      case AppError.USER_WRONG_USERNAME =>
+        println(ERROR_USER_WRONG_USERNAME)
+
+      case AppError.GAME_NOT_EXISTING =>
+        println(ERROR_GAME_NOT_EXIST)
+
+      case AppError.LOBBY_NOT_EXISTING =>
+        println(ERROR_GAME_NOT_EXIST)
+
+      case AppError.LOBBY_FULL =>
+        println(ERROR_LOBBY_FULL)
+
+      case AppError.SELECTION_NOT_AVAILABLE =>
+        println(ERROR_WRONG_CHOICE)
+
     }
   }
 
-  private def createTaskMenuChoice = Future {
+  private def runTaskMenuChoice = Future {
     println(MENU_TITLE)
     for (choice <- MenuChoice.values) println(choice.id + ")" + choice)
     controller menuSelection choiceSelection(MenuChoice.maxId - 1) //maxId = 4
   }
 
-  private def createTaskLobbyCreation(games: Set[GameId]) = Future {
+  private def runTaskLobbyCreation(games: Set[GameId]) = Future {
     println(LOBBY_CREATION_TITLE)
     val gamesList = games.toList
     for (index <- 1 to gamesList.size) println(index + ")" + gamesList(index-1).name)
     controller createLobby gamesList(choiceSelection(games.size) - 1)
   }
 
-  private def createTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]) = Future {
+  private def runTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]) = Future {
     println(LOBBY_LIST_TITLE)
     val lobbiesList = lobbies.toList
     for (index <- 1 to lobbiesList.size) println(index + ")" + lobbiesList(index-1))
