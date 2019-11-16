@@ -26,6 +26,12 @@ class UserManager(knowledgeEngine: ActorRef) extends Actor {
     case LogOutAndExitFromLobby(username, lobbyId) =>
       playerManager ! UserLogout(username, sender())
       lobbyManager ! UserExitFromLobby(lobbyId, UserInfo(username, sender()))
+    case _: RetrieveAvailableGames =>
+      val user = sender()
+      (knowledgeEngine ? RetrieveAvailableGames()) onComplete { result =>
+        if(result.isSuccess) user ! result.get
+        else user ! ErrorOccurred(MESSAGE_SENDING_FAILED)
+      }
     case _: RetrieveAvailableLobbies =>
       val user = sender()
       checkLogInAnd(user) (

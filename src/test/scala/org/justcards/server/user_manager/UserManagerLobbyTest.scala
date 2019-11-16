@@ -48,12 +48,12 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
 
       "allow to create a lobby" in {
         doLogIn(userManager, TEST_USERNAME)
-        userManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
+        userManager ! CreateLobby(GameId(GAME_TEST))
         expectMsgType[LobbyCreated]
       }
 
       "not allow to create a lobby if not logged" in {
-        userManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
+        userManager ! CreateLobby(GameId(GAME_TEST))
         expectMsg(ErrorOccurred(USER_NOT_LOGGED))
       }
 
@@ -63,7 +63,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
         this.tempActors = this.tempActors ++ Set(knowledgeEngineWithNoGames, myUserManager)
 
         doLogIn(myUserManager, TEST_USERNAME)
-        myUserManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
+        myUserManager ! CreateLobby(GameId(GAME_TEST))
         expectMsg(ErrorOccurred(GAME_NOT_EXISTING))
       }
 
@@ -117,13 +117,13 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
       }
 
       "not allow to join a lobby if not logged" in {
-        userManager ! JoinLobby(LobbyId(1))
+        userManager ! JoinLobby(LOBBY_TEST)
         expectMsg(ErrorOccurred(USER_NOT_LOGGED))
       }
 
       "not allow to join a lobby if the lobby doesn't exist" in {
         doLogIn(userManager, TEST_USERNAME)
-        userManager ! JoinLobby(LobbyId(1))
+        userManager ! JoinLobby(LOBBY_TEST)
         expectMsg(ErrorOccurred(LOBBY_NOT_EXISTING))
       }
 
@@ -194,7 +194,7 @@ class UserManagerLobbyTest extends TestKit(ActorSystem("UserManagerLobbyTest")) 
   }
 
   private def createLobby(userManager: ActorRef): LobbyCreated = {
-    userManager ! CreateLobby(GameId(GAME_TEST._1, GAME_TEST._2))
+    userManager ! CreateLobby(GameId(GAME_TEST))
     receiveN(1).map(_.asInstanceOf[LobbyCreated]).head
   }
 
@@ -224,7 +224,8 @@ object UserManagerLobbyTest {
 
   val TEST_USERNAME: String = "test-username"
   val JOINER_USERNAME: String = "joiner-username"
-  val GAME_TEST: (Int,String) = (1, "Beccaccino")
+  val GAME_TEST: String = "Beccaccino"
+  val LOBBY_TEST: LobbyId = LobbyId(1, TEST_USERNAME, GameId(GAME_TEST))
 
   def createActor(testActor: ActorRef, userManager: ActorRef): Props =
     Props(classOf[SimpleActor], testActor: ActorRef, userManager)

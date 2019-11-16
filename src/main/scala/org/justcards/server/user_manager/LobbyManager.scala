@@ -8,6 +8,7 @@ import scala.concurrent.duration._
 import org.justcards.commons._
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
 import org.justcards.server.user_manager.UserManagerMessage._
+import Lobby._
 
 private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase) extends Actor {
 
@@ -17,10 +18,10 @@ private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lob
 
   private def defaultBehaviour(lobbies: LobbyDatabase): Receive = {
     case GetLobbies(sender) =>
-      val availableLobbies = lobbies.filter(!_._2.isFull).map(lobbyInfo =>
-        LobbyId(lobbyInfo._1) -> lobbyInfo._2.members.map(user => UserId(1,user.username))
+      val availableLobbies: Set[(LobbyId, Set[UserId])] = lobbies.filter(!_.isFull).map(lobbyInfo =>
+        lobbyToLobbyId(lobbyInfo) -> lobbyInfo.members.map(user => UserId(1,user.username))
       )
-      sender ! AvailableLobbies(availableLobbies.toSet)
+      sender ! AvailableLobbies(availableLobbies)
     case UserCreateLobby(CreateLobby(gameId), userInfo) => createLobby(lobbies)(gameId, userInfo)
     case UserJoinLobby(JoinLobby(lobbyId), userInfo) => joinUserToLobby(lobbies)(lobbyId, userInfo)
     case UserExitFromLobby(lobbyId, userInfo) => exitUserFromLobby(lobbies)(lobbyId, userInfo)
@@ -36,8 +37,8 @@ private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lob
       if(result.isFailure) userInfo.userRef ! ErrorOccurred(GAME_NOT_EXISTING)
       else {
         val newLobby = Lobby(System.currentTimeMillis(), userInfo, gameId)
-        userInfo.userRef ! LobbyCreated(LobbyId(newLobby.id))
-        context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
+        userInfo.userRef ! LobbyCreated(newLobby)
+        context become defaultBehaviour(lobbies + newLobby)
       }
     }
   }
@@ -45,31 +46,32 @@ private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lob
   private def joinUserToLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Unit = {
     if(!(lobbies contains lobbyId.id)) userInfo.userRef ! ErrorOccurred(LOBBY_NOT_EXISTING)
     else {
-      val userInAnotherLobby = lobbies find (_._2.members contains userInfo)
+      val userInAnotherLobby = lobbies find (_.members contains userInfo)
       if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(USER_ALREADY_IN_A_LOBBY)
       else {
         val lobby = lobbies(lobbyId.id)
         if(lobby isFull) userInfo.userRef ! ErrorOccurred(LOBBY_FULL)
         else {
           val newLobby = addUserToLobby(lobby, lobbyId, userInfo)
-          context become defaultBehaviour(lobbies + (newLobby.id -> newLobby))
+          context become defaultBehaviour(lobbies + newLobby)
         }
       }
     }
   }
 
   private def exitUserFromLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Unit = {
-    if((lobbies contains lobbyId.id) && (lobbies(lobbyId.id).members contains userInfo) ) {
-      val newLobby = lobbies(lobbyId.id) - userInfo
+    val lobby = lobbies.find(_.id == lobbyId.id)
+    if(lobby.isDefined && (lobby.get.members contains userInfo) ) {
+      val newLobby = lobby.get - userInfo
       if(newLobby isDefined) {
         val newLobbyVal = newLobby.get
         val newMembers = newLobbyVal.members map (user => UserId(1, user.username))
         newLobbyVal.members foreach {
           _.userRef ! LobbyUpdate(lobbyId, newMembers)
         }
-        context become defaultBehaviour(lobbies + (lobbyId.id -> newLobbyVal))
+        context become defaultBehaviour(lobbies + newLobbyVal)
       } else
-        context become defaultBehaviour(lobbies - lobbyId.id)
+        context become defaultBehaviour(lobbies - lobby.get)
     }
   }
 

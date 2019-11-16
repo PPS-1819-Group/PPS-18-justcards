@@ -1,6 +1,6 @@
 package org.justcards.server.user_manager
 
-import org.justcards.commons.GameId
+import org.justcards.commons.{GameId, LobbyId}
 import org.justcards.server.user_manager.UserManagerMessage.UserInfo
 
 /**
@@ -18,6 +18,12 @@ sealed trait Lobby {
     * @return the lobby owner
     */
   def owner: UserInfo
+
+  /**
+   * Getter
+   * @return the lobby game
+   */
+  def game: GameId
 
   /**
     * Add a new owner to the lobby
@@ -65,12 +71,14 @@ object Lobby {
     */
   def apply(id: Long, owner: UserInfo, game: GameId): Lobby = LobbyImpl(id, owner, game, Set(owner))
 
+  implicit def lobbyToLobbyId(lobby: Lobby): LobbyId = LobbyId(lobby.id, lobby.owner.username, lobby.game)
+
   /**
     * Maximum capacity of a lobby
     */
   val MAX_LOBBY_MEMBERS: Int = 4
 
-  private[this] case class LobbyImpl(id: Long, owner: UserInfo, private val game: GameId,
+  private[this] case class LobbyImpl(id: Long, owner: UserInfo, game: GameId,
                                      members: Set[UserInfo]) extends Lobby {
 
     override def -->(newOwner: UserInfo): Lobby = LobbyImpl(id, newOwner, game, members)
@@ -86,16 +94,17 @@ object Lobby {
     }
 
     override def isFull: Boolean = members.size == MAX_LOBBY_MEMBERS
+
   }
 }
 
 /**
   * Trait for classes that should realise the database of the lobby
   */
-trait LobbyDatabase extends Set[(Long, Lobby)] {
-  def +(value: (Long, Lobby)): LobbyDatabase
-  def -(value: Long): LobbyDatabase
-  def contains(value: Long): Boolean
+trait LobbyDatabase extends Set[Lobby] {
+  def +(value: Lobby): LobbyDatabase
+  def -(value: Lobby): LobbyDatabase
+  def contains(elem: Long): Boolean
   def apply(value: Long): Lobby
 }
 
@@ -104,14 +113,13 @@ object LobbyDatabase {
   def createMapLobbyDatabase(): LobbyDatabase = LobbyDbMap()
 
   private[this] case class LobbyDbMap(map: Map[Long, Lobby] = Map()) extends LobbyDatabase {
-    override def +(value: (Long, Lobby)): LobbyDatabase = LobbyDbMap(map + value)
-    override def -(value: Long): LobbyDatabase = LobbyDbMap(map - value)
-    override def -(elem: (Long, Lobby)): Set[(Long, Lobby)] = (map - elem._1).toSet
-    override def contains(value: Long): Boolean = map contains value
-    override def contains(elem: (Long, Lobby)): Boolean = map exists (_ == elem)
-    override def foreach[U](f: ((Long, Lobby)) => U): Unit = map foreach f
+    override def +(value: Lobby): LobbyDatabase = LobbyDbMap(map + (value.id -> value))
+    override def -(value: Lobby): LobbyDatabase = LobbyDbMap(map - value.id)
+    override def contains(elem: Lobby): Boolean = map contains elem.id
+    override def contains(elem: Long): Boolean = map contains elem
+    override def foreach[U](f: Lobby => U): Unit = map.values foreach f
     override def apply(value: Long): Lobby = map(value)
-    override def iterator: Iterator[(Long, Lobby)] = map.iterator
+    override def iterator: Iterator[Lobby] = map.values.iterator
   }
 
 }
