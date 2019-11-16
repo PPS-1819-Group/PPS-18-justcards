@@ -3,7 +3,8 @@ package org.justcards.client
 import akka.actor.{ActorRef, ActorSystem}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
+import org.justcards.client.TestView.ChooseNickname
+import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
 import org.justcards.client.controller.AppController
 import org.justcards.client.view.MenuChoice
 import org.justcards.commons._
@@ -17,6 +18,12 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
   }
 
   import Utils._
+
+  "The application controller" should {
+    "tell the view to make the user choose a nickname when the application start" in {
+      connect
+    }
+  }
 
   "When a user wants to log in the application controller" should {
 
@@ -155,6 +162,13 @@ class AppControllerTest() extends TestKit(ActorSystem("AppControllerTest")) with
     val appController = system.actorOf(AppController(ReSendConnectionManager(testActor),TestView(testActor, hasToSendRef = true)))
     val userCommandHandler = getRef[UserCommandHandler](receiveN)
     expectMsg(InitializeConnection)
+    (userCommandHandler, appController)
+  }
+
+  private def connect: (UserCommandHandler, ActorRef) = {
+    val (userCommandHandler, appController) = initAndGetComponents
+    appController ! Connected
+    expectMsg(ChooseNickname)
     (userCommandHandler, appController)
   }
 

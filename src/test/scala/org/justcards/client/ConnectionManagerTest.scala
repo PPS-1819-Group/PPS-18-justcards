@@ -2,29 +2,24 @@ package org.justcards.client
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
 import org.justcards.client.connection_manager.TcpConnectionManager
 import org.justcards.commons.AppError._
-import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, CreateLobby, ErrorOccurred, GameId, JoinLobby, LobbyCreated, LobbyJoined, LobbyUpdate, LogIn, Logged, RetrieveAvailableGames, RetrieveAvailableLobbies, UserId}
+import org.justcards.commons.{AppMessage, AvailableGames, AvailableLobbies, CreateLobby, ErrorOccurred, JoinLobby, LobbyCreated, LobbyJoined, LobbyUpdate, LogIn, Logged, RetrieveAvailableGames, RetrieveAvailableLobbies, UserId}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest")) with ImplicitSender with WordSpecLike
   with Matchers with BeforeAndAfterAll {
 
-  private val simpleServerAddress = new InetSocketAddress(Utils.serverHost,6701)
+  private val reachableServerAddress = new InetSocketAddress(Utils.serverHost,6701)
   private val unreachableServerAddress = new InetSocketAddress(Utils.serverHost,6702)
   private var serverSystem: ActorSystem = _
-  private var connectionManager: ActorRef = _
-  private var server: SenderServer = _
 
   override def beforeAll: Unit = {
     serverSystem = ActorSystem("server-system")
-    serverSystem.actorOf(Server(simpleServerAddress, SimpleConnectionHandler(testActor, hasToSendRef = true)))
-    val (cm, s) = initAndGetComponents(simpleServerAddress)
-    connectionManager = cm
-    server = s
+    serverSystem.actorOf(Server(reachableServerAddress, SimpleConnectionHandler(testActor)))
   }
 
   override def afterAll: Unit = {
@@ -90,28 +85,27 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
     }
 
     "inform the application controller that the connection was lost" in {
-      val appController = system.actorOf(TestAppController(testActor))
-      serverSystem.actorOf(Server(unreachableServerAddress, SimpleConnectionHandler(testActor, hasToSendRef = true)))
-      val connectionManager = system.actorOf(TcpConnectionManager(unreachableServerAddress)(appController))
-      connectionManager ! InitializeConnection
-      val server = waitToBeConnectedAndGetSenderServer()
-      server kill()
+      serverSystem.actorOf(Server(unreachableServerAddress, SimpleConnectionHandler(testActor)))
+      val (_, server) = connectToServerAndGetComponents(unreachableServerAddress)
+      server ! PoisonPill
       expectMsg(ErrorOccurred(CONNECTION_LOST))
     }
 
   }
 
   private def receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(message: AppMessage): Unit = {
-    server send message
+    val (_, server) = connectToServerAndGetComponents(reachableServerAddress)
+    server ! message
     expectMsg(message)
   }
 
   private def sendMessageToConnectionManagerAndCheckIfItIsCorrectlyRedirectedToTheServer(message: AppMessage): Unit = {
+    val (connectionManager, _) = connectToServerAndGetComponents(reachableServerAddress)
     connectionManager ! message
     expectMsg(message)
   }
 
-  private def initAndGetComponents(serverAddress: InetSocketAddress): (ActorRef, SenderServer) = {
+  private def connectToServerAndGetComponents(serverAddress: InetSocketAddress): (ActorRef, ActorRef) = {
     val appController = system.actorOf(TestAppController(testActor))
     val connectionManager = system.actorOf(TcpConnectionManager(serverAddress)(appController))
     connectionManager ! InitializeConnection
@@ -119,16 +113,7 @@ class ConnectionManagerTest() extends TestKit(ActorSystem("ConnectionManagerTest
     (connectionManager, server)
   }
 
-  private def waitToBeConnectedAndGetSenderServer(): SenderServer = {
-    receiveN(2).find(_.isInstanceOf[SenderServer]).get.asInstanceOf[SenderServer]
-  }
-}
-
-object TestAppController {
-  def apply(testActor: ActorRef) = Props(classOf[TestAppController], testActor)
-  private[this] class TestAppController(testActor: ActorRef) extends Actor {
-    override def receive: Receive = {
-      case m => testActor ! m
-    }
+  private def waitToBeConnectedAndGetSenderServer(): ActorRef = {
+    receiveN(2).find(_.isInstanceOf[ActorRef]).get.asInstanceOf[ActorRef]
   }
 }
