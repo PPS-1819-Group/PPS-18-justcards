@@ -10,17 +10,16 @@ import org.justcards.commons.AppError._
 import org.justcards.commons._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class ConnectionManagerTest() extends WordSpecLike
-  with Matchers with BeforeAndAfterAll {
+class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
-  private implicit val system: ActorSystem = ActorSystem("ConnectionManagerTest")
+  //private implicit val system: ActorSystem = ActorSystem("ConnectionManagerTest")
 
   private var nextAvailableServerPort = 6700
-  private val serverSystem: ActorSystem = ActorSystem("server-system")
+  //private val serverSystem: ActorSystem = ActorSystem("server-system")
 
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
-    TestKit.shutdownActorSystem(serverSystem)
+    //TestKit.shutdownActorSystem(system)
+    //TestKit.shutdownActorSystem(serverSystem)
   }
 
   "The connection manager" should {
@@ -74,44 +73,60 @@ class ConnectionManagerTest() extends WordSpecLike
     }
 
     "inform the application controller that the connection to the server cannot be established" in {
-      val testProbe = TestProbe()
-      implicit val testActor: ActorRef = testProbe.ref
+      val system: ActorSystem = ActorSystem("ConnectionManagerTest")
+      val testProbe = TestProbe()(system)
+      val testActor: ActorRef = testProbe.ref
       val appController = system.actorOf(TestAppController(testActor))
       val connectionManager = system.actorOf(TcpConnectionManager(getNewServerAddress)(appController))
       connectionManager ! InitializeConnection
       testProbe.expectMsg(ErrorOccurred(CANNOT_CONNECT))
+      connectionManager ! PoisonPill
+      testProbe.ref ! PoisonPill
+      system terminate()
     }
 
     "inform the application controller that the connection was lost" in {
-      val (_, server,testProbe) = connectToServerAndGetComponents
+      val (connectionManager, server,testProbe, system) = connectToServerAndGetComponents
       server ! PoisonPill
       testProbe.expectMsg(ErrorOccurred(CONNECTION_LOST))
+      connectionManager ! PoisonPill
+      testProbe.ref ! PoisonPill
+      system terminate()
     }
 
   }
 
   private def receiveMessageFromServerAndCheckItIsCorrectlyRedirectedToTheApplicationManager(message: AppMessage): Unit = {
-    val (_, server,testProbe) = connectToServerAndGetComponents
+    val (connectionManager, server,testProbe, system) = connectToServerAndGetComponents
     server ! message
-    testProbe.expectMsg(message)
+    testProbe expectMsg message
+    connectionManager ! PoisonPill
+    server ! PoisonPill
+    testProbe.ref ! PoisonPill
+    system terminate()
   }
 
   private def sendMessageToConnectionManagerAndCheckIfItIsCorrectlyRedirectedToTheServer(message: AppMessage): Unit = {
-    val (connectionManager, _,testProbe) = connectToServerAndGetComponents
+    val (connectionManager, server,testProbe, system) = connectToServerAndGetComponents
     connectionManager ! message
-    testProbe.expectMsg(message)
+    testProbe expectMsg message
+    connectionManager ! PoisonPill
+    server ! PoisonPill
+    testProbe.ref ! PoisonPill
+    system terminate()
   }
 
-  private def connectToServerAndGetComponents: (ActorRef, ActorRef, TestProbe) = {
-    val testProbe = TestProbe()
-    implicit val testActor: ActorRef = testProbe.ref
+  private def connectToServerAndGetComponents: (ActorRef, ActorRef, TestProbe, ActorSystem) = {
+    val system: ActorSystem = ActorSystem("ConnectionManagerTest")
+    val testProbe = TestProbe()(system)
+    val testActor: ActorRef = testProbe.ref
     val serverAddress = getNewServerAddress
-    serverSystem.actorOf(Server(serverAddress, SimpleConnectionHandler(testActor)))
+    system.actorOf(Server(serverAddress, SimpleConnectionHandler(testActor)))
     val appController = system.actorOf(TestAppController(testActor))
     val connectionManager = system.actorOf(TcpConnectionManager(serverAddress)(appController))
     connectionManager ! InitializeConnection
     val server = waitToBeConnectedAndGetSenderServer(testProbe)
-    (connectionManager, server, testProbe)
+    (connectionManager, server, testProbe, system)
   }
 
   private def waitToBeConnectedAndGetSenderServer(testActor: TestProbe): ActorRef = {
