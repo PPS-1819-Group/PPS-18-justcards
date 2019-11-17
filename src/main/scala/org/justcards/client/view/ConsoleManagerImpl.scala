@@ -45,11 +45,9 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
 
       case AppError.USER_ALREADY_PRESENT =>
         println(ERROR_USERNAME_ALREADY_USED)
-        runTaskAskNickname
 
       case AppError.USER_NOT_LOGGED =>
         println(ERROR_USER_NOT_LOGGED)
-        runTaskAskNickname
 
       case AppError.USER_ALREADY_LOGGED =>
         println(ERROR_USER_ALREADY_LOGGED)
