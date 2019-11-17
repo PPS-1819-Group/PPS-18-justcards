@@ -5,23 +5,36 @@ import java.io.File
 import akka.actor.{Actor, Props}
 import org.justcards.commons._
 import org.justcards.commons.GameId
+import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory, PrologGameKnowledge}
 
-class KnowledgeEngine(private val gameManager: GamesManager) extends Actor {
+class KnowledgeEngine(private val gameManager: GamesManager,
+                      private val gameKnowledge: GameKnowledgeFactory) extends Actor {
 
   import KnowledgeEngine._
 
   override def receive: Receive = {
     case GameExistenceRequest(game) => sender() ! GameExistenceResponse(gameManager.gameExists(game))
     case RetrieveAvailableGames(_) => sender() ! AvailableGames(gameManager.availableGames)
+    case GameKnowledgeRequest(game) =>
+      val msg: Any =
+        if(gameManager.gameExists(game)) GameKnowledgeResponse(gameKnowledge(game))
+        else ErrorOccurred(AppError.GAME_NOT_EXISTING)
+      sender() ! msg
   }
 
 }
 
 object KnowledgeEngine {
-  def apply(gameManager: GamesManager): Props = Props(classOf[KnowledgeEngine], gameManager)
+  def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory): Props =
+    Props(classOf[KnowledgeEngine], gameManager, gameKnowledge)
+
+  def apply(gameManager: GamesManager): Props =
+    Props(classOf[KnowledgeEngine], gameManager, GameKnowledge())
 
   case class GameExistenceRequest(gameId: GameId)
   case class GameExistenceResponse(existence: Boolean)
+  case class GameKnowledgeRequest(game: GameId)
+  case class GameKnowledgeResponse(gameKnowledgeInstance: GameKnowledge)
 }
 
 trait GamesManager {
