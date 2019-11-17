@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{TestKit, TestProbe}
 import org.justcards.client.TestView.ChooseNickname
-import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
+import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.controller.AppController
 import org.justcards.client.view.MenuChoice
 import org.justcards.commons._
@@ -138,10 +138,17 @@ class AppControllerTest() extends WordSpecLike
       testProbe expectMsgAllOf (msg, InitializeConnection)
     }
 
-    "inform the user if a message was not correctly delivered" in {
+    "if a message was not correctly delivered, without know the message, destroy the connection and notify the user of connection lost" in {
       val (_, appController, testProbe) = initAndGetComponents
       val msg = ErrorOccurred(MESSAGE_SENDING_FAILED)
       appController ! msg
+      testProbe expectMsg TerminateConnection
+    }
+
+    "if a message was not correctly delivered, knowing the message, try to send the message another time" in {
+      val (_, appController, testProbe) = initAndGetComponents
+      val msg = LogIn(username)
+      appController ! DetailedErrorOccurred(MESSAGE_SENDING_FAILED, msg)
       testProbe expectMsg msg
     }
 
@@ -193,7 +200,7 @@ class AppControllerTest() extends WordSpecLike
 
   private def joinLobby: (UserCommandHandler, ActorRef, TestProbe) = {
     val (userCommandHandler, appController, testProbe) = retrieveAvailableLobbies
-    userCommandHandler joinLobby Utils.lobby
+    userCommandHandler joinLobby lobby
     testProbe.expectMsg(JoinLobby(lobby))
     (userCommandHandler, appController, testProbe)
   }
