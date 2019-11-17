@@ -15,8 +15,8 @@ class KnowledgeEngineTest extends TestKit(ActorSystem("KnowledgeEngineTest")) wi
     TestKit.shutdownActorSystem(system)
   }
 
-  private val gameKnowledge = createGameKnowledge()
-  private val knowledgeEngine = system.actorOf(KnowledgeEngine(gameKnowledge))
+  private val gameManager = createGamesManager()
+  private val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager))
 
   "The knowledge engine" should {
 
@@ -41,7 +41,7 @@ class KnowledgeEngineTest extends TestKit(ActorSystem("KnowledgeEngineTest")) wi
 
 object KnowledgeEngineTest {
 
-  def createGameKnowledge(): GameKnowledge = new GameKnowledge {
+  def createGamesManager(): GamesManager = new GamesManager {
 
     private val games = Set(BECCACCINO_GAME, BRISCOLA_GAME)
 

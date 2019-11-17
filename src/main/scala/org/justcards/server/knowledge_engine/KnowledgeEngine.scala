@@ -1,46 +1,57 @@
 package org.justcards.server.knowledge_engine
 
-import akka.actor.{Actor, ActorRef, Props}
+import java.io.File
+
+import akka.actor.{Actor, Props}
 import org.justcards.commons._
 import org.justcards.commons.GameId
 
-class KnowledgeEngine(private val gameKnowledge: GameKnowledge) extends Actor {
+class KnowledgeEngine(private val gameManager: GamesManager) extends Actor {
 
   import KnowledgeEngine._
 
   override def receive: Receive = {
-    case GameExistenceRequest(game) => sender() ! GameExistenceResponse(gameKnowledge.gameExists(game))
-    case RetrieveAvailableGames(_) => sender() ! AvailableGames(gameKnowledge.availableGames)
+    case GameExistenceRequest(game) => sender() ! GameExistenceResponse(gameManager.gameExists(game))
+    case RetrieveAvailableGames(_) => sender() ! AvailableGames(gameManager.availableGames)
   }
 
 }
 
 object KnowledgeEngine {
-  def apply(gameKnowledge: GameKnowledge): Props = Props(classOf[KnowledgeEngine], gameKnowledge)
+  def apply(gameManager: GamesManager): Props = Props(classOf[KnowledgeEngine], gameManager)
 
   case class GameExistenceRequest(gameId: GameId)
   case class GameExistenceResponse(existence: Boolean)
 }
 
-trait GameKnowledge {
-
+trait GamesManager {
   def availableGames: Set[GameId]
   def gameExists(game: GameId): Boolean
 }
 
-object GameKnowledge {
-  def apply(): GameKnowledge = new testGameKnowledge()
+object GamesManager {
+  def apply(): GamesManager = new FileGamesManager()
 
-  private[this] class testGameKnowledge() extends GameKnowledge {
-    private val _availableGames: Set[GameId] = Set(BECCACCINO_GAME, BRISCOLA_GAME)
+   private[this] class FileGamesManager extends GamesManager {
 
-    def availableGames: Set[GameId] = this._availableGames
+    private[this] val GAMES_PATH = GameKnowledge.GAMES_PATH
 
-    def gameExists(game: GameId): Boolean = _availableGames contains game
+    private val games: Set[GameId] = readGames()
+
+    override def availableGames: Set[GameId] = games
+
+    override def gameExists(game: GameId): Boolean = games contains game
+
+    private def readGames(): Set[GameId] = {
+      val gameDirectory = new File(GAMES_PATH)
+      gameDirectory.listFiles.toSet
+        .filter(!_.isDirectory)
+        .map(_.getName.split('.')(0))
+        .map(name => {
+          val firstChar = name.charAt(0).toString
+          name.replaceFirst(firstChar, firstChar.toUpperCase)
+        })
+        .map(GameId)
+    }
   }
-
-  private val BECCACCINO_GAME = GameId("Beccaccino")
-  private val BRISCOLA_GAME = GameId("Briscola")
-
-
 }
