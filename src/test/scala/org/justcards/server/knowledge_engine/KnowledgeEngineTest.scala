@@ -1,38 +1,46 @@
 package org.justcards.server.knowledge_engine
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class KnowledgeEngineTest extends TestKit(ActorSystem("KnowledgeEngineTest")) with ImplicitSender with WordSpecLike
-  with Matchers with BeforeAndAfterAll with BeforeAndAfter{
+class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfter {
 
   import KnowledgeEngineTest._
 
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
+    system terminate()
   }
 
+  private implicit val system = ActorSystem("KnowledgeEngineTest")
   private val gameKnowledge = createGameKnowledge()
-  private val knowledgeEngine = system.actorOf(KnowledgeEngine(gameKnowledge))
 
   "The knowledge engine" should {
 
     "return all the available games" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameKnowledge))
       knowledgeEngine ! RetrieveAvailableGames()
-      expectMsg(AvailableGames(Set(BECCACCINO_GAME, BRISCOLA_GAME)))
+      me expectMsg(AvailableGames(Set(BECCACCINO_GAME, BRISCOLA_GAME)))
     }
 
     "know if a game exists" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameKnowledge))
       knowledgeEngine ! GameExistenceRequest(BECCACCINO_GAME)
-      expectMsg(GameExistenceResponse(true))
+      me expectMsg(GameExistenceResponse(true))
     }
 
     "know if a game doesn't exists" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameKnowledge))
       knowledgeEngine ! GameExistenceRequest(NOT_EXISTING_GAME)
-      expectMsg(GameExistenceResponse(false))
+      me expectMsg(GameExistenceResponse(false))
     }
 
   }
