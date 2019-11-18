@@ -41,7 +41,7 @@ class AppControllerTest() extends WordSpecLike
     }
 
     "inform the user if an error occurred" in {
-      val (_,appController, testProbe) = initAndGetComponents
+      val (_,appController, testProbe) = initComponents
       val error = ErrorOccurred(errorMessage)
       appController ! error
       testProbe expectMsg error
@@ -125,21 +125,21 @@ class AppControllerTest() extends WordSpecLike
   "When there is a connection error the application controller" should {
 
     "inform the user that the system is not available and the application won't work" in {
-      val (_, appController, testProbe) = initAndGetComponents
+      val (_, appController, testProbe) = initComponents
       val msg = ErrorOccurred(CANNOT_CONNECT)
       appController ! msg
       testProbe expectMsg msg
     }
 
     "try to reconnect to the server and inform the user that the connection was lost" in {
-      val (_, appController, testProbe) = initAndGetComponents
+      val (_, appController, testProbe) = initComponents
       val msg = ErrorOccurred(CONNECTION_LOST)
       appController ! msg
       testProbe expectMsgAllOf (msg, InitializeConnection)
     }
 
     "inform the user if a message was not correctly delivered" in {
-      val (_, appController, testProbe) = initAndGetComponents
+      val (_, appController, testProbe) = initComponents
       val msg = ErrorOccurred(MESSAGE_SENDING_FAILED)
       appController ! msg
       testProbe expectMsg msg
@@ -147,9 +147,9 @@ class AppControllerTest() extends WordSpecLike
 
   }
 
-  private def initAndGetComponents:(UserCommandHandler, ActorRef, TestProbe) = {
+  private def initComponents:(UserCommandHandler, ActorRef, TestProbe) = {
     val testProbe = TestProbe()
-    implicit val testActor: ActorRef = testProbe.ref
+    val testActor: ActorRef = testProbe.ref
     val appController = system.actorOf(AppController(ReSendConnectionManager(testActor),TestView(testActor, hasToSendRef = true)))
     val userCommandHandler = getRef[UserCommandHandler](testProbe.receiveN)
     testProbe expectMsg InitializeConnection
@@ -157,7 +157,7 @@ class AppControllerTest() extends WordSpecLike
   }
 
   private def connect: (UserCommandHandler, ActorRef, TestProbe) = {
-    val (userCommandHandler, appController, testProbe) = initAndGetComponents
+    val (userCommandHandler, appController, testProbe) = initComponents
     appController ! Connected
     testProbe expectMsg ChooseNickname
     (userCommandHandler, appController, testProbe)

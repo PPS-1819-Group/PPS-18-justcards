@@ -80,17 +80,22 @@ object TestView {
 trait ConnectionHandler extends (ActorRef => Props)
 
 object Server {
-  def apply(serverAddress: InetSocketAddress, connectionHandler: ConnectionHandler) =
-    Props(classOf[Server], serverAddress, connectionHandler)
 
-  private[this] class Server(serverAddress: InetSocketAddress, connectionHandler: ConnectionHandler) extends Actor {
+  case object ServerReady
+
+  def apply(serverAddress: InetSocketAddress, connectionHandler: ConnectionHandler, testActor: ActorRef) =
+    Props(classOf[Server], serverAddress, connectionHandler, testActor)
+
+  private[this] class Server(serverAddress: InetSocketAddress, connectionHandler: ConnectionHandler, testActor: ActorRef) extends Actor {
     import akka.io.Tcp._
     import context.system
 
     IO(Tcp) ! Bind(self, serverAddress)
 
     override def receive: Receive = {
-      case b @ Bound(_) => context.parent ! b
+      case b @ Bound(_) =>
+        context.parent ! b
+        testActor ! ServerReady
       case CommandFailed(_: Bind) => context.stop(self)
       case _ @ Connected(_, _) =>
         val connection = sender()

@@ -3,13 +3,14 @@ package org.justcards.client
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
-import akka.testkit.TestProbe
+import akka.testkit.{TestActor, TestProbe}
 import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
 import org.justcards.client.connection_manager.TcpConnectionManager
 import org.justcards.commons.AppError._
 import org.justcards.commons._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import Utils._
+import org.justcards.client.Server.ServerReady
 
 class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -80,7 +81,8 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
     }
 
     "inform the application controller that the connection was lost" in {
-      val (_, server,testProbe) = initAndGetComponents
+      val (connectionManager,testProbe) = initComponents
+      val server = connectToServer(connectionManager, testProbe)
       server ! PoisonPill
       testProbe expectMsg ErrorOccurred(CONNECTION_LOST)
     }
@@ -88,27 +90,37 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
   }
 
   private def checkIfTheApplicationManagerReceiveTheMessage(message: AppMessage): Unit = {
-    val (_, server,testProbe) = initAndGetComponents
+    val (connectionManager,testProbe) = initComponents
+    val server = connectToServer(connectionManager, testProbe)
     server ! message
     testProbe expectMsg message
   }
 
   private def checkIfTheServerReceiveTheMessage(message: AppMessage): Unit = {
-    val (connectionManager, _,testProbe) = initAndGetComponents
+    val (connectionManager,testProbe) = initComponents
+    connectToServer(connectionManager, testProbe)
     connectionManager ! message
     testProbe expectMsg message
   }
 
-  private def initAndGetComponents: (ActorRef, ActorRef, TestProbe) = {
+  private def initComponents: (ActorRef, TestProbe) = {
     val testProbe = TestProbe()
     val testActor: ActorRef = testProbe.ref
     val serverAddress = getNewServerAddress
-    system.actorOf(Server(serverAddress, SimpleConnectionHandler(testActor)))
+    startServer(testProbe, testActor, serverAddress)
     val appController = system.actorOf(TestAppController(testActor))
     val connectionManager = system.actorOf(TcpConnectionManager(serverAddress)(appController))
+    (connectionManager, testProbe)
+  }
+
+  private def startServer(testProbe: TestProbe, testActor: ActorRef, serverAddress: InetSocketAddress): Unit = {
+    system.actorOf(Server(serverAddress, SimpleConnectionHandler(testActor), testActor))
+    testProbe expectMsg ServerReady
+  }
+
+  private def connectToServer(connectionManager: ActorRef, testProbe: TestProbe): ActorRef = {
     connectionManager ! InitializeConnection
-    val server = retrieveServerRef(testProbe)
-    (connectionManager, server, testProbe)
+    retrieveServerRef(testProbe)
   }
 
   private def retrieveServerRef(testProbe: TestProbe): ActorRef = {
