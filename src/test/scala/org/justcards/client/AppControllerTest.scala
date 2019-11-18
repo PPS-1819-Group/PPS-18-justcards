@@ -2,7 +2,7 @@ package org.justcards.client
 
 import akka.actor.{ActorRef, ActorSystem}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestProbe
 import org.justcards.client.TestView.ChooseNickname
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
 import org.justcards.client.controller.AppController
@@ -16,7 +16,7 @@ class AppControllerTest() extends WordSpecLike
   private implicit val system: ActorSystem = ActorSystem("ConnectionManagerTest")
 
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
+    system.terminate()
   }
 
   import Utils._

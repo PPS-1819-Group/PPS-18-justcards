@@ -3,7 +3,7 @@ package org.justcards.client
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestProbe
 import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
 import org.justcards.client.connection_manager.TcpConnectionManager
 import org.justcards.commons.AppError._
@@ -17,7 +17,7 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
   private var nextAvailableServerPort = 6700
 
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
+    system.terminate()
   }
 
   "The connection manager" should {
