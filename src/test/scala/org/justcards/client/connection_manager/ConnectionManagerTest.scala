@@ -1,17 +1,16 @@
-package org.justcards.client
+package org.justcards.client.connection_manager
 
 import java.net.InetSocketAddress
 
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.testkit.TestProbe
+import org.justcards.client.Server.ServerReady
+import org.justcards.client.Utils._
 import org.justcards.client.connection_manager.ConnectionManager.InitializeConnection
-import org.justcards.client.connection_manager.TcpConnectionManager
+import org.justcards.client.{Server, SimpleConnectionHandler, TestAppController}
 import org.justcards.commons.AppError._
 import org.justcards.commons._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import Utils._
-import org.justcards.client.Server.ServerReady
-import scala.concurrent.duration._
 
 class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -94,7 +93,7 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
     val (connectionManager,testProbe) = initComponents
     val server = connectToServer(connectionManager, testProbe)
     server ! message
-    testProbe expectMsg (5 seconds, message)
+    testProbe expectMsg message
   }
 
   private def checkIfTheServerReceiveTheMessage(message: AppMessage): Unit = {

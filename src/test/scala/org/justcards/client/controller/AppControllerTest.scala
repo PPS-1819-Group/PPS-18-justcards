@@ -1,14 +1,14 @@
-package org.justcards.client
+package org.justcards.client.controller
 
 import akka.actor.{ActorRef, ActorSystem}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.TestProbe
 import org.justcards.client.TestView.ChooseNickname
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
-import org.justcards.client.controller.AppController
 import org.justcards.client.view.MenuChoice
-import org.justcards.commons._
+import org.justcards.client.{ReSendConnectionManager, TestView, UserCommandHandler, Utils}
 import org.justcards.commons.AppError._
+import org.justcards.commons._
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class AppControllerTest() extends WordSpecLike
   with Matchers with BeforeAndAfterAll {
