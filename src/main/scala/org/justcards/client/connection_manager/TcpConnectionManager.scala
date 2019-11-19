@@ -2,10 +2,9 @@ package org.justcards.client.connection_manager
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, Props, Stash}
+import akka.actor.{ActorRef, Props}
 import akka.io.{IO, Tcp}
 import akka.io.Tcp.{CommandFailed, Connect, Connected, ConnectionClosed, Register, Write}
-import org.justcards.commons.ErrorOccurred
 import org.justcards.commons.AppError._
 import org.justcards.commons.actor_connection.ActorWithTcp
 
