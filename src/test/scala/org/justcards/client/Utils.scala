@@ -41,6 +41,9 @@ trait UserCommandHandler {
 }
 
 object TestView {
+
+  case object ChooseNickname
+
   def apply(testActor: ActorRef, hasToSendRef: Boolean = false): ViewFactory =
     (appController: AppController) => new TestViewImpl(appController, testActor, hasToSendRef)
 
@@ -70,7 +73,7 @@ object TestView {
 
     override def joinLobby(lobby: LobbyId): Unit = appController joinLobby lobby
 
-    override def chooseNickname(): Unit = ???
+    override def chooseNickname(): Unit = testActor ! ChooseNickname
   }
 }
 
@@ -98,31 +101,33 @@ object Server {
   }
 }
 
-trait SenderServer {
-  def send(msg: AppMessage): Unit
-  def kill(): Unit
-}
-
 object SimpleConnectionHandler {
 
-  def apply(testActor: ActorRef, hasToSendRef: Boolean = false): ConnectionHandler =
-    (connection: ActorRef) => Props(classOf[SimpleConnectionHandlerWithTcp], connection, testActor, hasToSendRef)
+  def apply(testActor: ActorRef): ConnectionHandler =
+    (connection: ActorRef) => Props(classOf[SimpleConnectionHandlerWithTcp], connection, testActor)
 
-  private[this] abstract class SimpleConnectionHandlerImpl(connection: ActorRef, testActor: ActorRef, hasToSendRef: Boolean) extends ActorWithConnection with Actor with SenderServer {
+  private[this] abstract class SimpleConnectionHandlerImpl(connection: ActorRef, testActor: ActorRef)
+    extends ActorWithConnection with Actor {
 
-    if (hasToSendRef) testActor ! this
+    testActor ! self
 
     override def receive: Receive = parse orElse {
       case Outer(m) => testActor ! m
+      case m: AppMessage => connection ==> m
       case m => testActor ! m
     }
 
-    override def send(msg: AppMessage): Unit = connection ==> msg
-
-    override def kill(): Unit = context stop self
-
   }
 
-  private[this] class SimpleConnectionHandlerWithTcp(connection: ActorRef, testActor: ActorRef, hasToSendRef: Boolean)
-    extends SimpleConnectionHandlerImpl(connection, testActor, hasToSendRef) with ActorWithTcp
+  private[this] class SimpleConnectionHandlerWithTcp(connection: ActorRef, testActor: ActorRef)
+    extends SimpleConnectionHandlerImpl(connection, testActor) with ActorWithTcp
+}
+
+object TestAppController {
+  def apply(testActor: ActorRef) = Props(classOf[TestAppController], testActor)
+  private[this] class TestAppController(testActor: ActorRef) extends Actor {
+    override def receive: Receive = {
+      case m => testActor ! m
+    }
+  }
 }
