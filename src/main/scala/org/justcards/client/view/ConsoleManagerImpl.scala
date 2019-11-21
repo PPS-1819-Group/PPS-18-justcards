@@ -108,18 +108,18 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
   private def runTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]) = Future {
     println(LOBBY_LIST_TITLE)
     val lobbiesList = lobbies.toList
-    for (index <- 1 to lobbiesList.size)
-      println(index + ")" + lobbiesList(index-1))
+    for (index <- 0 to lobbiesList.size)
+      println(index+1 + ")" + lobbiesList(index)._1 + "(" + lobbiesList(index)._2.size + "/4)")
     controller joinLobby lobbiesList(choiceSelection(lobbies.size) - 1)._1
   }
 
   private def runTaskLobbyIdle() = Future {
-    println("If you want to exit from the lobby, write \"exit\"")
+    println(LOBBY_MESSAGE)
     @scala.annotation.tailrec
     def lobbyInput(): Unit = {
       import scala.io.StdIn._
       readLine() match {
-        case "exit" => controller exitLobby()
+        case EXIT => controller exitLobby()
         case _ => lobbyInput()
       }
     }

@@ -46,6 +46,8 @@ object ConsoleManager {
   val LOBBY_CREATION_TITLE = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE = "LOBBY LIST - Choose the lobby you want to join"
   val CHOOSE_NICKNAME = "Choose your nickname:"
+  val LOBBY_MESSAGE = "If you want to exit from the lobby, write \"exit\""
+  val EXIT = "exit"
 
   val ERROR_CONNECTION_LOST = "Error: Connection Lost"
   val ERROR_CANNOT_CONNECT = "Error: I can't connect"
