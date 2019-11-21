@@ -16,6 +16,8 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
 
   implicit val executor: ExecutionContextExecutor =  scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
+  var runningTask: Future[Unit] = _
+
   override def chooseNickname(): Unit = runTaskAskNickname
 
   override def error(error: AppError.Value): Unit = runTaskError(error)
@@ -26,11 +28,18 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
 
   override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = runTaskLobbyJoining(lobbies)
 
-  override def lobbyCreated(lobby: LobbyId): Unit = ???
+  override def lobbyCreated(lobby: LobbyId): Unit = {
+    println("Your lobby has been created and its ID is " + lobby.id)
+    runningTask = runTaskLobbyIdle()
+  }
 
-  override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = ???
+  override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = {
+    println("You joined to lobby " + lobby.id)
+    printLobbyState(lobby, members)
+    runningTask = runTaskLobbyIdle()
+  }
 
-  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = ???
+  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = printLobbyState(lobby, members)
 
   private def runTaskAskNickname = Future {controller login ask(CHOOSE_NICKNAME)}
 
@@ -103,6 +112,26 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
       println(index + ")" + lobbiesList(index-1))
     controller joinLobby lobbiesList(choiceSelection(lobbies.size) - 1)._1
   }
+
+  private def runTaskLobbyIdle() = Future {
+    println("If you want to exit from the lobby, write \"exit\"")
+    @scala.annotation.tailrec
+    def lobbyInput(): Unit = {
+      import scala.io.StdIn._
+      readLine() match {
+        case "exit" => controller exitLobby()
+        case _ => lobbyInput()
+      }
+    }
+    lobbyInput()
+  }
+
+  private def printLobbyState(lobby: LobbyId, players: Set[UserId]): Unit = {
+    println(lobby + ", players (" + players.size + "/4):")
+    for(player <- players)
+      println("- " + player.name)
+  }
+
 }
 
 object ConsoleManagerImpl {
@@ -117,7 +146,7 @@ object ConsoleManagerImpl {
         case a if 0 < a && a <= maxValue => a
       }
     } catch {
-      case e: Exception =>
+      case _ : Exception =>
         println(WRONG_VALUE)
         choiceSelection(maxValue)
     }

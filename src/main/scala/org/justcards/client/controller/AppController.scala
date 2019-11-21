@@ -13,6 +13,7 @@ trait AppController {
   def createLobby(game: GameId): Unit
   def joinLobby(lobby: LobbyId): Unit
   def reconnectOrExit(choice: OptionConnectionFailed.Value): Unit
+  def exitLobby(): Unit
 }
 
 object AppController {
@@ -56,6 +57,9 @@ object AppController {
     }
 
     override def reconnectOrExit(choice: OptionConnectionFailed.Value): Unit = ???
+
+    override def exitLobby(): Unit = ??? //da aggiungere anche quando fallisce la connessione
+
 
     private def waitToBeConnected: Receive = {
       case Connected =>
