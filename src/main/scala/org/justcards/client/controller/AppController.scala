@@ -3,7 +3,7 @@ package org.justcards.client.controller
 import akka.actor.{Actor, Props}
 import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
-import org.justcards.client.view.{MenuChoice, View, ViewFactory}
+import org.justcards.client.view.{MenuChoice, OptionConnectionFailed, View, ViewFactory}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 
@@ -12,6 +12,7 @@ trait AppController {
   def menuSelection(choice: MenuChoice.Value): Unit
   def createLobby(game: GameId): Unit
   def joinLobby(lobby: LobbyId): Unit
+  def reconnectOrExit(choice: OptionConnectionFailed.Value): Unit
 }
 
 object AppController {
@@ -53,6 +54,8 @@ object AppController {
       changeContext(waitForLobbyJoin)
       connectionManagerActor ! JoinLobby(lobby)
     }
+
+    override def reconnectOrExit(choice: OptionConnectionFailed.Value): Unit = ???
 
     private def waitToBeConnected: Receive = {
       case Connected =>

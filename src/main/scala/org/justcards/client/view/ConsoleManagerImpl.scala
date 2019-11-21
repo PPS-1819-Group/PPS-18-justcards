@@ -1,5 +1,7 @@
 package org.justcards.client.view
 
+import java.awt.event.KeyEvent
+import java.awt.{KeyEventDispatcher, KeyboardFocusManager}
 import java.util.concurrent.Executors
 
 import org.justcards.client.controller.AppController
@@ -37,8 +39,7 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
       case AppError.CONNECTION_LOST =>
         println(ERROR_CONNECTION_LOST)
 
-      case AppError.CANNOT_CONNECT =>
-        println(ERROR_CANNOT_CONNECT)
+      case AppError.CANNOT_CONNECT => runTaskConnectionFailed
 
       case AppError.MESSAGE_SENDING_FAILED =>
         println(ERROR_LAST_MESSAGE_LOST)
@@ -73,23 +74,33 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
     }
   }
 
+  private def runTaskConnectionFailed = Future {
+    println(ERROR_CANNOT_CONNECT)
+    for (option <- OptionConnectionFailed.values)
+      println (option.id + ")" + option)
+    controller reconnectOrExit choiceSelection(OptionConnectionFailed.maxId - 1)
+  }
+
   private def runTaskMenuChoice = Future {
     println(MENU_TITLE)
-    for (choice <- MenuChoice.values) println(choice.id + ")" + choice)
+    for (choice <- MenuChoice.values)
+      println(choice.id + ")" + choice)
     controller menuSelection choiceSelection(MenuChoice.maxId - 1) //maxId = 4
   }
 
   private def runTaskLobbyCreation(games: Set[GameId]) = Future {
     println(LOBBY_CREATION_TITLE)
     val gamesList = games.toList
-    for (index <- 1 to gamesList.size) println(index + ")" + gamesList(index-1).name)
+    for (index <- 1 to gamesList.size)
+      println(index + ")" + gamesList(index-1).name)
     controller createLobby gamesList(choiceSelection(games.size) - 1)
   }
 
   private def runTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]) = Future {
     println(LOBBY_LIST_TITLE)
     val lobbiesList = lobbies.toList
-    for (index <- 1 to lobbiesList.size) println(index + ")" + lobbiesList(index-1))
+    for (index <- 1 to lobbiesList.size)
+      println(index + ")" + lobbiesList(index-1))
     controller joinLobby lobbiesList(choiceSelection(lobbies.size) - 1)._1
   }
 }
@@ -127,9 +138,23 @@ object ConsoleManagerImpl {
   @throws(classOf[Exception])
   implicit private def IntToMenuChoice(choice: Int): MenuChoice.Value = MenuChoice(choice)
 
+  @throws(classOf[Exception])
+  implicit private def IntToOptionConnectionFailed(choice: Int): OptionConnectionFailed.Value = OptionConnectionFailed(choice)
+
 }
 
-object TestConsole extends App{
+object TestConsole extends App {
+
+  /*KeyboardFocusManager.getCurrentKeyboardFocusManager.addKeyEventDispatcher((keyEvent: KeyEvent) => {
+    keyEvent.getID match {
+      case KeyEvent.KEY_TYPED =>
+        println("prova")
+      case KeyEvent.KEY_RELEASED =>
+        println("prova")
+    }
+    false
+  })*/
+  //scala.io.StdIn.readLine()
   //val console = ConsoleManagerImpl(AppController)
 
   //console chooseNickname()
