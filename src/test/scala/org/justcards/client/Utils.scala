@@ -2,7 +2,7 @@ package org.justcards.client
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.{IO, Tcp}
 import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.controller.AppController
@@ -112,13 +112,17 @@ object SimpleConnectionHandler {
     (connection: ActorRef) => Props(classOf[SimpleConnectionHandlerWithTcp], connection, testActor)
 
   private[this] abstract class SimpleConnectionHandlerImpl(connection: ActorRef, testActor: ActorRef)
-    extends ActorWithConnection with Actor {
+    extends ActorWithConnection with Actor with ActorLogging {
 
     testActor ! self
 
     override def receive: Receive = parse orElse {
       case Outer(m) => testActor ! m
-      case m: AppMessage => connection ==> m
+      case m: AppMessage => {
+        log.debug("Received message " + m)
+        log.debug("Sending to the client")
+        connection ==> m
+      }
       case m => testActor ! m
     }
 
