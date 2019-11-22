@@ -91,11 +91,10 @@ object Server {
     import context.system
 
     IO(Tcp) ! Bind(self, serverAddress)
+    log.debug("I'm the server and I am " + self)
 
     override def receive: Receive = {
-      case b @ Bound(_) =>
-        context.parent ! b
-        testActor ! ServerReady
+      case b @ Bound(_) => testActor ! ServerReady
       case CommandFailed(_: Bind) => context.stop(self)
       case _ @ Connected(_, _) =>
         val connection = sender()
@@ -114,6 +113,7 @@ object SimpleConnectionHandler {
   private[this] abstract class SimpleConnectionHandlerImpl(connection: ActorRef, testActor: ActorRef)
     extends ActorWithConnection with Actor with ActorLogging {
 
+    log.debug("I'm the connectionHandler and I am " + self)
     testActor ! self
 
     override def receive: Receive = parse orElse {
