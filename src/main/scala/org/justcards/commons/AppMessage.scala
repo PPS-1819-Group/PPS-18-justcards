@@ -7,7 +7,7 @@ sealed trait AppMessage
 
 /**
   * Message to indicate that an error occurred
-  * @param message the error
+  * @param error the error
   */
 case class ErrorOccurred(error: String) extends AppMessage
 

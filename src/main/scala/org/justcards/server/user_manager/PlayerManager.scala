@@ -38,8 +38,8 @@ private[user_manager] class PlayerManager(playerDatabase: PlayerDatabase) extend
 }
 
 private[user_manager] object PlayerManager {
-  def apply(): Props = Props(classOf[PlayerManagerWithSet])
-  private[this] class PlayerManagerWithSet extends PlayerManager(PlayerDatabase.createSetPlayerDatabase())
+  def apply(): Props = Props(classOf[PlayerManager], PlayerDatabase.createSetPlayerDatabase())
+  def apply(playerDatabase: PlayerDatabase): Props = Props(classOf[PlayerManager], playerDatabase)
 }
 
 /**

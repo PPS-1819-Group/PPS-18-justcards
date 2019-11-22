@@ -10,7 +10,7 @@ import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceReque
 import org.justcards.server.user_manager.UserManagerMessage._
 import Lobby._
 
-private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase) extends Actor {
+private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase) extends Actor {
 
   import org.justcards.commons.AppError._
 
@@ -89,10 +89,8 @@ private[user_manager] abstract class LobbyManager(knowledgeEngine: ActorRef, lob
 }
 
 private[user_manager] object LobbyManager {
-  def apply(knowledgeEngine: ActorRef): Props = Props(classOf[LobbyManagerWithMap], knowledgeEngine)
-
-  private[this] class LobbyManagerWithMap(knowledgeEngine: ActorRef) extends LobbyManager(
-    knowledgeEngine,
-    LobbyDatabase.createMapLobbyDatabase()
-  )
+  def apply(knowledgeEngine: ActorRef): Props =
+    Props(classOf[LobbyManager], knowledgeEngine, LobbyDatabase.createMapLobbyDatabase())
+  def apply(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase): Props =
+    Props(classOf[LobbyManager], knowledgeEngine, lobbyDatabase)
 }
