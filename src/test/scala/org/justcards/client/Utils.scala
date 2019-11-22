@@ -129,6 +129,10 @@ object SimpleConnectionHandler {
         testActor ! m
     }
 
+    override def unhandled(message: Any): Unit = {
+      log.debug("personalized message not handled -> " + message)
+    }
+
   }
 
   private[this] class SimpleConnectionHandlerWithTcp(connection: ActorRef, testActor: ActorRef)
