@@ -2,7 +2,7 @@ package org.justcards.client
 
 import java.net.InetSocketAddress
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.{IO, Tcp}
 import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.controller.AppController
@@ -86,22 +86,21 @@ object Server {
   def apply(serverAddress: InetSocketAddress, connectionHandler: ConnectionHandler, testActor: ActorRef) =
     Props(classOf[Server], serverAddress, connectionHandler, testActor)
 
-  private[this] class Server(serverAddress: InetSocketAddress, connectionHandler: ConnectionHandler, testActor: ActorRef) extends Actor {
+  private[this] class Server(serverAddress: InetSocketAddress, connectionHandler: ConnectionHandler, testActor: ActorRef) extends Actor with ActorLogging {
     import akka.io.Tcp._
     import context.system
 
     IO(Tcp) ! Bind(self, serverAddress)
+    log.debug("I'm the server and I am " + self)
 
     override def receive: Receive = {
-      case b @ Bound(_) =>
-        context.parent ! b
-        testActor ! ServerReady
+      case b @ Bound(_) => testActor ! ServerReady
       case CommandFailed(_: Bind) => context.stop(self)
       case _ @ Connected(_, _) =>
         val connection = sender()
         val handler = context.actorOf(connectionHandler(connection))
         connection ! Register(handler)
-      case m => println("server(" + serverAddress + "): not handled " + m)
+      case m => log.debug("not handled " + m)
     }
   }
 }
@@ -112,14 +111,26 @@ object SimpleConnectionHandler {
     (connection: ActorRef) => Props(classOf[SimpleConnectionHandlerWithTcp], connection, testActor)
 
   private[this] abstract class SimpleConnectionHandlerImpl(connection: ActorRef, testActor: ActorRef)
-    extends ActorWithConnection with Actor {
+    extends ActorWithConnection with Actor with ActorLogging {
 
+    log.debug("I'm the connectionHandler and I am " + self)
     testActor ! self
 
     override def receive: Receive = parse orElse {
-      case Outer(m) => testActor ! m
-      case m: AppMessage => connection ==> m
-      case m => testActor ! m
+      case Outer(m) =>
+        log.debug("from outside " + m)
+        testActor ! m
+      case m: AppMessage =>
+        log.debug("Received message " + m)
+        log.debug("Sending to the client")
+        connection ==> m
+      case m =>
+        log.debug("received unhandled message " + m)
+        testActor ! m
+    }
+
+    override def unhandled(message: Any): Unit = {
+      log.debug("personalized message not handled -> " + message)
     }
 
   }
@@ -130,9 +141,11 @@ object SimpleConnectionHandler {
 
 object TestAppController {
   def apply(testActor: ActorRef) = Props(classOf[TestAppController], testActor)
-  private[this] class TestAppController(testActor: ActorRef) extends Actor {
+  private[this] class TestAppController(testActor: ActorRef) extends Actor with ActorLogging {
     override def receive: Receive = {
-      case m => testActor ! m
+      case m =>
+        log.debug("received message " + m)
+        testActor ! m
     }
   }
 }

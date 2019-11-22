@@ -15,6 +15,9 @@ dependencies {
     testImplementation(group = "org.scalatest", name = "scalatest_2.12", version = "3.0.8")
     testImplementation(group = "com.typesafe.akka", name = "akka-testkit_2.12", version = "2.6.0")
     testImplementation(group = "com.typesafe.akka", name = "akka-actor-testkit-typed_2.12", version = "2.6.0")
+
+    compile(group = "com.typesafe.akka", name = "akka-slf4j_2.12", version = "2.5.23")
+    compile(group = "ch.qos.logback", name = "logback-classic", version = "1.2.3")
 }
 
 java {

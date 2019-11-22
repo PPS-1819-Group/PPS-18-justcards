@@ -1,21 +1,26 @@
 package org.justcards.commons.actor_connection
 
-import akka.actor.ActorRef
+import akka.actor.{ActorLogging, ActorRef}
 import akka.io.Tcp.{Received, Write}
 import akka.util.ByteString
 import org.justcards.commons._
 import play.api.libs.json.{Json, OFormat}
 
-trait ActorWithTcp extends ActorWithConnection {
+trait ActorWithTcp extends ActorWithConnection with ActorLogging {
 
   import org.justcards.commons.actor_connection.ActorWithTcp._
 
   override def parse: Receive = {
-    case Received(data) => self ! Outer(extractMessage(data))
+    case Received(data) =>
+      log.debug("received message " + data)
+      self ! Outer(extractMessage(data))
+      log.debug("extracted message " + extractMessage(data))
   }
 
   abstract override private[actor_connection] def tellWithConnection(actor: ActorRef, message: Any): Unit = message match {
-    case msg: AppMessage => super.tellWithConnection(actor,Write(msg))
+    case msg: AppMessage =>
+      log.debug("transform message " + msg)
+      super.tellWithConnection(actor,Write(msg))
     case msg => super.tellWithConnection(actor,msg)
   }
 }
