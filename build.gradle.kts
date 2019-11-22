@@ -44,4 +44,5 @@ task<JavaExec>("runServer") {
 task<JavaExec>("runClient") {
     classpath = sourceSets.main.get().runtimeClasspath
     main = "org.justcards.client.ClientApp"
+    standardInput = System.`in`
 }
