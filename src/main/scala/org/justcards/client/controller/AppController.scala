@@ -2,7 +2,7 @@ package org.justcards.client.controller
 
 import akka.actor.{Actor, Props}
 import org.justcards.client.connection_manager.ConnectionManager
-import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
+import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.view.{MenuChoice, View, ViewFactory}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
@@ -15,6 +15,7 @@ trait AppController {
 }
 
 object AppController {
+
   def apply(connectionManager: ConnectionManager, viewFactory: ViewFactory) =
     Props(classOf[AppControllerActor], connectionManager, viewFactory)
 
@@ -58,6 +59,8 @@ object AppController {
       case Connected =>
         context become default
         view chooseNickname()
+      case ErrorOccurred(m) if m == CANNOT_CONNECT.toString =>
+        view error CANNOT_CONNECT
     }
 
     private def waitToBeLogged: Receive = {
@@ -98,18 +101,36 @@ object AppController {
       case ErrorOccurred(message) =>
         val error = AppError.values.find(_.toString == message)
         if (error.isDefined) error get match {
-          case CONNECTION_LOST =>
-            view error CONNECTION_LOST
-            connectionManagerActor ! InitializeConnection
-            changeContext(waitToBeConnected)
-          case a => view error a
+          case CONNECTION_LOST => connectionLost()
+          case MESSAGE_SENDING_FAILED => connectionManagerActor ! TerminateConnection
+          case USER_ALREADY_PRESENT | USER_NOT_LOGGED =>
+            notifyErrorAndChangeBehaviourToDefault(error.get)
+            view chooseNickname()
+          case GAME_NOT_EXISTING => notifyErrorAndChangeBehaviourToDefault(GAME_NOT_EXISTING)
+          case LOBBY_NOT_EXISTING => notifyErrorAndChangeBehaviourToDefault(LOBBY_NOT_EXISTING)
+          case LOBBY_FULL => notifyErrorAndChangeBehaviourToDefault(LOBBY_FULL)
+          case m => view error m
         }
+      case DetailedErrorOccurred(MESSAGE_SENDING_FAILED, message) =>
+        connectionManagerActor ! message
       case _ =>
+    }
+
+    private def connectionLost(): Unit = {
+      changeContext(waitToBeConnected)
+      view error CONNECTION_LOST
+      connectionManagerActor ! InitializeConnection
     }
 
     private def changeContext(newBehaviour: Receive): Unit = {
       context become (newBehaviour orElse default)
     }
 
+    private def notifyErrorAndChangeBehaviourToDefault(message: AppError.Value): Unit = {
+      defaultBehaviour()
+      view error message
+    }
+
+    private def defaultBehaviour(): Unit = context become default
   }
 }
