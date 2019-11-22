@@ -1,7 +1,5 @@
 package org.justcards.client.view
 
-import java.awt.event.KeyEvent
-import java.awt.{KeyEventDispatcher, KeyboardFocusManager}
 import java.util.concurrent.Executors
 
 import org.justcards.client.controller.AppController
@@ -29,17 +27,20 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
   override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = runTaskLobbyJoining(lobbies)
 
   override def lobbyCreated(lobby: LobbyId): Unit = {
-    println("Your lobby has been created and its ID is " + lobby.id)
-    runningTask = runTaskLobbyIdle()
+    runTaskLobbyCreated(lobby)
+      .onComplete( _ => runningTask = runTaskLobbyIdle())
   }
 
   override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = {
-    println("You joined to lobby " + lobby.id)
-    printLobbyState(lobby, members)
-    runningTask = runTaskLobbyIdle()
+    runTaskLobbyJoined(lobby, members)
+      .onComplete( _ => runningTask = runTaskLobbyIdle())
   }
 
-  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = printLobbyState(lobby, members)
+  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = {
+    runningTask.failed
+    runTaskLobbyUpdate(lobby, members)
+      .onComplete(_ => runningTask = runTaskLobbyIdle())
+  }
 
   private def runTaskAskNickname = Future {controller login ask(CHOOSE_NICKNAME)}
 
@@ -113,6 +114,19 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
     controller joinLobby lobbiesList(choiceSelection(lobbies.size) - 1)._1
   }
 
+  private def runTaskLobbyCreated(lobby: LobbyId) = Future {
+    println(LOBBY_CREATED_MESSAGE(lobby))
+  }
+
+  private def runTaskLobbyJoined(lobby: LobbyId, members: Set[UserId]) = Future {
+    println(LOBBY_JOINED_MESSAGE(lobby))
+    printLobbyState(lobby, members)
+  }
+
+  private def runTaskLobbyUpdate(lobby: LobbyId, members: Set[UserId]) = Future {
+    printLobbyState(lobby, members)
+  }
+
   private def runTaskLobbyIdle() = Future {
     println(LOBBY_MESSAGE)
     @scala.annotation.tailrec
@@ -131,7 +145,7 @@ case class ConsoleManagerImpl(controller: AppController) extends View {
     for(player <- players)
       println("- " + player.name)
   }
-
+  
 }
 
 object ConsoleManagerImpl {

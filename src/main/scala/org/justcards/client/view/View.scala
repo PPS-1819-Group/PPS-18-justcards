@@ -48,6 +48,8 @@ object ConsoleManager {
   val CHOOSE_NICKNAME = "Choose your nickname:"
   val LOBBY_MESSAGE = "If you want to exit from the lobby, write \"exit\""
   val EXIT = "exit"
+  def LOBBY_CREATED_MESSAGE(lobby: LobbyId): String = "Your lobby has been created and its ID is " + lobby.id
+  def LOBBY_JOINED_MESSAGE(lobby: LobbyId): String = "You joined to lobby " + lobby.id
 
   val ERROR_CONNECTION_LOST = "Error: Connection Lost"
   val ERROR_CANNOT_CONNECT = "Error: I can't connect"
