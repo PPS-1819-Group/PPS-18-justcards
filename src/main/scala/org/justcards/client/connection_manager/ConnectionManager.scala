@@ -1,6 +1,6 @@
 package org.justcards.client.connection_manager
 
-import akka.actor.{Actor, ActorRef, Props, Stash}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
 import org.justcards.commons.AppError.{CANNOT_CONNECT, CONNECTION_LOST, MESSAGE_SENDING_FAILED}
 import org.justcards.commons.{AppError, AppMessage, ErrorOccurred}
@@ -13,7 +13,7 @@ object ConnectionManager {
   case object Connected
 }
 
-abstract class AbstractConnectionManager(appController: ActorRef) extends ActorWithConnection with Actor with Stash {
+abstract class AbstractConnectionManager(appController: ActorRef) extends ActorWithConnection with Actor with Stash with ActorLogging {
 
   override def receive: Receive = parse orElse waitForInit
 
@@ -36,8 +36,12 @@ abstract class AbstractConnectionManager(appController: ActorRef) extends ActorW
   }
 
   private def work(server: ActorRef): Receive = {
-    case m: AppMessage => server ==> m
-    case Outer(m: AppMessage) => appController ! m
+    case m: AppMessage =>
+      log.debug("sending to the outside " + m)
+      server ==> m
+    case Outer(m: AppMessage) =>
+      log.debug("received from outside " + m)
+      appController ! m
   }
 
   private def stashUnhandled: Receive = {

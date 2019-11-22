@@ -7,7 +7,7 @@ abstract class ActorWithConnection extends Actor with ActorLogging {
   def parse: Receive
   final def become(behaviour: Receive): Unit = context become (parse orElse behaviour)
   private[actor_connection] def tellWithConnection(actor: ActorRef, message: Any): Unit = {
-    log.debug("sending message " + message)
+    log.debug("sending to " + actor + " - message " + message)
     actor ! message
   }
   implicit class MyPersonalSender(actor: ActorRef) {
