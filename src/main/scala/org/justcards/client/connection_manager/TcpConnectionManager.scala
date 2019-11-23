@@ -2,12 +2,12 @@ package org.justcards.client.connection_manager
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, Props, Stash}
+import akka.actor.{ActorRef, Props}
 import akka.io.{IO, Tcp}
-import akka.io.Tcp.{CommandFailed, Connect, Connected, ConnectionClosed, Register, Write}
-import org.justcards.commons.ErrorOccurred
+import akka.io.Tcp.{Close, Closed, CommandFailed, Connect, Connected, ConnectionClosed, Register, Write}
 import org.justcards.commons.AppError._
 import org.justcards.commons.actor_connection.ActorWithTcp
+import org.justcards.commons.actor_connection.ActorWithTcp._
 
 object TcpConnectionManager {
 
@@ -32,9 +32,12 @@ object TcpConnectionManager {
     }
 
     override protected def connectionErrorHandling(server: ActorRef): Receive = {
-      case CommandFailed(_: Write) => error(MESSAGE_SENDING_FAILED)
-      case _: ConnectionClosed => error(CONNECTION_LOST)
+      case CommandFailed(message: Write) => error(MESSAGE_SENDING_FAILED,extractMessage(message.data))
+      case _: ConnectionClosed | Closed => error(CONNECTION_LOST)
+    }
+
+    override protected def terminateConnection(server: ActorRef): Unit = {
+      server ! Close
     }
   }
 }
-
