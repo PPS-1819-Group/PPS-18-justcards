@@ -2,167 +2,176 @@ package org.justcards.client.view
 
 import java.util.concurrent.Executors
 
-import org.justcards.client.controller.AppController
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import org.justcards.commons.{AppError, GameId, LobbyId, UserId}
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.util.Success
 
 
-case class ConsoleManagerImpl(controller: AppController) extends View {
-  import ConsoleManager._
+class ConsoleManagerImpl(controller: ActorRef) extends Actor {
+  import View._
   import ConsoleManagerImpl._
 
-  implicit val executor: ExecutionContextExecutor =  scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+  implicit val executor: ExecutionContextExecutor =
+    scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
-  var runningTask: Future[Unit] = _
+  var awaitingUserChoice: Boolean = false
 
-  override def chooseNickname(): Unit = runTaskAskNickname
+  override def receive: Receive = init orElse errorManagement
 
-  override def error(error: AppError.Value): Unit = runTaskError(error)
-
-  override def showMenu(): Unit = runTaskMenuChoice
-
-  override def showLobbyCreation(games: Set[GameId]): Unit = runTaskLobbyCreation(games)
-
-  override def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit = runTaskLobbyJoining(lobbies)
-
-  override def lobbyCreated(lobby: LobbyId): Unit = {
-    runTaskLobbyCreated(lobby)
-      .onComplete( _ => runningTask = runTaskLobbyIdle())
+  def init: Receive = {
+    case ChooseNickname => askNickname()
+    case NewUserCommand(nickname) => //chose nickname
+    //TODO tell the controller the nickname
+    case ShowMenu =>
+      askMenuChoice()
+      context >>> inMenu
   }
 
-  override def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit = {
-    runTaskLobbyJoined(lobby, members)
-      .onComplete( _ => runningTask = runTaskLobbyIdle())
+  private def inMenu: Receive = {
+    case NewUserCommand(choice) => //chosen a menu voice
+      parseToNumberAnd(choice, MenuChoice.maxId - 1) {
+        //TODO tell the controller the menu choice
+      } (askMenuChoice())
+    case ShowLobbyCreation(games) =>
+      val gamesList = games.toList
+      showLobbyCreationOptions(gamesList)
+      context >>> lobbyCreation(gamesList)
+    case ShowLobbies(lobbies) =>
+      val lobbiesList = lobbies.toList
+      showLobbies(lobbiesList)
+      context >>> lobbyLookup(lobbiesList)
   }
 
-  override def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit = {
-    runningTask.failed
-    runTaskLobbyUpdate(lobby, members)
-      .onComplete(_ => runningTask = runTaskLobbyIdle())
+  private def lobbyLookup(lobbies: List[(LobbyId, Set[UserId])]): Receive = {
+    case NewUserCommand(choice) => // chosen a lobby
+      parseToNumberAnd(choice, lobbies.size) {
+        //TODO tell the controller the lobby chosen
+      } (showLobbies(lobbies))
+    case ShowLobbies(newLobbies) =>
+      val lobbiesList = newLobbies.toList
+      showLobbies(lobbiesList)
+      context >>> lobbyLookup(lobbiesList)
+    case LobbyJoined(lobby, members) =>
+      println(LOBBY_JOINED_MESSAGE(lobby))
+      printLobbyState(lobby, members)
+      showLobbyOptions()
+      context >>> inLobby
   }
 
-  private def runTaskAskNickname = Future {controller login ask(CHOOSE_NICKNAME)}
+  private def lobbyCreation(games: List[GameId]): Receive = {
+    case NewUserCommand(choice) =>
+      parseToNumberAnd(choice, games.size) {
+        //TODO tell the controller the game chosen
+      } (showLobbyCreationOptions(games))
+    case LobbyCreated(lobby) =>
+      println(LOBBY_CREATED_MESSAGE(lobby))
+      showLobbyOptions()
+      context >>> inLobby
+  }
 
-  private def runTaskError(error: AppError.Value) = Future {
-    error match {
-      case AppError.CONNECTION_LOST =>
-        println(ERROR_CONNECTION_LOST)
-
-      case AppError.CANNOT_CONNECT => runTaskConnectionFailed
-
-      case AppError.MESSAGE_SENDING_FAILED =>
-        println(ERROR_LAST_MESSAGE_LOST)
-
-      case AppError.USER_ALREADY_PRESENT =>
-        println(ERROR_USERNAME_ALREADY_USED)
-
-      case AppError.USER_NOT_LOGGED =>
-        println(ERROR_USER_NOT_LOGGED)
-
-      case AppError.USER_ALREADY_LOGGED =>
-        println(ERROR_USER_ALREADY_LOGGED)
-
-      case AppError.USER_ALREADY_IN_A_LOBBY =>
-        println(ERROR_USER_ALREADY_IN_LOBBY)
-
-      case AppError.USER_WRONG_USERNAME =>
-        println(ERROR_USER_WRONG_USERNAME)
-
-      case AppError.GAME_NOT_EXISTING =>
-        println(ERROR_GAME_NOT_EXIST)
-
-      case AppError.LOBBY_NOT_EXISTING =>
-        println(ERROR_GAME_NOT_EXIST)
-
-      case AppError.LOBBY_FULL =>
-        println(ERROR_LOBBY_FULL)
-
-      case AppError.SELECTION_NOT_AVAILABLE =>
-        println(ERROR_WRONG_CHOICE)
-
+  private def inLobby: Receive = {
+    case LobbyUpdate(lobby, members) => printLobbyState(lobby, members)
+    case NewUserCommand(command) => command match {
+      case EXIT => //TODO tell the controller to exit from lobby
     }
   }
 
-  private def runTaskConnectionFailed = Future {
-    println(ERROR_CANNOT_CONNECT)
-    for (option <- OptionConnectionFailed.values)
-      println (option.id + ")" + option)
-    controller reconnectOrExit choiceSelection(OptionConnectionFailed.maxId - 1)
+  private def errorManagement: Receive = {
+    case ShowError(error) =>
+      println(errorMessage(error))
+      if(error == AppError.CANNOT_CONNECT) {
+        for (option <- OptionConnectionFailed.values)
+          println (option.id + ")" + option)
+        /*
+        TODO tell the controller the choice
+        controller reconnectOrExit choiceSelection(OptionConnectionFailed.maxId - 1)
+         */
+      }
   }
 
-  private def runTaskMenuChoice = Future {
+  private def nextBehaviour(behaviour: Receive) : Receive = behaviour orElse errorManagement
+
+  private def askNickname(): Unit = askToUser(CHOOSE_NICKNAME)
+
+  private def askMenuChoice(): Unit = {
     println(MENU_TITLE)
     for (choice <- MenuChoice.values)
       println(choice.id + ")" + choice)
-    controller menuSelection choiceSelection(MenuChoice.maxId - 1) //maxId = 4
+    askToUser(NUMBER_CHOICE)
   }
 
-  private def runTaskLobbyCreation(games: Set[GameId]) = Future {
+  private def showLobbyCreationOptions(games: List[GameId]): Unit = {
     println(LOBBY_CREATION_TITLE)
-    val gamesList = games.toList
-    for (index <- 1 to gamesList.size)
-      println(index + ")" + gamesList(index-1).name)
-    controller createLobby gamesList(choiceSelection(games.size) - 1)
+    for (index <- 1 to games.size)
+      println(index + ")" + games(index - 1).name)
+    askToUser(NUMBER_CHOICE)
   }
 
-  private def runTaskLobbyJoining(lobbies: Set[(LobbyId, Set[UserId])]) = Future {
+  private def showLobbies(lobbies: List[(LobbyId, Set[UserId])]): Unit = {
     println(LOBBY_LIST_TITLE)
-    val lobbiesList = lobbies.toList
-    for (index <- 0 to lobbiesList.size)
-      println(index+1 + ")" + lobbiesList(index)._1 + "(" + lobbiesList(index)._2.size + "/4)")
-    controller joinLobby lobbiesList(choiceSelection(lobbies.size) - 1)._1
+    for (
+      index <- 1 to lobbies.size;
+      lobby = lobbies(index - 1)
+    ) println(index + ")" + lobby._1 + "(" + lobby._2.size + "/4)")
+    askToUser(NUMBER_CHOICE)
   }
 
-  private def runTaskLobbyCreated(lobby: LobbyId) = Future {
-    println(LOBBY_CREATED_MESSAGE(lobby))
-  }
-
-  private def runTaskLobbyJoined(lobby: LobbyId, members: Set[UserId]) = Future {
-    println(LOBBY_JOINED_MESSAGE(lobby))
-    printLobbyState(lobby, members)
-  }
-
-  private def runTaskLobbyUpdate(lobby: LobbyId, members: Set[UserId]) = Future {
-    printLobbyState(lobby, members)
-  }
-
-  private def runTaskLobbyIdle() = Future {
-    println(LOBBY_MESSAGE)
-    @scala.annotation.tailrec
-    def lobbyInput(): Unit = {
-      import scala.io.StdIn._
-      readLine() match {
-        case EXIT => controller exitLobby()
-        case _ => lobbyInput()
-      }
-    }
-    lobbyInput()
-  }
+  private def showLobbyOptions(): Unit = askToUser(LOBBY_MESSAGE)
 
   private def printLobbyState(lobby: LobbyId, players: Set[UserId]): Unit = {
     println(lobby + ", players (" + players.size + "/4):")
     for(player <- players)
       println("- " + player.name)
   }
-  
+
+  private def askToUser(question: String): Unit = {
+    if(!awaitingUserChoice) {
+      awaitingUserChoice = true
+      Future { ask(question) } onSuccessfulComplete {
+        awaitingUserChoice = false
+        self ! NewUserCommand(_)
+      }
+    } else {
+      println(question)
+      print("> ")
+    }
+  }
+
+  private def parseToNumberAnd(choice: String, size: Int)(okThen: => Unit)(orElse: => Unit): Unit = {
+    val numberChoice = parseNumberChoice(choice, size)
+    if(numberChoice isDefined) okThen
+    else {
+      println(WRONG_VALUE)
+      orElse
+    }
+  }
+
+  implicit class RichContext(context: ActorContext) {
+    def >>>(behaviour: Receive): Unit = context become nextBehaviour(behaviour)
+  }
+
 }
 
 object ConsoleManagerImpl {
+
+  def apply(controller: ActorRef): Props = Props(classOf[ConsoleManagerImpl], controller)
+
   val NUMBER_CHOICE = "Insert number of your choice:"
   val WRONG_VALUE = "Error: unacceptable value"
   val EMPTY_RESPONSE = "Empty answer isn't allowed"
 
-  @scala.annotation.tailrec
-  private def choiceSelection(maxValue: Int): Int = {
+  //my messages
+ private case class NewUserCommand(command: String)
+
+  private def parseNumberChoice(choice: String, maxValue: Int): Option[Int] = {
     try {
-      ask(NUMBER_CHOICE) toInt match {
-        case a if 0 < a && a <= maxValue => a
+      choice toInt match {
+        case a if 0 < a && a <= maxValue => Some(a)
       }
     } catch {
-      case _ : Exception =>
-        println(WRONG_VALUE)
-        choiceSelection(maxValue)
+      case _ : Exception => None
     }
   }
 
@@ -170,6 +179,7 @@ object ConsoleManagerImpl {
   private def ask(question: String): String = {
     import scala.io.StdIn._
     println(question)
+    print("> ")
     readLine match {
       case a if a.isBlank || a.isEmpty =>
         println(EMPTY_RESPONSE)
@@ -183,6 +193,14 @@ object ConsoleManagerImpl {
 
   @throws(classOf[Exception])
   implicit private def IntToOptionConnectionFailed(choice: Int): OptionConnectionFailed.Value = OptionConnectionFailed(choice)
+
+  implicit class RichFuture[A](future: Future[A]) {
+    def onSuccessfulComplete(nextOperation: (A => Unit))(implicit executor: ExecutionContext): Unit =
+      future onComplete {
+        case Success(value) => nextOperation(value)
+        case _ =>
+      }
+  }
 
 }
 

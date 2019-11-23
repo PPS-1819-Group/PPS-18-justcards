@@ -10,6 +10,6 @@ object ClientApp extends App {
   val host = "localhost"
   val port = 6789
   val connectionManager = TcpConnectionManager(host,port)
-  val view: ViewFactory = controller => ConsoleManagerImpl(controller)
-  val appController = system.actorOf(AppController(connectionManager,view))
+  /*val view: ViewFactory = controller => ConsoleManagerImpl(controller)
+  val appController = system.actorOf(AppController(connectionManager,view))*/
 }
