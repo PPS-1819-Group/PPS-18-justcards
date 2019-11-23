@@ -44,6 +44,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(LogOut(`username`)) =>
       userManager ! LogOutAndExitFromLobby(username, lobby)
       context stop self
+    case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
     case LobbyJoined(_,_) =>
   }
 
@@ -74,7 +75,7 @@ object User {
         server.log(COMMAND_FAILED + extractMessage(w.data))
       case _: ErrorClosed | PeerClosed =>
         server.log(CONNECTION_CLOSED)
-        if (!username.isEmpty) userManager ! UserLogout(username, self)
+        if (!username.isEmpty) self ! Outer(LogOut(username))
         context stop self
     }
 
