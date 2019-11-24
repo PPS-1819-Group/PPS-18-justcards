@@ -19,6 +19,7 @@ object View {
   case class ShowLobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
 
   val MENU_TITLE = "MENU"
+  val ERROR_TITLE = "ERROR"
   val LOBBY_CREATION_TITLE = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE = "LOBBY LIST - Choose the lobby you want to join"
   val CHOOSE_NICKNAME = "Choose your nickname:"

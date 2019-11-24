@@ -78,16 +78,22 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
     }
   }
 
+  private def disconnected: Receive = {
+    case NewUserCommand(command) =>
+      parseToNumberAnd(command, OptionConnectionFailed.maxId - 1) { numberChoice =>
+        val option = OptionConnectionFailed(numberChoice)
+        controller ! ReconnectOption(option)
+        if(option == OptionConnectionFailed.QUIT) goodbye()
+        context >>> init
+      } (showReconnectOptions())
+  }
+
   private def errorManagement: Receive = {
     case ShowError(error) =>
       println(errorMessage(error))
       if(error == AppError.CANNOT_CONNECT) {
-        for (option <- OptionConnectionFailed.values)
-          println (option.id + ")" + option)
-        /*
-        TODO tell the controller the choice
-        controller reconnectOrExit choiceSelection(OptionConnectionFailed.maxId - 1)
-         */
+        showReconnectOptions()
+        context >>> disconnected
       }
   }
 
@@ -118,10 +124,22 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
 
   private def showLobbyOptions(): Unit = askToUser(LOBBY_MESSAGE)
 
+  private def showReconnectOptions(): Unit = {
+    for (option <- OptionConnectionFailed.values)
+      println (option.id + ")" + option)
+    askToUser(NUMBER_CHOICE)
+  }
+
   private def printLobbyState(lobby: LobbyId, players: Set[UserId]): Unit = {
     println(lobby + ", players (" + players.size + "/4):")
     for(player <- players)
       println("- " + player.name)
+  }
+
+  private def goodbye(): Unit = {
+    println(NEW_LINE)
+    println(GOODBYE)
+    println(NEW_LINE)
   }
 
   private def askToUser(question: String): Unit = {
@@ -159,15 +177,17 @@ object ConsoleManagerImpl {
 
   def apply(): View = controller => Props(classOf[ConsoleManagerImpl], controller)
 
-  val NUMBER_CHOICE = "Insert number of your choice:"
-  val WRONG_VALUE = "Error: unacceptable value"
-  val EMPTY_RESPONSE = "Empty answer isn't allowed"
+  private val NUMBER_CHOICE = "Insert number of your choice:"
+  private val WRONG_VALUE = "Error: unacceptable value"
+  private val EMPTY_RESPONSE = "Empty answer isn't allowed"
+  private val NEW_LINE = "---------------------------"
+  private val GOODBYE = "Bye"
 
   //my messages
   private case class NewUserCommand(command: String)
 
   private def clearAndPrint(message: String): Unit = {
-    println("---------------------------")
+    println(NEW_LINE)
     println(message)
   }
 

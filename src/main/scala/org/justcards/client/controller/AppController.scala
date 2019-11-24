@@ -19,6 +19,7 @@ object AppController {
   case class MenuSelection(choice: MenuChoice.Value)
   case class AppControllerCreateLobby(game: GameId)
   case class AppControllerJoinLobby(lobby: LobbyId)
+  case class ReconnectOption(option: OptionConnectionFailed.Value)
   case object ExitFromLobby
 
   private[this] class AppControllerActor(connectionManager: ConnectionManager, view: View) extends Actor {
@@ -28,9 +29,6 @@ object AppController {
     connectionManagerActor ! InitializeConnection
 
     override def receive: Receive = waitToBeConnected orElse default
-
-    /*override def reconnectOrExit(choice: OptionConnectionFailed.Value): Unit = ???*/
-
 
     private def waitToBeConnected: Receive = {
       case Connected =>
@@ -103,6 +101,14 @@ object AppController {
         }
       case DetailedErrorOccurred(MESSAGE_SENDING_FAILED, message) =>
         connectionManagerActor ! message
+      case ReconnectOption(option) => option match {
+        case QUIT =>
+          context.system.terminate()
+          System.exit(1)
+        case TRY_TO_RECONNECT =>
+          connectionManagerActor ! InitializeConnection
+          context >>> waitToBeConnected
+      }
     }
 
     private def connectionLost(): Unit = {
