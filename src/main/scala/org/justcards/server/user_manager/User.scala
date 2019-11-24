@@ -15,6 +15,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
 
   private def receiveMessage: Receive = {
     case Outer(msg) => userManager ! msg
+    case msg: ErrorOccurred => userRef ==> msg
   }
 
   private def notLogged: Receive = {
@@ -22,7 +23,6 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Logged(username) =>
       userRef ==> Logged(username)
       this become completeBehaviour(logged(username), username)
-    case msg: ErrorOccurred => userRef ==> msg
   }
 
   private def logged(username: String): Receive = {
@@ -73,10 +73,10 @@ object User {
       case CommandFailed(w: Write) =>
         // O/S buffer was full
         server.log(COMMAND_FAILED + extractMessage(w.data))
-      case _: ErrorClosed | PeerClosed =>
+      case _: ConnectionClosed =>
         server.log(CONNECTION_CLOSED)
         if (!username.isEmpty) self ! Outer(LogOut(username))
-        context stop self
+        else context stop self
     }
 
   }
