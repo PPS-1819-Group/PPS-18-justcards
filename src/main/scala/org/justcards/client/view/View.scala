@@ -1,57 +1,22 @@
 package org.justcards.client.view
 
-import org.justcards.client.controller.AppController
+import akka.actor.{ActorRef, Props}
 import org.justcards.commons.AppError._
 import org.justcards.commons.{AppError, GameId, LobbyId, UserId}
 
-trait View {
-
-  /**
-   * Show error
-   */
-  def error(error: AppError.Value): Unit
-
-  /**
-   * Ask to user the nickname
-   */
-  def chooseNickname(): Unit
-
-  /**
-   * Show menu
-   */
-  def showMenu(): Unit
-
-  /**
-   * Initialize lobby creation
-   * @param games available games
-   */
-  def showLobbyCreation(games: Set[GameId]): Unit
-
-  /**
-   * Show available lobbies
-   * @param lobbies available lobbies
-   */
-  def showLobbyJoin(lobbies: Set[(LobbyId, Set[UserId])]): Unit
-
-  def lobbyCreated(lobby: LobbyId): Unit
-
-  def lobbyJoined(lobby: LobbyId, members: Set[UserId]): Unit
-
-  def lobbyUpdate(lobby: LobbyId, members: Set[UserId]): Unit
-}
-
-trait ViewFactory extends (AppController => View)
+trait View extends (ActorRef => Props)
 
 object View {
 
-  case class ShowError(error: AppError.Value)
-  case object ChooseNickname
-  case object ShowMenu
-  case class ShowLobbyCreation(games: Set[GameId])
-  case class ShowLobbies(lobbies: Set[(LobbyId, Set[UserId])])
-  case class LobbyCreated(lobby: LobbyId)
-  case class LobbyJoined(lobby: LobbyId, members: Set[UserId])
-  case class LobbyUpdate(lobby: LobbyId, members: Set[UserId])
+  sealed trait ViewMessage
+  case class ShowError(error: AppError.Value) extends ViewMessage
+  case object ShowUsernameChoice extends ViewMessage
+  case object ShowMenu extends ViewMessage
+  case class ShowLobbyCreation(games: Set[GameId]) extends ViewMessage
+  case class ShowLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends ViewMessage
+  case class ShowCreatedLobby(lobby: LobbyId) extends ViewMessage
+  case class ShowJoinedLobby(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
+  case class ShowLobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
 
   val MENU_TITLE = "MENU"
   val LOBBY_CREATION_TITLE = "LOBBY CREATION - Choose the game you want to play"
@@ -60,8 +25,8 @@ object View {
   val LOBBY_MESSAGE = "If you want to exit from the lobby, write \"exit\""
   val EXIT = "exit"
 
-  def LOBBY_CREATED_MESSAGE(lobby: LobbyId): String = "Your lobby has been created and its ID is " + lobby.id
-  def LOBBY_JOINED_MESSAGE(lobby: LobbyId): String = "You joined to lobby " + lobby.id
+  def LOBBY_CREATED_MESSAGE(lobby: LobbyId): String = "Your lobby has been created! ID = " + lobby.id
+  def LOBBY_JOINED_MESSAGE(lobby: LobbyId): String = "You joined lobby " + lobby.id
   def UNKNOWN_ERROR(error: AppError.Value): String = "Unknown error: " + error
 
   val ERROR_CONNECTION_LOST = "Error: Connection Lost"

@@ -3,6 +3,7 @@ package org.justcards.client.view
 import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
+import org.justcards.client.controller.AppController._
 import org.justcards.commons.{AppError, GameId, LobbyId, UserId}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
@@ -21,9 +22,8 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
   override def receive: Receive = init orElse errorManagement
 
   def init: Receive = {
-    case ChooseNickname => askNickname()
-    case NewUserCommand(nickname) => //chose nickname
-    //TODO tell the controller the nickname
+    case ShowUsernameChoice => askUsername()
+    case NewUserCommand(username) => controller ! ChosenUsername(username)
     case ShowMenu =>
       askMenuChoice()
       context >>> inMenu
@@ -31,8 +31,8 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
 
   private def inMenu: Receive = {
     case NewUserCommand(choice) => //chosen a menu voice
-      parseToNumberAnd(choice, MenuChoice.maxId - 1) {
-        //TODO tell the controller the menu choice
+      parseToNumberAnd(choice, MenuChoice.maxId - 1) { numberChoice =>
+        controller ! MenuSelection(MenuChoice(numberChoice))
       } (askMenuChoice())
     case ShowLobbyCreation(games) =>
       val gamesList = games.toList
@@ -46,15 +46,15 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
 
   private def lobbyLookup(lobbies: List[(LobbyId, Set[UserId])]): Receive = {
     case NewUserCommand(choice) => // chosen a lobby
-      parseToNumberAnd(choice, lobbies.size) {
-        //TODO tell the controller the lobby chosen
+      parseToNumberAnd(choice, lobbies.size) { numberChoice =>
+        controller ! AppControllerJoinLobby(lobbies(numberChoice - 1)._1)
       } (showLobbies(lobbies))
     case ShowLobbies(newLobbies) =>
       val lobbiesList = newLobbies.toList
       showLobbies(lobbiesList)
       context >>> lobbyLookup(lobbiesList)
-    case LobbyJoined(lobby, members) =>
-      println(LOBBY_JOINED_MESSAGE(lobby))
+    case ShowJoinedLobby(lobby, members) =>
+      clearAndPrint(LOBBY_JOINED_MESSAGE(lobby))
       printLobbyState(lobby, members)
       showLobbyOptions()
       context >>> inLobby
@@ -62,19 +62,19 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
 
   private def lobbyCreation(games: List[GameId]): Receive = {
     case NewUserCommand(choice) =>
-      parseToNumberAnd(choice, games.size) {
-        //TODO tell the controller the game chosen
+      parseToNumberAnd(choice, games.size) { numberChoice =>
+        controller ! AppControllerCreateLobby(games(numberChoice - 1))
       } (showLobbyCreationOptions(games))
-    case LobbyCreated(lobby) =>
-      println(LOBBY_CREATED_MESSAGE(lobby))
+    case ShowCreatedLobby(lobby) =>
+      clearAndPrint(LOBBY_CREATED_MESSAGE(lobby))
       showLobbyOptions()
       context >>> inLobby
   }
 
   private def inLobby: Receive = {
-    case LobbyUpdate(lobby, members) => printLobbyState(lobby, members)
+    case ShowLobbyUpdate(lobby, members) => printLobbyState(lobby, members)
     case NewUserCommand(command) => command match {
-      case EXIT => //TODO tell the controller to exit from lobby
+      case EXIT => controller ! ExitFromLobby
     }
   }
 
@@ -91,30 +91,28 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
       }
   }
 
-  private def nextBehaviour(behaviour: Receive) : Receive = behaviour orElse errorManagement
-
-  private def askNickname(): Unit = askToUser(CHOOSE_NICKNAME)
+  private def askUsername(): Unit = askToUser(CHOOSE_NICKNAME)
 
   private def askMenuChoice(): Unit = {
-    println(MENU_TITLE)
+    clearAndPrint(MENU_TITLE)
     for (choice <- MenuChoice.values)
       println(choice.id + ")" + choice)
     askToUser(NUMBER_CHOICE)
   }
 
   private def showLobbyCreationOptions(games: List[GameId]): Unit = {
-    println(LOBBY_CREATION_TITLE)
+    clearAndPrint(LOBBY_CREATION_TITLE)
     for (index <- 1 to games.size)
       println(index + ")" + games(index - 1).name)
     askToUser(NUMBER_CHOICE)
   }
 
   private def showLobbies(lobbies: List[(LobbyId, Set[UserId])]): Unit = {
-    println(LOBBY_LIST_TITLE)
+    clearAndPrint(LOBBY_LIST_TITLE)
     for (
       index <- 1 to lobbies.size;
       lobby = lobbies(index - 1)
-    ) println(index + ")" + lobby._1 + "(" + lobby._2.size + "/4)")
+    ) println(index + ")" + "[" + lobby._2.size + "/4 players]" + fromLobbyToString(lobby._1))
     askToUser(NUMBER_CHOICE)
   }
 
@@ -139,31 +137,39 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
     }
   }
 
-  private def parseToNumberAnd(choice: String, size: Int)(okThen: => Unit)(orElse: => Unit): Unit = {
+  private def parseToNumberAnd(choice: String, size: Int)(okThen: Int => Unit)(orElse: => Unit): Unit = {
     val numberChoice = parseNumberChoice(choice, size)
-    if(numberChoice isDefined) okThen
+    if(numberChoice isDefined) okThen(numberChoice.get)
     else {
       println(WRONG_VALUE)
       orElse
     }
   }
 
-  implicit class RichContext(context: ActorContext) {
-    def >>>(behaviour: Receive): Unit = context become nextBehaviour(behaviour)
+  private implicit class RichContext(context: ActorContext) {
+    def >>>(behaviour: Receive): Unit = {
+      require(behaviour != errorManagement)
+      context become (behaviour orElse errorManagement)
+    }
   }
 
 }
 
 object ConsoleManagerImpl {
 
-  def apply(controller: ActorRef): Props = Props(classOf[ConsoleManagerImpl], controller)
+  def apply(): View = controller => Props(classOf[ConsoleManagerImpl], controller)
 
   val NUMBER_CHOICE = "Insert number of your choice:"
   val WRONG_VALUE = "Error: unacceptable value"
   val EMPTY_RESPONSE = "Empty answer isn't allowed"
 
   //my messages
- private case class NewUserCommand(command: String)
+  private case class NewUserCommand(command: String)
+
+  private def clearAndPrint(message: String): Unit = {
+    println("---------------------------")
+    println(message)
+  }
 
   private def parseNumberChoice(choice: String, maxValue: Int): Option[Int] = {
     try {
@@ -187,6 +193,9 @@ object ConsoleManagerImpl {
       case a => a
     }
   }
+
+  implicit private def fromLobbyToString(lobby: LobbyId): String =
+    "Lobby <" + lobby.id + "> created by " + lobby.owner + " | Game: " + lobby.game.name
 
   @throws(classOf[Exception])
   implicit private def IntToMenuChoice(choice: Int): MenuChoice.Value = MenuChoice(choice)
