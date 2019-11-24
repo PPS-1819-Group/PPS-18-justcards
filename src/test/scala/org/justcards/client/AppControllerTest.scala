@@ -6,7 +6,7 @@ import akka.testkit.{TestKit, TestProbe}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.controller.AppController
 import org.justcards.client.controller.AppController._
-import org.justcards.client.view.MenuChoice
+import org.justcards.client.view.{MenuChoice, OptionConnectionFailed}
 import org.justcards.client.view.View._
 import org.justcards.commons._
 import org.justcards.commons.AppError._
@@ -138,6 +138,14 @@ class AppControllerTest() extends WordSpecLike
       val (appController, testProbe) = initAndGetComponents
       appController ! ErrorOccurred(CANNOT_CONNECT)
       testProbe expectMsg ShowError(CANNOT_CONNECT)
+    }
+
+    "try to reconnect if the user asks to do it" in {
+      val (appController, testProbe) = initAndGetComponents
+      appController ! ErrorOccurred(CANNOT_CONNECT)
+      testProbe receiveN 1
+      appController ! ReconnectOption(OptionConnectionFailed.TRY_TO_RECONNECT)
+      testProbe expectMsg InitializeConnection
     }
 
     "try to reconnect to the server and inform the user that the connection was lost" in {
