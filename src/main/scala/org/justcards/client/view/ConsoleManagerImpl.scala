@@ -61,7 +61,7 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
   }
 
   private def lobbyCreation(games: List[GameId]): Receive = {
-    case NewUserCommand(choice) =>
+    case NewUserCommand(choice) => //chosen a game for the lobby
       parseToNumberAnd(choice, games.size) { numberChoice =>
         controller ! AppControllerCreateLobby(games(numberChoice - 1))
       } (showLobbyCreationOptions(games))
@@ -72,14 +72,17 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
   }
 
   private def inLobby: Receive = {
-    case ShowLobbyUpdate(lobby, members) => printLobbyState(lobby, members)
+    case ShowLobbyUpdate(lobby, members) =>
+      println() ; println(NEW_LINE)
+      printLobbyState(lobby, members)
+      showLobbyOptions()
     case NewUserCommand(command) => command match {
       case EXIT => controller ! ExitFromLobby
     }
   }
 
   private def disconnected: Receive = {
-    case NewUserCommand(command) =>
+    case NewUserCommand(command) => //chosen what to do
       parseToNumberAnd(command, OptionConnectionFailed.maxId - 1) { numberChoice =>
         val option = OptionConnectionFailed(numberChoice)
         controller ! ReconnectOption(option)
@@ -151,11 +154,11 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
       }
     } else {
       println(question)
-      print("> ")
+      print(View.INPUT_SYMBOL)
     }
   }
 
-  private def parseToNumberAnd(choice: String, size: Int)(okThen: Int => Unit)(orElse: => Unit): Unit = {
+  private def parseToNumberAnd(choice: String, size: Int)(okThen: => Int => Unit)(orElse: => Unit): Unit = {
     val numberChoice = parseNumberChoice(choice, size)
     if(numberChoice isDefined) okThen(numberChoice.get)
     else {
@@ -205,7 +208,7 @@ object ConsoleManagerImpl {
   private def ask(question: String): String = {
     import scala.io.StdIn._
     println(question)
-    print("> ")
+    print(View.INPUT_SYMBOL)
     readLine match {
       case a if a.isBlank || a.isEmpty =>
         println(EMPTY_RESPONSE)
@@ -224,7 +227,7 @@ object ConsoleManagerImpl {
   implicit private def IntToOptionConnectionFailed(choice: Int): OptionConnectionFailed.Value = OptionConnectionFailed(choice)
 
   implicit class RichFuture[A](future: Future[A]) {
-    def onSuccessfulComplete(nextOperation: (A => Unit))(implicit executor: ExecutionContext): Unit =
+    def onSuccessfulComplete(nextOperation: => A => Unit)(implicit executor: ExecutionContext): Unit =
       future onComplete {
         case Success(value) => nextOperation(value)
         case _ =>
@@ -234,22 +237,4 @@ object ConsoleManagerImpl {
 }
 
 object TestConsole extends App {
-
-  /*KeyboardFocusManager.getCurrentKeyboardFocusManager.addKeyEventDispatcher((keyEvent: KeyEvent) => {
-    keyEvent.getID match {
-      case KeyEvent.KEY_TYPED =>
-        println("prova")
-      case KeyEvent.KEY_RELEASED =>
-        println("prova")
-    }
-    false
-  })*/
-  //scala.io.StdIn.readLine()
-  //val console = ConsoleManagerImpl(AppController)
-
-  //console chooseNickname()
-  //console errorLogin()
-  //console showMenu()
-  //console showLobbyCreation (Set( GameId(10, "Beccaccino"), GameId(20, "Briscola")))
-  //console showLobbyJoining(List( Lobby(LobbyId(100), "prima", 1), Lobby(LobbyId(200), "seconda", 4) ))
 }

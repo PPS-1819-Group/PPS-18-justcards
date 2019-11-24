@@ -18,6 +18,7 @@ object View {
   case class ShowJoinedLobby(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
   case class ShowLobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
 
+  val INPUT_SYMBOL = "> "
   val MENU_TITLE = "MENU"
   val ERROR_TITLE = "ERROR"
   val LOBBY_CREATION_TITLE = "LOBBY CREATION - Choose the game you want to play"
