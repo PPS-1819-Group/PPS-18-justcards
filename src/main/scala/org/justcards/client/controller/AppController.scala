@@ -41,12 +41,7 @@ object AppController {
     }
 
     private def connected: Receive = {
-      case ChosenUsername(username) =>
-        context >>> waitToBeLogged
-        connectionManagerActor ! LogIn(username)
-    }
-
-    private def waitToBeLogged: Receive = {
+      case ChosenUsername(username) => connectionManagerActor ! LogIn(username)
       case Logged(_) =>
         context >>> logged
         viewActor ! ShowMenu
