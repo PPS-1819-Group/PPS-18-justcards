@@ -54,9 +54,12 @@ abstract class AbstractConnectionManager(appController: ActorRef) extends ActorW
   protected def error(message: AppError.Value, data: AppMessage*): Unit = message match {
     case CONNECTION_LOST =>
       unstashAll()
+      initializeConnection()
       this become (init orElse stashUnhandled)
       appController ! ErrorOccurred(CONNECTION_LOST)
-    case CANNOT_CONNECT => appController ! ErrorOccurred(CANNOT_CONNECT)
+    case CANNOT_CONNECT =>
+      this become waitForInit
+      appController ! ErrorOccurred(CANNOT_CONNECT)
     case MESSAGE_SENDING_FAILED => data filter Objects.nonNull foreach { message =>
       appController ! DetailedErrorOccurred(MESSAGE_SENDING_FAILED,message)
     }
