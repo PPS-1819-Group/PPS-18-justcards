@@ -1,26 +1,21 @@
 package org.justcards.commons.actor_connection
 
-import akka.actor.{ActorLogging, ActorRef}
+import akka.actor.ActorRef
 import akka.io.Tcp.{Received, Write}
 import akka.util.ByteString
 import org.justcards.commons._
 import play.api.libs.json.{Json, OFormat}
 
-trait ActorWithTcp extends ActorWithConnection with ActorLogging {
+trait ActorWithTcp extends ActorWithConnection {
 
   import org.justcards.commons.actor_connection.ActorWithTcp._
 
   override def parse: Receive = {
-    case Received(data) =>
-      log.debug("received message " + data)
-      self ! Outer(extractMessage(data))
-      log.debug("extracted message " + extractMessage(data))
+    case Received(data) => self ! Outer(extractMessage(data))
   }
 
   abstract override private[actor_connection] def tellWithConnection(actor: ActorRef, message: Any): Unit = message match {
-    case msg: AppMessage =>
-      log.debug("transform message " + msg)
-      super.tellWithConnection(actor,Write(msg))
+    case msg: AppMessage => super.tellWithConnection(actor,Write(msg))
     case msg => super.tellWithConnection(actor,msg)
   }
 }
@@ -38,6 +33,8 @@ object ActorWithTcp {
   private[this] implicit val gameIdFormat: OFormat[GameId] = Json.format[GameId]
   private[this] implicit val userIdFormat: OFormat[UserId] = Json.format[UserId]
   private[this] implicit val lobbyIdFormat: OFormat[LobbyId] = Json.format[LobbyId]
+  private[this] implicit val cardFormat: OFormat[Card] = Json.format[Card]
+  private[this] implicit val teamIdFormat: OFormat[TeamId] = Json.format[TeamId]
 
   private[this] implicit val loginFormat: OFormat[LogIn] = Json.format[LogIn]
   private[this] implicit val logoutFormat: OFormat[LogOut] = Json.format[LogOut]
@@ -52,6 +49,17 @@ object ActorWithTcp {
   private[this] implicit val lobbyJoinedFormat: OFormat[LobbyJoined] = Json.format[LobbyJoined]
   private[this] implicit val lobbyUpdateFormat: OFormat[LobbyUpdate] = Json.format[LobbyUpdate]
   private[this] implicit val gameStartedFormat: OFormat[GameStarted] = Json.format[GameStarted]
+  private[this] implicit val informationFormat: OFormat[Information] = Json.format[Information]
+  private[this] implicit val chooseBriscolaFormat: OFormat[ChooseBriscola] = Json.format[ChooseBriscola]
+  private[this] implicit val briscolaFormat: OFormat[Briscola] = Json.format[Briscola]
+  private[this] implicit val turnFormat: OFormat[Turn] = Json.format[Turn]
+  private[this] implicit val playFormat: OFormat[Play] = Json.format[Play]
+  private[this] implicit val playedFormat: OFormat[Played] = Json.format[Played]
+  private[this] implicit val timeoutExceededFormat: OFormat[TimeoutExceeded] = Json.format[TimeoutExceeded]
+  private[this] implicit val handWinnerFormat: OFormat[HandWinner] = Json.format[HandWinner]
+  private[this] implicit val matchWinnerFormat: OFormat[MatchWinner] = Json.format[MatchWinner]
+  private[this] implicit val gameWinnerFormat: OFormat[GameWinner] = Json.format[GameWinner]
+  private[this] implicit val outOfLobbyFormat: OFormat[OutOfLobby] = Json.format[OutOfLobby]
   private[this] implicit val errorOccurredFormat: OFormat[ErrorOccurred] = Json.format[ErrorOccurred]
 
   /*

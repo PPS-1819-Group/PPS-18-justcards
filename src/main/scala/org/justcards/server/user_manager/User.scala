@@ -5,7 +5,7 @@ import akka.io.Tcp._
 import org.justcards.commons._
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
 import org.justcards.server
-import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserLogout}
+import org.justcards.server.user_manager.UserManagerMessage.LogOutAndExitFromLobby
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection {
 
@@ -13,38 +13,34 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
 
   override def receive: Receive = parse orElse completeBehaviour(notLogged)
 
-  private def receiveMessage: Receive = {
-    case Outer(msg) => userManager ! msg
-  }
-
   private def notLogged: Receive = {
+    case Outer(msg: LogIn) => userManager ! msg
     case Outer(_: LogOut) =>
     case Logged(username) =>
       userRef ==> Logged(username)
       this become completeBehaviour(logged(username), username)
-    case msg: ErrorOccurred => userRef ==> msg
   }
 
   private def logged(username: String): Receive = {
-    case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
     case Outer(LogOut(`username`)) =>
       userManager ! LogOut(username)
       context stop self
-    case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
-    case LobbyJoined(lobby, members) =>
-      userRef ==> LobbyJoined(lobby, members)
-      this become completeBehaviour(
-        inLobby(username, lobby) orElse logged(username),
-        username
-      )
-    case message: AppMessage => userRef ==> message
+    case message: LobbyJoined => changeToLobbyState(message, username)
+    case message: LobbyCreated => changeToLobbyState(message, username)
   }
 
   private def inLobby(username: String, lobby: LobbyId): Receive = {
     case Outer(LogOut(`username`)) =>
       userManager ! LogOutAndExitFromLobby(username, lobby)
       context stop self
-    case LobbyJoined(_,_) =>
+  }
+
+  private def commonBehaviour: Receive = {
+    case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
+    case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
+    case Outer(msg) => userManager ! msg
+    case msg: ErrorOccurred => userRef ==> msg
+    case message: AppMessage => userRef ==> message
   }
 
   protected def errorBehaviour(username: String): Receive = {
@@ -52,7 +48,15 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   }
 
   private def completeBehaviour(behaviour: Receive, username: String = ""): Receive =
-    behaviour orElse receiveMessage orElse errorBehaviour(username)
+    behaviour orElse commonBehaviour orElse errorBehaviour(username)
+
+  private def changeToLobbyState[A <: {val lobby: LobbyId}](msg: A, username: String): Unit = {
+    userRef ==> msg.asInstanceOf[AppMessage]
+    this become completeBehaviour(
+      inLobby(username, msg.lobby),
+      username
+    )
+  }
 
 }
 
@@ -72,10 +76,10 @@ object User {
       case CommandFailed(w: Write) =>
         // O/S buffer was full
         server.log(COMMAND_FAILED + extractMessage(w.data))
-      case _: ErrorClosed | PeerClosed =>
+      case _: ConnectionClosed =>
         server.log(CONNECTION_CLOSED)
-        if (!username.isEmpty) userManager ! UserLogout(username, self)
-        context stop self
+        if (!username.isEmpty) self ! Outer(LogOut(username))
+        else context stop self
     }
 
   }

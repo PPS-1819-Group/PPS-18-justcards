@@ -16,6 +16,9 @@ object AppError extends Enumeration {
   val LOBBY_NOT_EXISTING: Value = Value("#10")
   val LOBBY_FULL: Value = Value("#11")
 
+  val BRISCOLA_NOT_VALID: Value = Value("#12")
+  val CARD_NOT_VALID: Value = Value("#13")
+
   val SELECTION_NOT_AVAILABLE: Value = Value("#99")
 
   implicit def fromAppErrorToString(error: AppError.Value):String = error.toString

@@ -6,12 +6,13 @@ import akka.util.Timeout
 
 import scala.concurrent.duration._
 import org.justcards.commons._
+import org.justcards.server.Commons.UserInfo
 
 /**
   * Actor that manages all the users in the system
   * @param knowledgeEngine the system knowledgeEngine
   */
-class UserManager(knowledgeEngine: ActorRef) extends Actor {
+class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
 
   import UserManagerMessage._
   import org.justcards.commons.AppError._
@@ -34,33 +35,30 @@ class UserManager(knowledgeEngine: ActorRef) extends Actor {
       }
     case _: RetrieveAvailableLobbies =>
       val user = sender()
-      checkLogInAnd(user) (
-        _ => lobbyManager ! GetLobbies(user),
-        () => user ! ErrorOccurred(USER_NOT_LOGGED)
-      )
+      checkLogInAnd(user) { _ => 
+        lobbyManager ! GetLobbies(user)
+      }
     case msg: CreateLobby =>
       val user = sender()
-      checkLogInAnd(user) (
-        username => lobbyManager ! UserCreateLobby(msg, UserInfo(username, user)),
-        () => user ! ErrorOccurred(USER_NOT_LOGGED)
-      )
+      checkLogInAnd(user) { username =>
+        lobbyManager ! UserCreateLobby(msg, UserInfo(username, user))
+      }
     case msg: JoinLobby =>
       val user = sender()
-      checkLogInAnd(user) (
-        username => lobbyManager ! UserJoinLobby(msg, UserInfo(username, user)),
-        () => user ! ErrorOccurred(USER_NOT_LOGGED)
-      )
+      checkLogInAnd(user) { username =>
+        lobbyManager ! UserJoinLobby(msg, UserInfo(username, user))
+      }
     case _: Players =>
     case msg: UserManagerMessage => playerManager ! msg
   }
 
-  private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit, onError: () => Unit) : Unit = {
+  private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit) : Unit = {
     val request = playerManager ? PlayerLogged(user)
     request collect {
       case PlayerLoggedResult(true, username) => username
     } onComplete { result =>
       if(result.isSuccess) onComplete(result.get)
-      else onError()
+      else user ! ErrorOccurred(USER_NOT_LOGGED)
     }
   }
 
@@ -87,7 +85,5 @@ private[user_manager] object UserManagerMessage {
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
   case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
   case class UserExitFromLobby(lobbyId: LobbyId, userInfo: UserInfo) extends UserManagerMessage
-
-  case class UserInfo(username: String, userRef: ActorRef)
 
 }

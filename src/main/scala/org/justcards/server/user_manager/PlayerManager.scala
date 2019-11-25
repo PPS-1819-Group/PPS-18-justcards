@@ -2,6 +2,7 @@ package org.justcards.server.user_manager
 
 import akka.actor.{Actor, ActorRef, Props}
 import org.justcards.commons.{ErrorOccurred, Logged}
+import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage._
 
 private[user_manager] class PlayerManager(playerDatabase: PlayerDatabase) extends Actor {
@@ -38,8 +39,8 @@ private[user_manager] class PlayerManager(playerDatabase: PlayerDatabase) extend
 }
 
 private[user_manager] object PlayerManager {
-  def apply(): Props = Props(classOf[PlayerManagerWithSet])
-  private[this] class PlayerManagerWithSet extends PlayerManager(PlayerDatabase.createSetPlayerDatabase())
+  def apply(): Props = Props(classOf[PlayerManager], PlayerDatabase.createSetPlayerDatabase())
+  def apply(playerDatabase: PlayerDatabase): Props = Props(classOf[PlayerManager], playerDatabase)
 }
 
 /**
