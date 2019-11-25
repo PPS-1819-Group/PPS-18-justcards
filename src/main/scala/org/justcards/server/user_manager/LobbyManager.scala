@@ -9,6 +9,7 @@ import org.justcards.commons._
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
 import org.justcards.server.user_manager.UserManagerMessage._
 import Lobby._
+import org.justcards.server.Commons.UserInfo
 
 private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase) extends Actor {
 
@@ -27,7 +28,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
     case UserExitFromLobby(lobbyId, userInfo) => exitUserFromLobby(lobbies)(lobbyId, userInfo)
   }
 
-  private def createLobby(lobbies: LobbyDatabase)(gameId: GameId, userInfo: UserManagerMessage.UserInfo): Unit = {
+  private def createLobby(lobbies: LobbyDatabase)(gameId: GameId, userInfo: UserInfo): Unit = {
     import context.dispatcher
     implicit val timeout = Timeout(3 seconds)
     val request = knowledgeEngine ? GameExistenceRequest(gameId)
