@@ -8,6 +8,8 @@ trait View extends (ActorRef => Props)
 
 object View {
 
+  def apply(): View = ConsoleView()
+
   sealed trait ViewMessage
   case class ShowError(error: AppError.Value) extends ViewMessage
   case object ShowUsernameChoice extends ViewMessage

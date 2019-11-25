@@ -10,9 +10,9 @@ import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.Success
 
 
-class ConsoleManagerImpl(controller: ActorRef) extends Actor {
+class ConsoleView(controller: ActorRef) extends Actor {
   import View._
-  import ConsoleManagerImpl._
+  import ConsoleView._
 
   implicit val executor: ExecutionContextExecutor =
     scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
@@ -176,9 +176,9 @@ class ConsoleManagerImpl(controller: ActorRef) extends Actor {
 
 }
 
-object ConsoleManagerImpl {
+object ConsoleView {
 
-  def apply(): View = controller => Props(classOf[ConsoleManagerImpl], controller)
+  def apply(): View = controller => Props(classOf[ConsoleView], controller)
 
   private val NUMBER_CHOICE = "Insert number of your choice:"
   private val WRONG_VALUE = "Error: unacceptable value"
