@@ -1,10 +1,22 @@
 package org.justcards.server.knowledge_engine.game_knowledge
 
-import org.justcards.commons.GameId
+import org.justcards.commons.{Card, GameId}
+import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.server.Commons.Team.Team
+import org.justcards.server.Commons.UserInfo
 
 trait GameKnowledgeFactory extends (GameId => GameKnowledge)
 
-trait GameKnowledge
+trait GameKnowledge {
+  def initialConfiguration: (Int,Int,Int)
+  def getDeckCards: Set[Card]
+  def hasToChooseBriscola: BriscolaSetting
+  def play(card: Card, field: Set[Card], hand: Set[Card]): Option[Set[Card]]
+  def handWinner(fieldCards: Set[(Card,UserInfo)]): UserInfo
+  def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team,Int,Int)
+  def sessionWinner(firstTeamPoints: Int, secondTeamPoints: Int): Team
+  def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Int,Int)
+}
 
 object GameKnowledge {
 

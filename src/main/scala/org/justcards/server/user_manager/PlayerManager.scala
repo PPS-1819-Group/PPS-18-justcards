@@ -2,6 +2,7 @@ package org.justcards.server.user_manager
 
 import akka.actor.{Actor, ActorRef, Props}
 import org.justcards.commons.{ErrorOccurred, Logged}
+import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage._
 
 private[user_manager] class PlayerManager(playerDatabase: PlayerDatabase) extends Actor {

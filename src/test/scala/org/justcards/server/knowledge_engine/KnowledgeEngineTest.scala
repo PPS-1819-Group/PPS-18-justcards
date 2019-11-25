@@ -3,6 +3,9 @@ package org.justcards.server.knowledge_engine
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.commons._
+import org.justcards.server.Commons
+import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -58,8 +61,25 @@ object KnowledgeEngineTest {
     override def gameExists(game: GameId): Boolean = games contains game
   }
 
-  def createGameKnowledge(): GameKnowledgeFactory = gameId => new TestGameKnowledge(gameId)
-  case class TestGameKnowledge(gameId: GameId) extends GameKnowledge
+  def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
+  case class TestGameKnowledge(gameId: GameId) extends GameKnowledge {
+
+    override def initialConfiguration: (Int, Int, Int) = ???
+
+    override def getDeckCards: Set[Card] = ???
+
+    override def hasToChooseBriscola: BriscolaSetting = ???
+
+    override def play(card: Card, field: Set[Card], hand: Set[Card]): Option[Set[Card]] = ???
+
+    override def handWinner(fieldCards: Set[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
+
+    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Int, Int) = ???
+
+    override def sessionWinner(firstTeamPoints: Int, secondTeamPoints: Int): Team = ???
+
+    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Int, Int) = ???
+  }
 
   private val BECCACCINO_GAME = GameId("Beccaccino")
   private val BRISCOLA_GAME = GameId("Briscola")

@@ -1,7 +1,7 @@
 package org.justcards.server.user_manager
 
 import org.justcards.commons.{GameId, LobbyId}
-import org.justcards.server.user_manager.UserManagerMessage.UserInfo
+import org.justcards.server.Commons.UserInfo
 
 /**
   * Class that represents all the information of a lobby
