@@ -75,21 +75,23 @@ object KnowledgeEngineTest {
   def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
   case class TestGameKnowledge(gameId: GameId) extends GameKnowledge {
 
-    override def initialConfiguration: (Int, Int, Int) = ???
+    override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = ???
 
-    override def getDeckCards: Set[Card] = ???
+    override def deckCards: Set[Card] = ???
 
     override def hasToChooseBriscola: BriscolaSetting = ???
 
-    override def play(card: Card, field: Set[Card], hand: Set[Card]): Option[Set[Card]] = ???
+    override def isBriscolaValid(seed: Seed): Boolean = ???
 
-    override def handWinner(fieldCards: Set[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
+    override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = ???
 
-    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Int, Int) = ???
+    override def handWinner(fieldCards: List[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
 
-    override def sessionWinner(firstTeamPoints: Int, secondTeamPoints: Int): Team = ???
+    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = ???
 
-    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Int, Int) = ???
+    override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Team = ???
+
+    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
   }
 
   private val BECCACCINO_GAME = GameId("Beccaccino")
