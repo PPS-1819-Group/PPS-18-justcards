@@ -9,13 +9,18 @@ repositories {
 
 dependencies {
     implementation(group = "org.scala-lang", name = "scala-library", version = "2.12.2")
-    implementation(group = "com.typesafe.akka", name = "akka-actor_2.12", version = "2.6.0")
-    implementation(group = "com.typesafe.play", name = "play-json_2.12", version = "2.7.3")
-    implementation(group = "it.unibo.alice.tuprolog", name = "tuprolog", version = "3.3.0")
-
     testImplementation(group = "org.scalatest", name = "scalatest_2.12", version = "3.0.8")
+
+    implementation(group = "com.typesafe.akka", name = "akka-actor_2.12", version = "2.6.0")
     testImplementation(group = "com.typesafe.akka", name = "akka-testkit_2.12", version = "2.6.0")
     testImplementation(group = "com.typesafe.akka", name = "akka-actor-testkit-typed_2.12", version = "2.6.0")
+
+    implementation(group = "ch.qos.logback", name = "logback-classic", version = "1.2.3")
+    testImplementation(group = "com.typesafe.akka", name = "akka-slf4j_2.12", version = "2.5.23")
+
+    implementation(group = "com.typesafe.play", name = "play-json_2.12", version = "2.7.3")
+
+    implementation(group = "it.unibo.alice.tuprolog", name = "tuprolog", version = "3.3.0")
 }
 
 java {

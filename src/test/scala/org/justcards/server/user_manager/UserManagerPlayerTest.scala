@@ -1,31 +1,22 @@
 package org.justcards.server.user_manager
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.testkit.TestProbe
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage._
 
-class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")) with ImplicitSender with WordSpecLike
-  with Matchers with BeforeAndAfterAll with BeforeAndAfter {
+class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
   import UserManagerPlayerTest._
 
-  private var userManager: ActorRef = _
+  private implicit val system = ActorSystem("UserManagerPlayerTest")
   private val knowledgeEngine = system.actorOf(createKnowledgeEngine())
 
-  before {
-    userManager = system.actorOf(UserManager(knowledgeEngine))
-  }
-
-  after {
-    userManager ! PoisonPill
-  }
-
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
+    system terminate()
   }
 
   "The user manager" when {
@@ -33,6 +24,9 @@ class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")
     "created" should {
 
       "not contain any logged user" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         expectNoUsers(userManager)
       }
 
@@ -41,70 +35,92 @@ class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")
     "is at runtime" should {
 
       "register a user" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         userManager ! LogIn(TEST_USERNAME)
-        expectMsgType[Logged]
+        me.expectMsgType[Logged]
       }
 
       "save the user after its registration" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
-        expectUsers(userManager, UserInfo(TEST_USERNAME, testActor))
+        expectUsers(userManager, UserInfo(TEST_USERNAME, myRef))
       }
 
       "not register a user if the username is already present" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         userManager ! LogIn(TEST_USERNAME)
-        expectMsg(ErrorOccurred(USER_ALREADY_PRESENT))
+        me expectMsg(ErrorOccurred(USER_ALREADY_PRESENT))
       }
 
       "not allow to the same user to register twice with different username" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         doLogIn(userManager, DOUBLE_USER_USERNAME)
         userManager ! LogIn(DOUBLE_USER_USERNAME + "-retry")
-        expectMsg(ErrorOccurred(USER_ALREADY_LOGGED))
+        me expectMsg(ErrorOccurred(USER_ALREADY_LOGGED))
       }
 
       "unregister a user" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
-        userManager ! UserLogout(TEST_USERNAME, testActor)
-        expectNoMessage()
+        userManager ! UserLogout(TEST_USERNAME, myRef)
+        me expectNoMessage()
         expectNoUsers(userManager)
       }
 
       "return the current logged users" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         val actorUsernameSet = for(
           n: Int <- (0 to 4).toSet;
-          actor: ActorRef = system.actorOf(createActor(testActor, userManager));
+          actor: ActorRef = system.actorOf(createActor(myRef, userManager));
           message: String = MULTI_TEST_USERNAME + n
         ) yield (actor, message)
 
         actorUsernameSet.foreach(t => t._1 ! LogIn(t._2))
-        receiveN(actorUsernameSet.size)
+        me receiveN(actorUsernameSet.size)
         expectUsers(userManager, actorUsernameSet map (tuple => UserInfo(tuple._2, tuple._1)))
       }
 
       "ask for available games to the knowledge engine" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
         userManager ! RetrieveAvailableGames()
-        expectMsg(KnowledgeEngineMsg(RetrieveAvailableGames()))
+        me expectMsg(KnowledgeEngineMsg(RetrieveAvailableGames()))
       }
 
     }
 
   }
 
-  private def doLogIn(userManager: ActorRef, username: String): Unit = {
+  private def doLogIn(userManager: ActorRef, username: String)(implicit me: TestProbe): Unit = {
+    implicit val sender = me.ref
     userManager ! LogIn(username)
-    receiveN(1)
+    me receiveN(1)
   }
 
-  private def expectUsers(userManager: ActorRef, users: UserInfo*): Unit = {
-    expectUsers(userManager, users.toSet)
+  private def expectUsers(userManager: ActorRef, users: UserInfo*)(implicit me: TestProbe): Unit = {
+    expectUsers(userManager, users.toSet)(me)
   }
 
-  private def expectUsers(userManager: ActorRef, users: Set[UserInfo]): Unit = {
-    userManager ! RetrieveAllPlayers(testActor)
-    expectMsg(Players(users))
+  private def expectUsers(userManager: ActorRef, users: Set[UserInfo])(implicit me: TestProbe): Unit = {
+    userManager ! RetrieveAllPlayers(me.ref)
+    me expectMsg(Players(users))
   }
 
-  private def expectNoUsers(userManager: ActorRef): Unit = expectUsers(userManager)
+  private def expectNoUsers(userManager: ActorRef)(implicit me: TestProbe): Unit = expectUsers(userManager)(me)
 
 }
 
