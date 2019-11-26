@@ -16,7 +16,7 @@ object Utils {
   val errorMessage: AppError.Value = AppError.SELECTION_NOT_AVAILABLE
 }
 
-object ReSendConnectionManager {
+object TestConnectionManager {
   def apply(testActor: ActorRef): ConnectionManager = _ => EchoActor(testActor)
 }
 
