@@ -68,7 +68,7 @@ trait GameKnowledge {
    * @param secondTeamPoints the second team points gained in the session
    * @return the winner team
    */
-  def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Team
+  def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team]
 
   /**
    * Determine the points obtained by the teams in a match

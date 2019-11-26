@@ -89,7 +89,7 @@ object KnowledgeEngineTest {
 
     override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = ???
 
-    override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Team = ???
+    override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = ???
 
     override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
   }
