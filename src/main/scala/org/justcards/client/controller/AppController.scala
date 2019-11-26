@@ -1,115 +1,134 @@
 package org.justcards.client.controller
 
-import akka.actor.{Actor, Props}
-import org.justcards.client.connection_manager.ConnectionManager
-import org.justcards.client.connection_manager.ConnectionManager.{Connected, InitializeConnection}
-import org.justcards.client.view.{MenuChoice, View, ViewFactory}
+import akka.actor.{Actor, ActorContext, Props}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
-
-trait AppController {
-  def login(username: String): Unit
-  def menuSelection(choice: MenuChoice.Value): Unit
-  def createLobby(game: GameId): Unit
-  def joinLobby(lobby: LobbyId): Unit
-}
+import org.justcards.client.connection_manager.ConnectionManager
+import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
+import org.justcards.client.view.{MenuChoice, OptionConnectionFailed, View}
+import org.justcards.client.view.View._
+import org.justcards.client.view.MenuChoice._
+import org.justcards.client.view.OptionConnectionFailed._
 
 object AppController {
-  def apply(connectionManager: ConnectionManager, viewFactory: ViewFactory) =
-    Props(classOf[AppControllerActor], connectionManager, viewFactory)
 
-  private[this] class AppControllerActor(connectionManager: ConnectionManager, viewFactory: ViewFactory) extends Actor
-    with AppController {
+  def apply(connectionManager: ConnectionManager, view: View) =
+    Props(classOf[AppControllerActor], connectionManager, view)
+
+  case class ChosenUsername(username: String)
+  case class MenuSelection(choice: MenuChoice.Value)
+  case class AppControllerCreateLobby(game: GameId)
+  case class AppControllerJoinLobby(lobby: LobbyId)
+  case class ReconnectOption(option: OptionConnectionFailed.Value)
+  case object ExitFromLobby
+
+  private[this] class AppControllerActor(connectionManager: ConnectionManager, view: View) extends Actor {
 
     private val connectionManagerActor = context.actorOf(connectionManager(self))
-    private val view: View = viewFactory(this)
+    private val viewActor = context.actorOf(view(self))
     connectionManagerActor ! InitializeConnection
 
     override def receive: Receive = waitToBeConnected orElse default
 
-    override def login(username: String): Unit = {
-      changeContext(waitToBeLogged)
-      connectionManagerActor ! LogIn(username)
+    private def waitToBeConnected: Receive = {
+      case Connected =>
+        context >>> connected
+        viewActor ! ShowUsernameChoice
+      case ErrorOccurred(m) if m == CANNOT_CONNECT.toString =>
+        viewActor ! ShowError(CANNOT_CONNECT)
     }
 
-    override def menuSelection(choice: MenuChoice.Value): Unit = {
-      choice match {
-        case MenuChoice.createLobby =>
-          changeContext(waitForAvailableGames)
+    private def connected: Receive = {
+      case ChosenUsername(username) => connectionManagerActor ! LogIn(username)
+      case Logged(_) =>
+        context >>> logged
+        viewActor ! ShowMenu
+    }
+
+    private def logged: Receive = {
+      case MenuSelection(choice) => choice match {
+        case CREATE_LOBBY =>
+          context >>> lobbyCreation
           connectionManagerActor ! RetrieveAvailableGames()
-        case MenuChoice.joinLobby =>
-          changeContext(waitForAvailableLobbies)
+        case JOIN_LOBBY =>
+          context >>> searchForLobby
           connectionManagerActor ! RetrieveAvailableLobbies()
-        case _ => view error SELECTION_NOT_AVAILABLE
+        case _ => viewActor ! ShowError(SELECTION_NOT_AVAILABLE)
       }
     }
 
-    override def createLobby(game: GameId): Unit = {
-      changeContext(waitForLobbyCreation)
-      connectionManagerActor ! CreateLobby(game)
-    }
-
-    override def joinLobby(lobby: LobbyId): Unit = {
-      changeContext(waitForLobbyJoin)
-      connectionManagerActor ! JoinLobby(lobby)
-    }
-
-    private def waitToBeConnected: Receive = {
-      case Connected =>
-        context become default
-        view chooseNickname()
-    }
-
-    private def waitToBeLogged: Receive = {
-      case Logged(_) =>
-        context become default
-        view showMenu()
-    }
-
-    private def waitForAvailableGames: Receive = {
-      case AvailableGames(games) =>
-        context become default
-        view showLobbyCreation games
+    private def lobbyCreation: Receive = {
+      case AvailableGames(games) => viewActor ! ShowLobbyCreation(games)
+      case AppControllerCreateLobby(game) =>
+        context >>> waitForLobbyCreation
+        connectionManagerActor ! CreateLobby(game)
     }
 
     private def waitForLobbyCreation: Receive = {
       case LobbyCreated(lobby) =>
-        changeContext(inLobby)
-        view lobbyCreated lobby
+        context >>> inLobby(lobby)
+        viewActor ! ShowCreatedLobby(lobby)
     }
 
-    private def waitForAvailableLobbies: Receive = {
+    private def searchForLobby: Receive = {
       case AvailableLobbies(lobbies) =>
-        context become default
-        view showLobbyJoin lobbies
+        viewActor ! ShowLobbies(lobbies)
+      case AppControllerJoinLobby(lobby) =>
+        context >>> waitForLobbyJoin
+        connectionManagerActor ! JoinLobby(lobby)
     }
 
     private def waitForLobbyJoin: Receive = {
       case LobbyJoined(lobby, members) =>
-        changeContext(inLobby)
-        view lobbyJoined (lobby,members)
+        context >>> inLobby(lobby)
+        viewActor ! ShowJoinedLobby(lobby,members)
     }
 
-    private def inLobby: Receive = {
-      case LobbyUpdate(lobby, members) => view lobbyUpdate (lobby,members)
+    private def inLobby(myLobby: LobbyId): Receive = {
+      case LobbyUpdate(lobby, members) => viewActor ! ShowLobbyUpdate(lobby,members)
+      case ExitFromLobby => connectionManagerActor ! OutOfLobby(myLobby)
     }
 
     private def default: Receive = {
       case ErrorOccurred(message) =>
         val error = AppError.values.find(_.toString == message)
-        if (error.isDefined) error get match {
-          case CONNECTION_LOST =>
-            view error CONNECTION_LOST
-            connectionManagerActor ! InitializeConnection
-            changeContext(waitToBeConnected)
-          case a => view error a
+        if (error.isDefined) error.get match {
+          case CONNECTION_LOST => connectionLost()
+          case MESSAGE_SENDING_FAILED => connectionManagerActor ! TerminateConnection
+          case USER_ALREADY_PRESENT => chooseNicknameAgain(USER_ALREADY_PRESENT)
+          case USER_NOT_LOGGED => chooseNicknameAgain(USER_NOT_LOGGED)
+          case m => notifyError(m)
         }
-      case _ =>
+      case DetailedErrorOccurred(MESSAGE_SENDING_FAILED, message) =>
+        connectionManagerActor ! message
+      case ReconnectOption(option) => option match {
+        case QUIT =>
+          context.system.terminate()
+          System.exit(1)
+        case TRY_TO_RECONNECT =>
+          connectionManagerActor ! InitializeConnection
+          context >>> waitToBeConnected
+      }
     }
 
-    private def changeContext(newBehaviour: Receive): Unit = {
-      context become (newBehaviour orElse default)
+    private def connectionLost(): Unit = {
+      context >>> waitToBeConnected
+      viewActor ! ShowError(CONNECTION_LOST)
+      connectionManagerActor ! InitializeConnection
     }
 
+    private def notifyError(message: AppError.Value): Unit = viewActor ! ShowError(message)
+
+    private def chooseNicknameAgain(error: AppError.Value): Unit = {
+      viewActor ! ShowError(error)
+      viewActor ! ShowUsernameChoice
+    }
+
+    private implicit class RichContext(context: ActorContext) {
+      def >>>(behaviour: Receive): Unit = {
+        require(behaviour != default)
+        context become (behaviour orElse default)
+      }
+    }
   }
 }

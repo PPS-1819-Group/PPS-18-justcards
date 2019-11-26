@@ -5,6 +5,7 @@ import akka.testkit.TestProbe
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
+import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage._
 
 class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
