@@ -69,12 +69,12 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
     }
 
     "inform the application controller that the connection was lost" in {
-      val testProbe = TestProbe()
+      implicit val testProbe: TestProbe = TestProbe()
       val testActor: ActorRef = testProbe.ref
       system actorOf Server(serverAddress2, testActor, hasToDieAfterConnection = true)
       testProbe receiveN 1
       val connectionManager = system.actorOf(TcpConnectionManager(serverAddress2)(testActor))
-      connectToServer(connectionManager, testProbe)
+      connectToServer(connectionManager)
       testProbe expectMsg ErrorOccurred(CONNECTION_LOST)
     }
 
@@ -88,7 +88,7 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
 
   private def checkIfTheApplicationManagerReceiveTheMessage(message: AppMessage): Unit = {
     val (connectionManager,testProbe) = initComponents
-    connectToServer(connectionManager, testProbe)
+    connectToServer(connectionManager)(testProbe)
     connectionManager ! Outer(message)
     testProbe expectMsg message
   }
@@ -100,7 +100,7 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
     (connectionManager, testProbe)
   }
 
-  private def connectToServer(connectionManager: ActorRef, testProbe: TestProbe): Unit = {
+  private def connectToServer(connectionManager: ActorRef)(implicit testProbe: TestProbe): Unit = {
     connectionManager ! InitializeConnection
     testProbe receiveN 1
   }
