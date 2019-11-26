@@ -5,6 +5,7 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.{ImplicitSender, TestKit}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
+import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage._
 
 class UserManagerPlayerTest extends TestKit(ActorSystem("UserManagerPlayerTest")) with ImplicitSender with WordSpecLike

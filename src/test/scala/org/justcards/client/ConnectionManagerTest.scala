@@ -106,7 +106,8 @@ class ConnectionManagerTest() extends WordSpecLike
     val testProbe = TestProbe()
     implicit val testActor: ActorRef = testProbe.ref
     val serverAddress = getNewServerAddress
-    serverSystem.actorOf(Server(serverAddress, SimpleConnectionHandler(testActor)))
+    serverSystem.actorOf(Server(serverAddress, SimpleConnectionHandler(testActor), testActor))
+    testProbe receiveN 1
     val appController = system.actorOf(TestAppController(testActor))
     val connectionManager = system.actorOf(TcpConnectionManager(serverAddress)(appController))
     connectionManager ! InitializeConnection

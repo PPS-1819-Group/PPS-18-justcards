@@ -6,6 +6,7 @@ import akka.util.Timeout
 
 import scala.concurrent.duration._
 import org.justcards.commons._
+import org.justcards.server.Commons.UserInfo
 
 /**
   * Actor that manages all the users in the system
@@ -84,7 +85,5 @@ private[user_manager] object UserManagerMessage {
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
   case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
   case class UserExitFromLobby(lobbyId: LobbyId, userInfo: UserInfo) extends UserManagerMessage
-
-  case class UserInfo(username: String, userRef: ActorRef)
 
 }
