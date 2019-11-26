@@ -51,6 +51,7 @@ object ActorWithTcp {
   private[this] implicit val gameStartedFormat: OFormat[GameStarted] = Json.format[GameStarted]
   private[this] implicit val informationFormat: OFormat[Information] = Json.format[Information]
   private[this] implicit val chooseBriscolaFormat: OFormat[ChooseBriscola] = Json.format[ChooseBriscola]
+  private[this] implicit val correctBriscolaFormat: OFormat[CorrectBriscola] = Json.format[CorrectBriscola]
   private[this] implicit val briscolaFormat: OFormat[Briscola] = Json.format[Briscola]
   private[this] implicit val turnFormat: OFormat[Turn] = Json.format[Turn]
   private[this] implicit val playFormat: OFormat[Play] = Json.format[Play]

@@ -107,6 +107,11 @@ case class ChooseBriscola(option: String = "") extends AppMessage
 case class Briscola(seed: String) extends AppMessage
 
 /**
+ * Message to indicate that the chosen Briscola was correct.
+ */
+case class CorrectBriscola(option: String) extends AppMessage
+
+/**
  * Message to indicate that is your turn
  *
  * @param handCards cards in your hand
