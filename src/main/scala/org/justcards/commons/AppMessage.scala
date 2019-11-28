@@ -93,7 +93,7 @@ case class GameStarted(team: TeamId) extends AppMessage
  * @param handCards cards in your hand
  * @param fieldCards cards on the field
  */
-case class Information(handCards: Set[Card], fieldCards: Set[Card]) extends AppMessage
+case class Information(handCards: Set[Card], fieldCards: List[Card]) extends AppMessage
 
 /**
  * Message to indicate to choose the Briscola
@@ -107,13 +107,18 @@ case class ChooseBriscola(option: String = "") extends AppMessage
 case class Briscola(seed: String) extends AppMessage
 
 /**
+ * Message to indicate that the chosen Briscola was correct.
+ */
+case class CorrectBriscola(option: String) extends AppMessage
+
+/**
  * Message to indicate that is your turn
  *
  * @param handCards cards in your hand
  * @param fieldCards cards on the field
  * @param timeout time limit to play your card
  */
-case class Turn(handCards: Set[Card], fieldCards: Set[Card], timeout: Int) extends AppMessage
+case class Turn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends AppMessage
 
 /**
  * Message to indicate the card you want to play

@@ -2,43 +2,42 @@ package org.justcards.server.user_manager
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.commons.actor_connection.Outer
 
-class UserTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSender with WordSpecLike
-  with Matchers with BeforeAndAfterAll {
+class UserTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
   import UserTest._
+  private implicit val system = ActorSystem("UserTest")
 
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
+    system terminate()
   }
 
   "The UserActor" should {
 
-    val userManagerStub = system.actorOf(createReplicateActor(testActor))
-    val user = system.actorOf(User(testActor, userManagerStub))
-
     "redirect a message sent to him by the outer world to the userManager" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val user = createUser(myRef)
       val loginMessage = LogIn(TEST_USERNAME)
       user ! Outer(loginMessage)
-      expectMsg(Replicate(loginMessage))
+      me expectMsg(Replicate(loginMessage))
     }
 
   }
 
   it when {
 
-    val userManagerStub = system.actorOf(createReplicateActor(testActor))
-
     "not logged" should {
 
-      val user = system.actorOf(User(testActor, userManagerStub))
-
       "not inform the userManager if the user logs out" in {
+        val me = TestProbe()
+        implicit val myRef = me.ref
+        val user = createUser(myRef)
         user ! Outer(LogOut(TEST_USERNAME))
-        expectNoMessage()
+        me expectNoMessage()
       }
 
     }
@@ -46,33 +45,44 @@ class UserTest extends TestKit(ActorSystem("ActorTest")) with ImplicitSender wit
     "logged" should {
 
       "inform the userManager if the user logs out" in {
-        val user = system.actorOf(User(testActor, userManagerStub))
+        val me = TestProbe()
+        implicit val myRef = me.ref
+        val user = createUser(myRef)
         user ! Logged(TEST_USERNAME)
-        receiveN(1)
+        me receiveN(1)
         user ! Outer(LogOut(TEST_USERNAME))
-        expectMsg(Replicate(LogOut(TEST_USERNAME)))
+        me expectMsg(Replicate(LogOut(TEST_USERNAME)))
       }
 
       "not log out if the given username isn't the one previously given" in {
-        val user = system.actorOf(User(testActor, userManagerStub))
+        val me = TestProbe()
+        implicit val myRef = me.ref
+        val user = createUser(myRef)
         user ! Logged(TEST_USERNAME)
-        receiveN(1)
+        me receiveN(1)
         user ! Outer(LogOut(FAKE_USERNAME))
-        val msgReceived = receiveN(1)
+        val msgReceived = me receiveN(1)
         msgReceived should not be Replicate(LogOut(FAKE_USERNAME))
       }
 
       "not allow to log in twice" in {
-        val user = system.actorOf(User(testActor, userManagerStub))
+        val me = TestProbe()
+        implicit val myRef = me.ref
+        val user = createUser(myRef)
         user ! Logged(TEST_USERNAME)
-        receiveN(1)
+        me receiveN(1)
         user ! Outer(LogIn(TEST_USERNAME))
-        val msgReceived = receiveN(1)
+        val msgReceived = me receiveN(1)
         msgReceived should not contain Replicate(LogIn(TEST_USERNAME))
       }
 
     }
 
+  }
+
+  private def createUser(myRef: ActorRef): ActorRef = {
+    val userManagerStub = system.actorOf(createReplicateActor(myRef))
+    system.actorOf(User(myRef, userManagerStub))
   }
 
 }
@@ -83,11 +93,11 @@ object UserTest {
   val FAKE_USERNAME: String = "fake-username"
   case class Replicate(msg: Any)
 
-  def createReplicateActor(testActor: ActorRef): Props = Props(classOf[ReplicateMessageActor], testActor)
+  def createReplicateActor(ref: ActorRef): Props = Props(classOf[ReplicateMessageActor], ref)
 
-  private[this] class ReplicateMessageActor(testActor: ActorRef) extends Actor {
+  private[this] class ReplicateMessageActor(ref: ActorRef) extends Actor {
     override def receive: Receive = {
-      case msg => testActor ! Replicate(msg)
+      case msg => ref ! Replicate(msg)
     }
   }
 

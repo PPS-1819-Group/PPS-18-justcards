@@ -1,7 +1,7 @@
 package org.justcards.server.knowledge_engine
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.server.Commons
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
@@ -10,40 +10,51 @@ import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceReque
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class KnowledgeEngineTest extends TestKit(ActorSystem("KnowledgeEngineTest")) with ImplicitSender with WordSpecLike
-  with Matchers with BeforeAndAfterAll with BeforeAndAfter{
+class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfter {
 
   import KnowledgeEngineTest._
 
-  override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
-
+  private implicit val system = ActorSystem("KnowledgeEngineTest")
   private val gameManager = createGamesManager()
   private val gameKnowledge = createGameKnowledge()
-  private val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
+
+  override def afterAll: Unit = {
+    system terminate()
+  }
 
   "The knowledge engine" should {
 
     "return all the available games" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
       knowledgeEngine ! RetrieveAvailableGames()
-      expectMsg(AvailableGames(Set(BECCACCINO_GAME, BRISCOLA_GAME)))
+      me expectMsg AvailableGames(Set(BECCACCINO_GAME, BRISCOLA_GAME))
     }
 
     "know if a game exists" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
       knowledgeEngine ! GameExistenceRequest(BECCACCINO_GAME)
-      expectMsg(GameExistenceResponse(true))
+      me expectMsg GameExistenceResponse(true)
     }
 
     "know if a game doesn't exists" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
       knowledgeEngine ! GameExistenceRequest(NOT_EXISTING_GAME)
-      expectMsg(GameExistenceResponse(false))
+      me expectMsg GameExistenceResponse(false)
     }
 
     "return the correct game knowledge when asked to" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
       knowledgeEngine ! GameKnowledgeRequest(BECCACCINO_GAME)
       val myGameKnowledge = createGameKnowledge()(BECCACCINO_GAME)
-      expectMsg(GameKnowledgeResponse(myGameKnowledge))
+      me expectMsg GameKnowledgeResponse(myGameKnowledge)
     }
 
   }
@@ -64,21 +75,23 @@ object KnowledgeEngineTest {
   def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
   case class TestGameKnowledge(gameId: GameId) extends GameKnowledge {
 
-    override def initialConfiguration: (Int, Int, Int) = ???
+    override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = ???
 
-    override def getDeckCards: Set[Card] = ???
+    override def deckCards: Set[Card] = ???
 
     override def hasToChooseBriscola: BriscolaSetting = ???
 
-    override def play(card: Card, field: Set[Card], hand: Set[Card]): Option[Set[Card]] = ???
+    override def isBriscolaValid(seed: Seed): Boolean = ???
 
-    override def handWinner(fieldCards: Set[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
+    override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = ???
 
-    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Int, Int) = ???
+    override def handWinner(fieldCards: List[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
 
-    override def sessionWinner(firstTeamPoints: Int, secondTeamPoints: Int): Team = ???
+    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = ???
 
-    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Int, Int) = ???
+    override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = ???
+
+    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
   }
 
   private val BECCACCINO_GAME = GameId("Beccaccino")
