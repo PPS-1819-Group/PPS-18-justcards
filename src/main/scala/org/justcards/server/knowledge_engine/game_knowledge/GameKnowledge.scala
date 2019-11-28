@@ -35,7 +35,7 @@ trait GameKnowledge {
    * @param seed the seed
    * @return if the Briscola is valid or not
    */
-  def isBriscolaValid(seed: Seed): Boolean
+  def setBriscola(seed: Seed): Boolean
 
   /**
    * Determine if a card can be played or not.

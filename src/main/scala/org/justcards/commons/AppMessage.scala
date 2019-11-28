@@ -98,7 +98,7 @@ case class Information(handCards: Set[Card], fieldCards: List[Card]) extends App
 /**
  * Message to indicate to choose the Briscola
  */
-case class ChooseBriscola(option: String = "") extends AppMessage
+case class ChooseBriscola(timeout: Int) extends AppMessage
 
 /**
  * Message to indicate the chosen Briscola
