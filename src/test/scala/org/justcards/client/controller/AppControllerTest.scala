@@ -2,6 +2,7 @@ package org.justcards.client.controller
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
+import scala.concurrent.duration._
 import org.justcards.client.{TestConnectionManager, TestView}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.controller.AppController._
@@ -23,7 +24,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
   "The application controller" when {
 
-    "the application start" should {
+    "the application starts" should {
 
       "tell the view to make the user choose a nickname" in {
         val (appController, testProbe) = initComponents
@@ -113,7 +114,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
     }
 
-    "the user is in a lobby" should {
+    "a user is in a lobby" should {
 
       "inform the user if notified of a update regarding the lobby he created" in {
         val (appController, testProbe) = createLobby
@@ -133,9 +134,78 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg ShowLobbyUpdate(tuple._1, tuple._2)
       }
 
+      "inform the user that the game is started" in {
+        val (appController, testProbe) = createLobby
+        appController ! LobbyCreated(lobby)
+        testProbe receiveN 1
+        appController ! GameStarted(team)
+        testProbe expectMsg ShowGameStarted(team)
+      }
+
     }
 
-    "a connection error occur" should {
+    "a user has started a game session" should {
+
+      "inform the user each time it receives new information about the game" in {
+        val (appController, testProbe) = startGame
+        appController ! Information(handCards, fieldCards)
+        testProbe expectMsg ShowGameInformation(handCards, fieldCards)
+      }
+
+      "ask the user to choose a Briscola when it receives the command from the connectionManager" in {
+        val (appController, testProbe) = startGame
+        appController ! ChooseBriscola(briscolaTime)
+        testProbe expectMsg ViewChooseBriscola(briscolaTime)
+      }
+
+      "send a message to the connection manager, when the user chose the Briscola" in {
+        val (appController, testProbe) = chooseBriscola
+        val briscola = "spade"
+        appController ! ChosenBriscola(briscola)
+        testProbe expectMsg Briscola(briscola)
+      }
+
+      "sends a timeout message to the connection manager after a default time if the user doesn't choose a Briscola" in {
+        implicit val (_, testProbe) = chooseBriscola
+        expectTimeoutExceeded(briscolaTime)
+      }
+
+      "doesn't send a timeout message to the connection manager if the user chooses a Briscola before the timeout" in {
+        implicit val (appController, testProbe) = chooseBriscola
+        expectNoTimeoutExceeded(appController, ChosenBriscola("spade"), briscolaTime)
+      }
+
+      "tells the user that is his turn after receiving a Turn message from connection manager" in {
+        val (appController, testProbe) = startGame
+        appController ! Turn(handCards, fieldCards, turnTime)
+        testProbe expectMsg ShowTurn(handCards, fieldCards, turnTime)
+      }
+
+      "send the card the user wants to play to the connection manager" in {
+        val (appController, testProbe) = myTurn
+        appController ! ChosenCard(card)
+        testProbe expectMsg Play(card)
+      }
+
+      "sends a timeout message to the connection manager after a default time if the user doesn't play a card" in {
+        implicit val (_, testProbe) = myTurn
+        expectTimeoutExceeded(turnTime)
+      }
+
+      "doesn't send a timeout message to the connection manager if the user plays a card before the timeout" in {
+        implicit val (appController, testProbe) = myTurn
+        expectNoTimeoutExceeded(appController, ChosenCard(card), turnTime)
+      }
+
+      "ends game session and return to the menu when the session is over" in {
+        val (appController, testProbe) = startGame
+        appController ! OutOfLobby(lobby)
+        testProbe expectMsg ShowMenu
+      }
+
+    }
+
+    "a connection error occurs" should {
 
       "inform the user that the system is not available and the application won't work" in {
         val (appController, testProbe) = initComponents
@@ -227,4 +297,43 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
     testProbe receiveN 1
     (appController, testProbe)
   }
+
+  private def startGame: (ActorRef, TestProbe) = {
+    val (appController, testProbe) = createLobby
+    appController ! LobbyCreated(lobby)
+    appController ! GameStarted(team)
+    testProbe receiveN 2
+    (appController, testProbe)
+  }
+
+  private def chooseBriscola: (ActorRef, TestProbe) = {
+    val (appController, testProbe) = startGame
+    appController ! ChooseBriscola(briscolaTime)
+    testProbe receiveN 1
+    (appController, testProbe)
+  }
+
+  private def myTurn: (ActorRef, TestProbe) = {
+    val (appController, testProbe) = startGame
+    appController ! Turn(handCards, fieldCards, turnTime)
+    testProbe receiveN 1
+    (appController, testProbe)
+  }
+
+  private def expectTimeoutExceeded(timeLimit: FiniteDuration)(implicit testProbe: TestProbe): Unit = {
+    testProbe.within(timeLimit + 1.second){
+      testProbe expectMsg TimeoutExceeded()
+    }
+  }
+
+  private def expectNoTimeoutExceeded(appController: ActorRef, msgToSend: Any, timeLimit: FiniteDuration)
+                                  (implicit testProbe: TestProbe): Unit = {
+    testProbe.within(briscolaTime + 1.second){
+      Thread.sleep(1000)
+      appController ! msgToSend
+      testProbe receiveN 1
+      testProbe expectNoMessage
+    }
+  }
+
 }

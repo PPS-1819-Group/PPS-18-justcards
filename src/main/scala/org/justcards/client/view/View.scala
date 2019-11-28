@@ -2,7 +2,7 @@ package org.justcards.client.view
 
 import akka.actor.{ActorRef, Props}
 import org.justcards.commons.AppError._
-import org.justcards.commons.{AppError, GameId, LobbyId, UserId}
+import org.justcards.commons.{AppError, Card, GameId, LobbyId, TeamId, UserId}
 
 trait View extends (ActorRef => Props)
 
@@ -19,6 +19,10 @@ object View {
   case class ShowCreatedLobby(lobby: LobbyId) extends ViewMessage
   case class ShowJoinedLobby(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
   case class ShowLobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
+  case class ShowGameStarted(team: TeamId) extends ViewMessage
+  case class ShowGameInformation(handCards: Set[Card], fieldCards: List[Card]) extends ViewMessage
+  case class ViewChooseBriscola(timeout: Int) extends ViewMessage
+  case class ShowTurn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends ViewMessage
 
   val INPUT_SYMBOL = "> "
   val MENU_TITLE = "MENU"
