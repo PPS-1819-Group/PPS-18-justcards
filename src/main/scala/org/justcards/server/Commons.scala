@@ -1,6 +1,7 @@
 package org.justcards.server
 
 import akka.actor.ActorRef
+import org.justcards.commons.Card
 
 object Commons {
 
@@ -16,4 +17,6 @@ object Commons {
   }
 
   case class UserInfo(username: String, userRef: ActorRef)
+
+  case class PlayerCards(hand: Set[Card], took: Set[Card])
 }
