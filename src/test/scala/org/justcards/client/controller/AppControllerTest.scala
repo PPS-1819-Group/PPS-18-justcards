@@ -165,17 +165,17 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg Briscola(briscola)
       }
 
-      "sends a timeout message to the connection manager after a default time if the user doesn't choose a Briscola" in {
+      "send a timeout message to the connection manager after a default time if the user doesn't choose a Briscola" in {
         implicit val (_, testProbe) = chooseBriscola
         expectTimeoutExceeded(briscolaTime)
       }
 
-      "doesn't send a timeout message to the connection manager if the user chooses a Briscola before the timeout" in {
+      "not send a timeout message to the connection manager if the user chooses a Briscola before the timeout" in {
         implicit val (appController, testProbe) = chooseBriscola
         expectNoTimeoutExceeded(appController, ChosenBriscola("spade"), briscolaTime)
       }
 
-      "tells the user that is his turn after receiving a Turn message from connection manager" in {
+      "tell the user that is his turn after receiving a Turn message from connection manager" in {
         val (appController, testProbe) = startGame
         appController ! Turn(handCards, fieldCards, turnTime)
         testProbe expectMsg ShowTurn(handCards, fieldCards, turnTime)
@@ -187,17 +187,17 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg Play(card)
       }
 
-      "sends a timeout message to the connection manager after a default time if the user doesn't play a card" in {
+      "send a timeout message to the connection manager after a default time if the user doesn't play a card" in {
         implicit val (_, testProbe) = myTurn
         expectTimeoutExceeded(turnTime)
       }
 
-      "doesn't send a timeout message to the connection manager if the user plays a card before the timeout" in {
+      "not send a timeout message to the connection manager if the user plays a card before the timeout" in {
         implicit val (appController, testProbe) = myTurn
         expectNoTimeoutExceeded(appController, ChosenCard(card), turnTime)
       }
 
-      "ends game session and return to the menu when the session is over" in {
+      "end game session and return to the menu when the session is over" in {
         val (appController, testProbe) = startGame
         appController ! OutOfLobby(lobby)
         testProbe expectMsg ShowMenu
