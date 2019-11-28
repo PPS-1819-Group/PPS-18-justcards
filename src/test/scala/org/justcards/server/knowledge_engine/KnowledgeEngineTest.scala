@@ -81,7 +81,7 @@ object KnowledgeEngineTest {
 
     override def hasToChooseBriscola: BriscolaSetting = ???
 
-    override def isBriscolaValid(seed: Seed): Boolean = ???
+    override def setBriscola(seed: Seed): Boolean = ???
 
     override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = ???
 
