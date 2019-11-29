@@ -152,6 +152,26 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg ShowGameInformation(handCards, fieldCards)
       }
 
+      "inform the user about who won the current hand" in {
+        val (appController, testProbe) = startGame
+        appController ! HandWinner(user)
+        testProbe expectMsg ShowHandWinner(user)
+      }
+
+      "inform the user about who won the current match" in {
+        val (appController, testProbe) = startGame
+        val team1Points = 1
+        val team2Points = 2
+        appController ! MatchWinner(team, team1Points, team2Points)
+        testProbe expectMsg ShowMatchWinner(team, team1Points, team2Points)
+      }
+
+      "inform the user about who won the game" in {
+        val (appController, testProbe) = startGame
+        appController ! GameWinner(team)
+        testProbe expectMsg ShowGameWinner(team)
+      }
+
       "ask the user to choose a Briscola when it receives the command from the connectionManager" in {
         val (appController, testProbe) = startGame
         appController ! ChooseBriscola(briscolaTime)
@@ -175,6 +195,19 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         expectNoTimeoutExceeded(appController, ChosenBriscola("spade"), briscolaTime)
       }
 
+      "ask again to the user to choose the Briscola if the choice was incorrect" in {
+        implicit val (appController, testProbe) = chooseBriscola
+        appController ! ChosenBriscola("spade")
+        testProbe receiveN 1
+        appController ! ErrorOccurred(BRISCOLA_NOT_VALID)
+        testProbe expectMsgAllOf(ShowError(BRISCOLA_NOT_VALID), ViewChooseBriscola(briscolaTime))
+      }
+
+      "send a timeout message after the correct time if the user chosen the wrong Briscola" in {
+        implicit val (appController, testProbe) = chooseBriscola
+        sendErrorAndExpectTimeoutExceeded(appController, briscolaTime)(ChosenBriscola("spade"), BRISCOLA_NOT_VALID)
+      }
+
       "tell the user that is his turn after receiving a Turn message from connection manager" in {
         val (appController, testProbe) = startGame
         appController ! Turn(handCards, fieldCards, turnTime)
@@ -195,6 +228,19 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
       "not send a timeout message to the connection manager if the user plays a card before the timeout" in {
         implicit val (appController, testProbe) = myTurn
         expectNoTimeoutExceeded(appController, ChosenCard(card), turnTime)
+      }
+
+      "ask again to the user to play a card if the choice was incorrect" in {
+        val (appController, testProbe) = myTurn
+        appController ! ChosenCard(card)
+        testProbe receiveN 1
+        appController ! ErrorOccurred(CARD_NOT_VALID)
+        testProbe expectMsgAllOf(ShowError(CARD_NOT_VALID), ShowTurn(handCards, fieldCards, turnTime))
+      }
+
+      "send a timeout message after the correct time if the user played the wrong card" in {
+        implicit val (appController, testProbe) = myTurn
+        sendErrorAndExpectTimeoutExceeded(appController, turnTime)(ChosenCard(card), CARD_NOT_VALID)
       }
 
       "end game session and return to the menu when the session is over" in {
@@ -334,6 +380,17 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
       testProbe receiveN 1
       testProbe expectNoMessage
     }
+  }
+
+  private def sendErrorAndExpectTimeoutExceeded(appController: ActorRef, timeLimit: FiniteDuration)
+                                               (msgToSend: Any, errorToSend: AppError.Value)
+                                               (implicit testProbe: TestProbe): Unit = {
+    Thread.sleep(timeLimit.toMillis/2)
+    appController ! msgToSend
+    testProbe receiveN 1
+    appController ! ErrorOccurred(errorToSend)
+    testProbe receiveN 2
+    expectTimeoutExceeded(FiniteDuration(timeLimit._1/2, timeLimit._2))
   }
 
 }

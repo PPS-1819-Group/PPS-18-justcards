@@ -100,6 +100,9 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
 
   private def inGame: Receive = {
     case Information(handCards, fieldCards) => viewActor ! ShowGameInformation(handCards, fieldCards)
+    case HandWinner(winner) => viewActor ! ShowHandWinner(winner)
+    case MatchWinner(team, team1Points, team2Points) => viewActor ! ShowMatchWinner(team, team1Points, team2Points)
+    case GameWinner(team) => viewActor ! ShowGameWinner(team)
     case ChooseBriscola(timeout) => context toChooseBriscola timeout
     case Turn(handCards, fieldCards, timeout) => context toMyTurn((handCards, fieldCards),timeout)
     case OutOfLobby(_) => context toMenu

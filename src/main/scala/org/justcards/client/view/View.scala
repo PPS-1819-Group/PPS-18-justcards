@@ -24,6 +24,9 @@ object View {
   case class ShowGameInformation(handCards: Set[Card], fieldCards: List[Card]) extends ViewMessage
   case class ViewChooseBriscola(timeout: Int) extends ViewMessage
   case class ShowTurn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends ViewMessage
+  case class ShowHandWinner(player: UserId) extends ViewMessage
+  case class ShowMatchWinner(winnerTeam: TeamId, team1Points: Int, team2Points: Int) extends ViewMessage
+  case class ShowGameWinner(team: TeamId) extends ViewMessage
 
   val INPUT_SYMBOL = "> "
   val MENU_TITLE = "MENU"
