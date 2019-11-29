@@ -28,34 +28,43 @@ object View {
   case class ShowMatchWinner(winnerTeam: TeamId, team1Points: Int, team2Points: Int) extends ViewMessage
   case class ShowGameWinner(team: TeamId) extends ViewMessage
 
-  val INPUT_SYMBOL = "> "
-  val MENU_TITLE = "MENU"
-  val ERROR_TITLE = "ERROR"
-  val LOBBY_CREATION_TITLE = "LOBBY CREATION - Choose the game you want to play"
-  val LOBBY_LIST_TITLE = "LOBBY LIST - Choose the lobby you want to join"
-  val CHOOSE_NICKNAME = "Choose your nickname:"
-  val LOBBY_MESSAGE = "If you want to exit from the lobby, write \"exit\""
-  val EXIT = "exit"
+  private[this] val HAND_WON_FINAL = "taken all the cards in the field!"
+
+  val INPUT_SYMBOL: String = "> "
+  val MENU_TITLE: String = "MENU"
+  val ERROR_TITLE: String = "ERROR"
+  val LOBBY_CREATION_TITLE: String = "LOBBY CREATION - Choose the game you want to play"
+  val LOBBY_LIST_TITLE: String = "LOBBY LIST - Choose the lobby you want to join"
+  val CHOOSE_NICKNAME: String = "Choose your nickname:"
+  val HAND_WON: String = "You've " concat HAND_WON_FINAL
+  val GAME_WON: String = "You've won the game!!!"
+  val EXIT: String = "exit"
+  val LOBBY_MESSAGE: String = "If you want to exit from the lobby, write " concat EXIT
 
   def LOBBY_CREATED_MESSAGE(lobby: LobbyId): String = "Your lobby has been created! ID = " + lobby.id
   def LOBBY_JOINED_MESSAGE(lobby: LobbyId): String = "You joined lobby " + lobby.id
+  def GAME_STARTED(team: TeamId): String = "The game has started! You're on team " + team.name
+  def HAND_LOST(player: UserId): String = player.name concat "has " concat HAND_WON_FINAL
+  def GAME_LOST(team: TeamId): String = "You've lost! " concat team.name concat " wins the game"
+  def MATCH_ENDS(winnerTeam: TeamId, teamPoints: (Int,Int)): String =
+    winnerTeam.name + " wins! " + teamPoints._1 + " - " + teamPoints._2
   def UNKNOWN_ERROR(error: AppError.Value): String = "Unknown error: " + error
 
-  val ERROR_CONNECTION_LOST = "Error: Connection Lost"
-  val ERROR_CANNOT_CONNECT = "Error: I can't connect"
-  val ERROR_LAST_MESSAGE_LOST = "Error: Last message didn't arrive"
+  val ERROR_CONNECTION_LOST: String = "Error: Connection Lost"
+  val ERROR_CANNOT_CONNECT: String = "Error: I can't connect"
+  val ERROR_LAST_MESSAGE_LOST: String = "Error: Last message didn't arrive"
 
-  val ERROR_USERNAME_ALREADY_USED = "Error: Username already used"
-  val ERROR_USER_NOT_LOGGED = "Error: You're not logged"
-  val ERROR_USER_ALREADY_LOGGED = "Error: You're already logged"
-  val ERROR_USER_ALREADY_IN_LOBBY = "Error: You're already in a lobby"
-  val ERROR_USER_WRONG_USERNAME = "Error: Action not allowed with this username"
+  val ERROR_USERNAME_ALREADY_USED: String = "Error: Username already used"
+  val ERROR_USER_NOT_LOGGED: String = "Error: You're not logged"
+  val ERROR_USER_ALREADY_LOGGED: String = "Error: You're already logged"
+  val ERROR_USER_ALREADY_IN_LOBBY: String = "Error: You're already in a lobby"
+  val ERROR_USER_WRONG_USERNAME: String = "Error: Action not allowed with this username"
 
-  val ERROR_GAME_NOT_EXIST = "Error: Selected game doesn't exist"
-  val ERROR_LOBBY_NOT_EXIST = "Error: Selected lobby doesn't exist"
-  val ERROR_LOBBY_FULL = "Error: Selected lobby is already full"
+  val ERROR_GAME_NOT_EXIST: String = "Error: Selected game doesn't exist"
+  val ERROR_LOBBY_NOT_EXIST: String = "Error: Selected lobby doesn't exist"
+  val ERROR_LOBBY_FULL: String = "Error: Selected lobby is already full"
 
-  val ERROR_WRONG_CHOICE = "Error: The selected choice is not available"
+  val ERROR_WRONG_CHOICE: String = "Error: The selected choice is not available"
 
   def errorMessage(error: AppError.Value): String = error match {
     case CONNECTION_LOST => ERROR_CONNECTION_LOST
