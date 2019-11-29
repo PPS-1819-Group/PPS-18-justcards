@@ -139,8 +139,8 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   private def userChoose[A: ClassTag](remainingTime: Long, timerStartedTime: Long)(onUserChoice: (A,Long) => Unit): Receive = {
     case msg: A =>
       timers cancel TimerTimeoutId
-      val newRemainedTime = (remainingTime - timerStartedTime).millis.toSeconds
-      onUserChoice(msg, newRemainedTime)
+      val timeElapsed = (Calendar.getInstance() - timerStartedTime).millis.toSeconds
+      onUserChoice(msg, remainingTime - timeElapsed)
     case Timeout => context timeout()
   }
 
@@ -187,6 +187,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
 
     def timeout(): Unit = {
       context >>> inGame
+      viewActor ! ShowTimeForMoveExceeded
       connectionManagerActor ! TimeoutExceeded()
     }
 

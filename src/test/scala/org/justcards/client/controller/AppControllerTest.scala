@@ -165,7 +165,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg Briscola(briscola)
       }
 
-      "send a timeout message to the connection manager after a default time if the user doesn't choose a Briscola" in {
+      "send a timeout message after a default time if the user doesn't choose a Briscola" in {
         implicit val (_, testProbe) = chooseBriscola
         expectTimeoutExceeded(briscolaTime)
       }
@@ -187,7 +187,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg Play(card)
       }
 
-      "send a timeout message to the connection manager after a default time if the user doesn't play a card" in {
+      "send a timeout message after a default time if the user doesn't play a card" in {
         implicit val (_, testProbe) = myTurn
         expectTimeoutExceeded(turnTime)
       }
@@ -322,7 +322,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
   private def expectTimeoutExceeded(timeLimit: FiniteDuration)(implicit testProbe: TestProbe): Unit = {
     testProbe.within(timeLimit + 1.second){
-      testProbe expectMsg TimeoutExceeded()
+      testProbe.expectMsgAllOf(TimeoutExceeded(), ShowTimeForMoveExceeded)
     }
   }
 

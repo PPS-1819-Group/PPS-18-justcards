@@ -14,6 +14,7 @@ object View {
   case class ShowError(error: AppError.Value) extends ViewMessage
   case object ShowUsernameChoice extends ViewMessage
   case object ShowMenu extends ViewMessage
+  case object ShowTimeForMoveExceeded extends ViewMessage
   case class ShowLobbyCreation(games: Set[GameId]) extends ViewMessage
   case class ShowLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends ViewMessage
   case class ShowCreatedLobby(lobby: LobbyId) extends ViewMessage
