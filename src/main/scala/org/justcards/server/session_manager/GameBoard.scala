@@ -7,6 +7,7 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import scala.util.Random
 
 sealed trait GameBoard {
+  
   /**
    * Getter
    * @return cards on field
@@ -19,24 +20,59 @@ sealed trait GameBoard {
    */
   def playerCards: Map[UserInfo, PlayerCards]
 
-  def turnPlayer: UserInfo
+  /**
+   * Getter
+   * @return User that must play
+   */
+  def getTurnPlayer: UserInfo
+
+  /**
+   * Getter
+   * @param player player
+   * @return cards in the player hand
+   */
+  def getPlayerHandCards(player: UserInfo): Set[Card]
+
+  /**
+   * Getter
+   * @param player player
+   * @return cards that player won
+   */
+  def getPlayerTookCards(player: UserInfo): Set[Card]
+
+  /**
+   * Players draw
+   * @return GameBoard after the players draw
+   */
   def draw: GameBoard
+
+  /**
+   * Player play a card
+   * @param card card that player play
+   * @return GameBoard after player play the card
+   */
   def playerPlays(card: Card): GameBoard
+
+  /**
+   *
+   * @param player
+   * @return
+   */
   def handWinner(player: UserInfo): GameBoard
 
 }
 
 object GameBoard {
 
-  def apply(gameKnowledge: GameKnowledge, team1: List[UserInfo], team2: List[UserInfo], firstPlayer: UserInfo ): GameBoard = {
+  def apply(gameKnowledge: GameKnowledge, team1: List[UserInfo], team2: List[UserInfo], firstPlayer: UserInfo): GameBoard = {
     import ListWithShift._
     val initialConfiguration = gameKnowledge.initialConfiguration//hand, draw, field
     val deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
     val turn: List[UserInfo] = team1.zipAll(team2, null, null)
       .flatMap {
-        case (a, b) => Seq(a, b)
         case (a, null) => Seq(a)
         case (null, b) => Seq(b)
+        case (a, b) => Seq(a, b)
       }
     val players = turn.map( a => (a , PlayerCards(Set(), Set()))).toMap
     val handTurn = turn.shiftTo(firstPlayer).get
@@ -61,7 +97,11 @@ object GameBoard {
       GameBoardImpl(field, playerCards, deck, handTurn, turn, nCardsDraw)
     }
 
-    override def turnPlayer: UserInfo = handTurn.head
+    override def getTurnPlayer: UserInfo = handTurn.head
+
+    override def getPlayerHandCards(player: UserInfo): Set[Card] = playerCards(player).hand
+
+    override def getPlayerTookCards(player: UserInfo): Set[Card] = playerCards(player).took
 
     override def draw: GameBoard =
       this(
@@ -92,6 +132,7 @@ object GameBoard {
         deck,
         turn.shiftTo(winner).get
       )
+
   }
 
 }
