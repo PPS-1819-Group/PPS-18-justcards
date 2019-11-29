@@ -19,6 +19,11 @@ sealed trait GameBoard {
    */
   def playerCards: Map[UserInfo, PlayerCards]
 
+  def turnPlayer: UserInfo
+  def draw: GameBoard
+  def playerPlays(card: Card): GameBoard
+  def handWinner(player: UserInfo): GameBoard
+
 }
 
 object GameBoard {
@@ -35,7 +40,8 @@ object GameBoard {
       }
     val players = turn.map( a => (a , PlayerCards(Set(), Set()))).toMap
     val handTurn = turn.shiftTo(firstPlayer).get
-    GameBoardImpl(List(), players, deck, handTurn, turn)
+    GameBoardImpl(List(), players, deck, handTurn, turn, initialConfiguration._2)
+
   }
 
 
@@ -44,24 +50,48 @@ object GameBoard {
                                          playerCards: Map[UserInfo, PlayerCards],
                                          deck: List[Card],
                                          handTurn: List[UserInfo],
-                                         turn: List[UserInfo]) extends GameBoard {
+                                         turn: List[UserInfo],
+                                         nCardsDraw: Int) extends GameBoard {
+    import ListWithShift._
 
-    /**
-     * Creates a GameBoard
-     * @param field cards on field and their player
-     * @param playerCards cards of players
-     * @param deck deck of cards
-     * @param handTurn list of user have to do their turn yet
-     * @param turn list of user in order
-     * @return a new GameBoard
-     */
-    def apply(field: List[(Card,UserInfo)],
+    private def apply(field: List[(Card,UserInfo)],
               playerCards: Map[UserInfo, PlayerCards],
               deck: List[Card],
-              handTurn: List[UserInfo],
-              turn: List[UserInfo]): GameBoard = {
-      GameBoardImpl(field, playerCards, deck, handTurn, turn)
+              handTurn: List[UserInfo]): GameBoard = {
+      GameBoardImpl(field, playerCards, deck, handTurn, turn, nCardsDraw)
     }
+
+    override def turnPlayer: UserInfo = handTurn.head
+
+    override def draw: GameBoard =
+      this(
+        fieldCards,
+        playerCards.mapValues( cards => PlayerCards(cards.hand+deck.init(nCardsDraw), cards.took)),
+        deck drop nCardsDraw,
+        handTurn
+      )
+
+    override def playerPlays(card: Card): GameBoard =
+      this(
+        fieldCards,
+        playerCards.map{
+          case (handTurn.head, cards) => handTurn.head -> PlayerCards(cards.hand - card, cards.took)
+          case x => x
+        },
+        deck,
+        handTurn tail
+      )
+
+    override def handWinner(winner: UserInfo): GameBoard =
+      this(
+        List(),
+        playerCards.map{
+          case (`winner`, cards) => winner -> PlayerCards(cards.hand, cards.took ++ fieldCards.map(_._1))
+          case x => x
+        },
+        deck,
+        turn.shiftTo(winner).get
+      )
   }
 
 }
