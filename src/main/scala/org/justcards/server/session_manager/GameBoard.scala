@@ -7,7 +7,7 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import scala.util.Random
 
 sealed trait GameBoard {
-  
+
   /**
    * Getter
    * @return cards on field
@@ -54,9 +54,9 @@ sealed trait GameBoard {
   def playerPlays(card: Card): GameBoard
 
   /**
-   *
-   * @param player
-   * @return
+   * Give fieldCards to turn winner and reset turn
+   * @param player turn winner
+   * @return GameBoard with empty field and reset turn
    */
   def handWinner(player: UserInfo): GameBoard
 
@@ -67,16 +67,27 @@ object GameBoard {
   def apply(gameKnowledge: GameKnowledge, team1: List[UserInfo], team2: List[UserInfo], firstPlayer: UserInfo): GameBoard = {
     import ListWithShift._
     val initialConfiguration = gameKnowledge.initialConfiguration//hand, draw, field
-    val deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
+    var deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
     val turn: List[UserInfo] = team1.zipAll(team2, null, null)
       .flatMap {
         case (a, null) => Seq(a)
         case (null, b) => Seq(b)
         case (a, b) => Seq(a, b)
       }
-    val players = turn.map( a => (a , PlayerCards(Set(), Set()))).toMap
+    val players = turn.map( a => {
+      val player = (a , PlayerCards(deck take initialConfiguration._1 toSet, Set()))
+      deck = deck drop initialConfiguration._1
+      player
+    }).toMap
     val handTurn = turn.shiftTo(firstPlayer).get
-    GameBoardImpl(List(), players, deck, handTurn, turn, initialConfiguration._2)
+
+    GameBoardImpl(
+      deck take initialConfiguration._3 map(a=>(a,firstPlayer)),
+      players,
+      deck drop initialConfiguration._3,
+      handTurn,
+      turn,
+      initialConfiguration._2)
 
   }
 
@@ -106,7 +117,7 @@ object GameBoard {
     override def draw: GameBoard =
       this(
         fieldCards,
-        playerCards.mapValues( cards => PlayerCards(cards.hand+deck.init(nCardsDraw), cards.took)),
+        playerCards.mapValues( cards => PlayerCards(cards.hand ++ deck.take(nCardsDraw), cards.took)),
         deck drop nCardsDraw,
         handTurn
       )
