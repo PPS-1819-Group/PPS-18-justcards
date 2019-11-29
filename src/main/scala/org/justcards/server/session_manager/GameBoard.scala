@@ -75,7 +75,7 @@ object GameBoard {
       this(
         fieldCards,
         playerCards.map{
-          case (handTurn.head, cards) => handTurn.head -> PlayerCards(cards.hand - card, cards.took)
+          case (player, cards) if player == handTurn.head => handTurn.head -> PlayerCards(cards.hand - card, cards.took)
           case x => x
         },
         deck,
