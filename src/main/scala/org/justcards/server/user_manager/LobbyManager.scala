@@ -25,7 +25,9 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
       sender ! AvailableLobbies(availableLobbies)
     case UserCreateLobby(CreateLobby(gameId), userInfo) => createLobby(lobbies)(gameId, userInfo)
     case UserJoinLobby(JoinLobby(lobbyId), userInfo) => joinUserToLobby(lobbies)(lobbyId, userInfo)
-    case UserExitFromLobby(lobbyId, userInfo) => exitUserFromLobby(lobbies)(lobbyId, userInfo)
+    case UserExitFromLobby(lobbyId, userInfo) =>
+      val userRemoved = exitUserFromLobby(lobbies)(lobbyId, userInfo)
+      userInfo.userRef ! UserRemoved(userRemoved)
   }
 
   private def createLobby(lobbies: LobbyDatabase)(gameId: GameId, userInfo: UserInfo): Unit = {
@@ -60,9 +62,10 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
     }
   }
 
-  private def exitUserFromLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Unit = {
+  private def exitUserFromLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Boolean = {
     val lobby = lobbies.find(_.id == lobbyId.id)
-    if(lobby.isDefined && (lobby.get.members contains userInfo) ) {
+    val userFoundInLobby = lobby.isDefined && (lobby.get.members contains userInfo)
+    if(userFoundInLobby) {
       val newLobby = lobby.get - userInfo
       if(newLobby isDefined) {
         val newLobbyVal = newLobby.get
@@ -74,6 +77,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
       } else
         context become defaultBehaviour(lobbies - lobby.get)
     }
+    userFoundInLobby
   }
 
   private def addUserToLobby(lobby: Lobby, lobbyId: LobbyId, userInfo: UserInfo): Lobby = {

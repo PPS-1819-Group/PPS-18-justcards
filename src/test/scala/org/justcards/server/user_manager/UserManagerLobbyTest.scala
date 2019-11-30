@@ -214,6 +214,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         userManager ! LogOutAndExitFromLobby(TEST_USERNAME, lobbyInfo.lobby)
+        me receiveN 1
         doLogIn(userManager, TEST_USERNAME)
         expectNoLobby(userManager)
       }

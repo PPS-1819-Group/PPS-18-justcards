@@ -93,6 +93,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   private def inLobby(myLobby: LobbyId): Receive = {
     case LobbyUpdate(lobby, members) => viewActor ! ShowLobbyUpdate(lobby,members)
     case ExitFromLobby => connectionManagerActor ! OutOfLobby(myLobby)
+    case OutOfLobby(`myLobby`) => context toMenu
     case GameStarted(team) =>
       context >>> inGame
       viewActor ! ShowGameStarted(team)

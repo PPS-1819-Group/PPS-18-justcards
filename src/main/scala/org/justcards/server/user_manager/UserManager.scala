@@ -27,6 +27,7 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
     case LogOutAndExitFromLobby(username, lobbyId) =>
       playerManager ! UserLogout(username, sender())
       lobbyManager ! UserExitFromLobby(lobbyId, UserInfo(username, sender()))
+    case msg: UserExitFromLobby => lobbyManager ! msg
     case _: RetrieveAvailableGames =>
       val user = sender()
       (knowledgeEngine ? RetrieveAvailableGames()) onComplete { result =>
@@ -85,5 +86,6 @@ private[user_manager] object UserManagerMessage {
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
   case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
   case class UserExitFromLobby(lobbyId: LobbyId, userInfo: UserInfo) extends UserManagerMessage
+  case class UserRemoved(removed: Boolean) extends UserManagerMessage
 
 }

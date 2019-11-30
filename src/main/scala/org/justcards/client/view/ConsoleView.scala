@@ -71,6 +71,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
   }
 
   private def inLobby: Receive = {
+    case ShowMenu => context toMenu
     case ShowLobbyUpdate(lobby, members) =>
       println() ; clearAndPrint()
       printLobbyState(lobby, members)
