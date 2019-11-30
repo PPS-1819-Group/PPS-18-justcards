@@ -22,6 +22,12 @@ sealed trait GameBoard {
 
   /**
    * Getter
+   * @return last card of deck
+   */
+  def getLastCardDeck: Card
+
+  /**
+   * Getter
    * @return User that must play
    */
   def getTurnPlayer: UserInfo
@@ -107,6 +113,8 @@ object GameBoard {
               handTurn: List[UserInfo]): GameBoard = {
       GameBoardImpl(field, playerCards, deck, handTurn, turn, nCardsDraw)
     }
+
+    override def getLastCardDeck: Card = deck last
 
     override def getTurnPlayer: UserInfo = handTurn.head
 
