@@ -185,6 +185,14 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg Briscola(briscola)
       }
 
+      "tell the user that the Briscola was correct" in {
+        val (appController, testProbe) = chooseBriscola
+        appController ! ChosenBriscola("spade")
+        testProbe receiveN 1
+        appController ! CorrectBriscola()
+        testProbe expectMsg MoveWasCorrect
+      }
+
       "send a timeout message after a default time if the user doesn't choose a Briscola" in {
         implicit val (_, testProbe) = chooseBriscola
         expectTimeoutExceeded(briscolaTime)
@@ -218,6 +226,14 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         val (appController, testProbe) = myTurn
         appController ! ChosenCard(card)
         testProbe expectMsg Play(card)
+      }
+
+      "tell the user that he played the card" in {
+        val (appController, testProbe) = myTurn
+        appController ! ChosenCard(card)
+        testProbe receiveN 1
+        appController ! Played(card)
+        testProbe expectMsg MoveWasCorrect
       }
 
       "send a timeout message after a default time if the user doesn't play a card" in {
