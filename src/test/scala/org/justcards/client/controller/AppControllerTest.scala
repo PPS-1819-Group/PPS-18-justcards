@@ -175,7 +175,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
       "ask the user to choose a Briscola when it receives the command from the connectionManager" in {
         val (appController, testProbe) = startGame
         appController ! ChooseBriscola(briscolaTime)
-        testProbe expectMsg ViewChooseBriscola(briscolaTime)
+        testProbe expectMsg ViewChooseBriscola(briscolaSet, briscolaTime)
       }
 
       "send a message to the connection manager, when the user chose the Briscola" in {
@@ -200,7 +200,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         appController ! ChosenBriscola("spade")
         testProbe receiveN 1
         appController ! ErrorOccurred(BRISCOLA_NOT_VALID)
-        testProbe expectMsgAllOf(ShowError(BRISCOLA_NOT_VALID), ViewChooseBriscola(briscolaTime))
+        testProbe expectMsgAllOf(ShowError(BRISCOLA_NOT_VALID), ViewChooseBriscola(briscolaSet, briscolaTime))
       }
 
       "send a timeout message after the correct time if the user chosen the wrong Briscola" in {

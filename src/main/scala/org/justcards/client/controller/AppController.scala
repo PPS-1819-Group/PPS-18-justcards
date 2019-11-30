@@ -103,15 +103,17 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     case HandWinner(winner) => viewActor ! ShowHandWinner(winner)
     case MatchWinner(team, team1Points, team2Points) => viewActor ! ShowMatchWinner(team, team1Points, team2Points)
     case GameWinner(team) => viewActor ! ShowGameWinner(team)
-    case ChooseBriscola(timeout) => context toChooseBriscola timeout
+    case ChooseBriscola(timeout) =>
+      val availableBriscola = Set("spade", "denara", "coppe", "bastoni") //To be changed, briscola has to be passed from the server
+      context toChooseBriscola(availableBriscola, timeout)
     case Turn(handCards, fieldCards, timeout) => context toMyTurn((handCards, fieldCards),timeout)
     case OutOfLobby(_) => context toMenu
   }
 
-  private def chooseBriscola(remainingTime: Long, timerStartedTime: Long): Receive =
+  private def chooseBriscola(availableBriscola: Set[String], remainingTime: Long, timerStartedTime: Long): Receive =
     userChoose[ChosenBriscola](remainingTime, timerStartedTime){(msg, newRemainingTime) =>
       connectionManagerActor ! Briscola(msg.briscola)
-      context >>> waitForBriscolaResponse(newRemainingTime)
+      context >>> waitForBriscolaResponse(availableBriscola, newRemainingTime)
     }
 
   private def myTurn(cards: (Set[Card], List[Card]), remainingTime: Long, timerStartedTime: Long): Receive =
@@ -120,9 +122,9 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       context >>> waitForMove(cards, newRemainingTime)
     }
 
-  private def waitForBriscolaResponse(remainingTime: Long): Receive =
+  private def waitForBriscolaResponse(availableBriscola: Set[String], remainingTime: Long): Receive =
     waitForChoiceCorrectness[CorrectBriscola](BRISCOLA_NOT_VALID){
-      context toChooseBriscola remainingTime
+      context toChooseBriscola(availableBriscola,remainingTime)
     }
 
   private def waitForMove(cards: (Set[Card], List[Card]), remainingTime: Long): Receive =
@@ -133,6 +135,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   private def waitForChoiceCorrectness[A: ClassTag](error: AppError.Value)(onError: => Unit): Receive = {
     case _: A =>
       if(timers isTimerActive TimerTimeoutId) timers cancel TimerTimeoutId
+      viewActor ! MoveWasCorrect
       context >>> inGame
     case ErrorOccurred(message) if message == error.toString =>
       viewActor ! ShowError(error)
@@ -201,10 +204,10 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       loggedBehaviour
     }
 
-    def toChooseBriscola(timeout: Long): Receive = {
-      val nextBehaviour = chooseBriscola(timeout, Calendar.getInstance)
+    def toChooseBriscola(availableBriscola: Set[String], timeout: Long): Receive = {
+      val nextBehaviour = chooseBriscola(availableBriscola, timeout, Calendar.getInstance)
       context >>> nextBehaviour
-      viewActor ! ViewChooseBriscola(timeout.toInt)
+      viewActor ! ViewChooseBriscola(availableBriscola, timeout.toInt)
       timers startSingleTimer(TimerTimeoutId, Timeout, timeout seconds)
       nextBehaviour
     }

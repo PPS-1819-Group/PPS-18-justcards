@@ -14,6 +14,7 @@ object View {
   case class ShowError(error: AppError.Value) extends ViewMessage
   case object ShowUsernameChoice extends ViewMessage
   case object ShowMenu extends ViewMessage
+  case object MoveWasCorrect extends ViewMessage
   case object ShowTimeForMoveExceeded extends ViewMessage
   case class ShowLobbyCreation(games: Set[GameId]) extends ViewMessage
   case class ShowLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends ViewMessage
@@ -22,7 +23,7 @@ object View {
   case class ShowLobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
   case class ShowGameStarted(team: TeamId) extends ViewMessage
   case class ShowGameInformation(handCards: Set[Card], fieldCards: List[Card]) extends ViewMessage
-  case class ViewChooseBriscola(timeout: Int) extends ViewMessage
+  case class ViewChooseBriscola(availableBriscola: Set[String], timeout: Int) extends ViewMessage
   case class ShowTurn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends ViewMessage
   case class ShowHandWinner(player: UserId) extends ViewMessage
   case class ShowMatchWinner(winnerTeam: TeamId, team1Points: Int, team2Points: Int) extends ViewMessage
@@ -35,20 +36,20 @@ object View {
   val ERROR_TITLE: String = "ERROR"
   val LOBBY_CREATION_TITLE: String = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE: String = "LOBBY LIST - Choose the lobby you want to join"
-  val CHOOSE_NICKNAME: String = "Choose your nickname:"
-  val HAND_WON: String = "You've " concat HAND_WON_FINAL
-  val GAME_WON: String = "You've won the game!!!"
   val EXIT: String = "exit"
   val LOBBY_MESSAGE: String = "If you want to exit from the lobby, write " concat EXIT
+  val HAND_WON: String = "You've " concat HAND_WON_FINAL
+  val GAME_WON: String = "You've won the game!!!"
+  val TIME_IS_UP: String = "Time'up! The game will decide for you"
 
-  def LOBBY_CREATED_MESSAGE(lobby: LobbyId): String = "Your lobby has been created! ID = " + lobby.id
-  def LOBBY_JOINED_MESSAGE(lobby: LobbyId): String = "You joined lobby " + lobby.id
-  def GAME_STARTED(team: TeamId): String = "The game has started! You're on team " + team.name
-  def HAND_LOST(player: UserId): String = player.name concat "has " concat HAND_WON_FINAL
-  def GAME_LOST(team: TeamId): String = "You've lost! " concat team.name concat " wins the game"
-  def MATCH_ENDS(winnerTeam: TeamId, teamPoints: (Int,Int)): String =
+  val LOBBY_CREATED_MESSAGE: LobbyId => String = "Your lobby has been created! ID = " + _.id
+  val LOBBY_JOINED_MESSAGE: LobbyId => String = "You joined lobby " + _.id
+  val GAME_STARTED: TeamId => String = "The game has started! You're on team " + _.name
+  val HAND_LOST: UserId => String = _.name concat "has " concat HAND_WON_FINAL
+  val GAME_LOST: TeamId => String = "You've lost! " concat _.name concat " wins the game"
+  val MATCH_ENDS: (TeamId, (Int,Int)) => String = (winnerTeam, teamPoints) =>
     winnerTeam.name + " wins! " + teamPoints._1 + " - " + teamPoints._2
-  def UNKNOWN_ERROR(error: AppError.Value): String = "Unknown error: " + error
+  val UNKNOWN_ERROR: AppError.Value => String = "Unknown error: " + _
 
   val ERROR_CONNECTION_LOST: String = "Error: Connection Lost"
   val ERROR_CANNOT_CONNECT: String = "Error: I can't connect"
