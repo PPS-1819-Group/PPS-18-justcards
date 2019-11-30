@@ -175,17 +175,17 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def showLobbyCreationOptions(games: List[GameId]): Unit = {
     clearAndPrint(LOBBY_CREATION_TITLE)
     printNumberAndOption(games)(_.name)
-    for (index <- 1 to games.size)
-      println(index + ")" + games(index - 1).name)
     askToUser(NUMBER_CHOICE)
   }
 
   private def showLobbies(lobbies: List[(LobbyId, Set[UserId])]): Unit = {
     clearAndPrint(LOBBY_LIST_TITLE)
-    for (
-      index <- 1 to lobbies.size;
-      lobby = lobbies(index - 1)
-    ) println(index + ")" + "[" + lobby._2.size + "/4 players]" + fromLobbyToString(lobby._1))
+    if(lobbies isEmpty) println(DEFAULT_LOBBIES_MESSAGE)
+    else
+      for (
+        index <- 1 to lobbies.size;
+        lobby = lobbies(index - 1)
+      ) println(index + ")" + "[" + lobby._2.size + "/4 players]" + fromLobbyToString(lobby._1))
     askToUser(NUMBER_CHOICE)
   }
 

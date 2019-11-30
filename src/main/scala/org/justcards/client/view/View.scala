@@ -37,6 +37,7 @@ object View {
   val LOBBY_CREATION_TITLE: String = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE: String = "LOBBY LIST - Choose the lobby you want to join"
   val EXIT: String = "exit"
+  val DEFAULT_LOBBIES_MESSAGE = "<< Currently there are no available lobbies >>"
   val LOBBY_MESSAGE: String = "If you want to exit from the lobby, write " concat EXIT
   val HAND_WON: String = "You've " concat HAND_WON_FINAL
   val GAME_WON: String = "You've won the game!!!"
