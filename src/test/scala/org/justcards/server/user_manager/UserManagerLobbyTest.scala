@@ -7,7 +7,7 @@ import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
-import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby}
+import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
 class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfter {
 
@@ -192,6 +192,23 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         userManager ! RetrieveAvailableLobbies()
         val tuple = lobbyInfo.lobby -> Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME))
         me expectMsg AvailableLobbies(Set(tuple))
+      }
+
+      "remove a user from a lobby if he decides to exit from it" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        doLogIn(userManager, TEST_USERNAME)
+        val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
+        this.tempActors = this.tempActors + joiner
+        val lobbyInfo = createLobby(userManager)
+        joiner ! JoinLobby(lobbyInfo.lobby)
+        me receiveN 2
+        userManager ! UserExitFromLobby(lobbyInfo.lobby,UserInfo(TEST_USERNAME, myRef))
+        me expectMsgAllOf(
+          LobbyUpdate(lobbyInfo.lobby, Set(UserId(1, JOINER_USERNAME))),
+          UserRemoved(true)
+        )
       }
 
       "remove a user from a lobby if it logs out" in {
