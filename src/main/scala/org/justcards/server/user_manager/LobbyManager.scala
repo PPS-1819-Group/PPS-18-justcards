@@ -27,7 +27,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
     case UserJoinLobby(JoinLobby(lobbyId), userInfo) => joinUserToLobby(lobbies)(lobbyId, userInfo)
     case UserExitFromLobby(lobbyId, userInfo) =>
       val userRemoved = exitUserFromLobby(lobbies)(lobbyId, userInfo)
-      userInfo.userRef ! UserRemoved(userRemoved)
+      sender() ! UserRemoved(userRemoved)
   }
 
   private def createLobby(lobbies: LobbyDatabase)(gameId: GameId, userInfo: UserInfo): Unit = {

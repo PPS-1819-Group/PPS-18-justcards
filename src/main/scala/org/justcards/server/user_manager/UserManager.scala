@@ -8,6 +8,8 @@ import scala.concurrent.duration._
 import org.justcards.commons._
 import org.justcards.server.Commons.UserInfo
 
+import scala.util.Success
+
 /**
   * Actor that manages all the users in the system
   * @param knowledgeEngine the system knowledgeEngine
@@ -27,13 +29,8 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
     case LogOutAndExitFromLobby(username, lobbyId) =>
       playerManager ! UserLogout(username, sender())
       lobbyManager ! UserExitFromLobby(lobbyId, UserInfo(username, sender()))
-    case msg: UserExitFromLobby => lobbyManager ! msg
-    case _: RetrieveAvailableGames =>
-      val user = sender()
-      (knowledgeEngine ? RetrieveAvailableGames()) onComplete { result =>
-        if(result.isSuccess) user ! result.get
-        else user ! ErrorOccurred(MESSAGE_SENDING_FAILED)
-      }
+    case msg: UserExitFromLobby => lobbyManager.askAndInformUser(msg)(sender())
+    case msg: RetrieveAvailableGames => knowledgeEngine.askAndInformUser(msg)(sender())
     case _: RetrieveAvailableLobbies =>
       val user = sender()
       checkLogInAnd(user) { _ => 
@@ -53,13 +50,18 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
     case msg: UserManagerMessage => playerManager ! msg
   }
 
-  private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit) : Unit = {
-    val request = playerManager ? PlayerLogged(user)
-    request collect {
-      case PlayerLoggedResult(true, username) => username
-    } onComplete { result =>
-      if(result.isSuccess) onComplete(result.get)
-      else user ! ErrorOccurred(USER_NOT_LOGGED)
+  private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit) : Unit =
+    playerManager ? PlayerLogged(user) onComplete {
+      case Success(PlayerLoggedResult(true, username)) => onComplete(username)
+      case _ => user ! ErrorOccurred(USER_NOT_LOGGED)
+    }
+
+  private implicit class RichActorRef(actorRef: ActorRef) {
+    def askAndInformUser(msg: Any)(user: ActorRef): Unit = {
+      actorRef ? msg onComplete {
+        case Success(response) => user ! response
+        case _ => user ! ErrorOccurred(MESSAGE_SENDING_FAILED)
+      }
     }
   }
 

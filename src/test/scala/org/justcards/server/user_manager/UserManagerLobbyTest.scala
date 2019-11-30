@@ -5,8 +5,9 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.commons.AppError._
+import org.justcards.server.Commons.UserInfo
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
-import org.justcards.server.user_manager.UserManagerMessage.LogOutAndExitFromLobby
+import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby}
 
 class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfter {
 
@@ -57,7 +58,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         implicit val myRef = me.ref
         val userManager = system.actorOf(UserManager(knowledgeEngine))
         userManager ! CreateLobby(GameId(GAME_TEST))
-        me expectMsg(ErrorOccurred(USER_NOT_LOGGED))
+        me expectMsg ErrorOccurred(USER_NOT_LOGGED)
       }
 
       "not allow to create a lobby if the game doesn't exist" in {
@@ -69,7 +70,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
 
         doLogIn(myUserManager, TEST_USERNAME)
         myUserManager ! CreateLobby(GameId(GAME_TEST))
-        me expectMsg(ErrorOccurred(GAME_NOT_EXISTING))
+        me expectMsg ErrorOccurred(GAME_NOT_EXISTING)
       }
 
       "allow to see the available lobbies" in {
@@ -89,7 +90,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         createLobby(userManager)
         userManager ! LogOut(TEST_USERNAME)
         userManager ! RetrieveAvailableLobbies()
-        me expectMsg(ErrorOccurred(USER_NOT_LOGGED))
+        me expectMsg ErrorOccurred(USER_NOT_LOGGED)
       }
 
       "not allow to see a lobby if it's full" in {
@@ -112,7 +113,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
         val users = Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME))
-        val messages = me receiveN(2)
+        val messages = me receiveN 2
         messages should contain (LobbyJoined(lobbyInfo.lobby, users))
       }
 
@@ -126,7 +127,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         joiner1 ! JoinLobby(lobbyInfo.lobby)
-        me receiveN(2)
+        me receiveN 2
         joiner2 ! JoinLobby(lobbyInfo.lobby)
         val users = Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME), UserId(1, JOINER_USERNAME + 2))
         me expectMsgAllOf(
@@ -141,7 +142,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         implicit val myRef = me.ref
         val userManager = system.actorOf(UserManager(knowledgeEngine))
         userManager ! JoinLobby(LOBBY_TEST)
-        me expectMsg(ErrorOccurred(USER_NOT_LOGGED))
+        me expectMsg ErrorOccurred(USER_NOT_LOGGED)
       }
 
       "not allow to join a lobby if the lobby doesn't exist" in {
@@ -150,7 +151,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         val userManager = system.actorOf(UserManager(knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         userManager ! JoinLobby(LOBBY_TEST)
-        me expectMsg(ErrorOccurred(LOBBY_NOT_EXISTING))
+        me expectMsg ErrorOccurred(LOBBY_NOT_EXISTING)
       }
 
       "not allow to join a lobby if the user is already in another lobby" in {
@@ -160,7 +161,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         doLogIn(userManager, TEST_USERNAME)
         val lobbyId = createLobby(userManager)
         userManager ! JoinLobby(lobbyId.lobby)
-        me expectMsg(ErrorOccurred(USER_ALREADY_IN_A_LOBBY))
+        me expectMsg ErrorOccurred(USER_ALREADY_IN_A_LOBBY)
       }
 
       "not allow to join a lobby if it reached maximum capacity" in {
@@ -175,7 +176,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         val lastJoiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + "-illegal")
         this.tempActors = this.tempActors + lastJoiner
         lastJoiner ! JoinLobby(lobbyInfo.lobby)
-        me expectMsg(ErrorOccurred(LOBBY_FULL))
+        me expectMsg ErrorOccurred(LOBBY_FULL)
       }
 
       "return all the current members of a lobby" in {
@@ -187,10 +188,10 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
-        me receiveN(2)
+        me receiveN 2
         userManager ! RetrieveAvailableLobbies()
         val tuple = lobbyInfo.lobby -> Set(UserId(1, TEST_USERNAME), UserId(1, JOINER_USERNAME))
-        me expectMsg(AvailableLobbies(Set(tuple)))
+        me expectMsg AvailableLobbies(Set(tuple))
       }
 
       "remove a user from a lobby if it logs out" in {
@@ -202,9 +203,9 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         this.tempActors = this.tempActors + joiner
         val lobbyInfo = createLobby(userManager)
         joiner ! JoinLobby(lobbyInfo.lobby)
-        me receiveN(2)
+        me receiveN 2
         userManager ! LogOutAndExitFromLobby(TEST_USERNAME, lobbyInfo.lobby)
-        me expectMsg(LobbyUpdate(lobbyInfo.lobby, Set(UserId(1, JOINER_USERNAME))))
+        me expectMsg LobbyUpdate(lobbyInfo.lobby, Set(UserId(1, JOINER_USERNAME)))
       }
 
       "delete a lobby if it remains empty" in {
@@ -213,9 +214,8 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         val userManager = system.actorOf(UserManager(knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
-        userManager ! LogOutAndExitFromLobby(TEST_USERNAME, lobbyInfo.lobby)
+        userManager ! UserExitFromLobby(lobbyInfo.lobby,UserInfo(TEST_USERNAME, myRef))
         me receiveN 1
-        doLogIn(userManager, TEST_USERNAME)
         expectNoLobby(userManager)
       }
 
@@ -226,14 +226,14 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
   private def doLogIn(userManager: ActorRef, username: String)(implicit me: TestProbe): Unit = {
     implicit val myRef = me.ref
     userManager ! LogIn(username)
-    me receiveN(1)
+    me receiveN 1
   }
 
   private def createJoinerAndLogIn(userManager: ActorRef, username: String)(implicit me: TestProbe): ActorRef = {
     implicit val myRef = me.ref
     val joiner = system.actorOf(createActor(myRef, userManager))
     joiner ! LogIn(username)
-    me receiveN(1)
+    me receiveN 1
     joiner
   }
 
@@ -248,7 +248,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       n <- 0 until Lobby.MAX_LOBBY_MEMBERS - 1;
       joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + n);
       _ = joiner ! JoinLobby(lobbyInfo);
-      _ = me.receiveN(n + 2)
+      _ = me receiveN n + 2
     ) yield joiner
   }
 
@@ -259,7 +259,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
   private def expectLobbies(userManager: ActorRef, lobbies: Set[(LobbyId, Set[UserId])])(implicit me: TestProbe): Unit = {
     implicit val myRef = me.ref
     userManager ! RetrieveAvailableLobbies()
-    me expectMsg(AvailableLobbies(lobbies))
+    me expectMsg AvailableLobbies(lobbies)
   }
 
   private def expectNoLobby(userManager: ActorRef)(implicit me: TestProbe): Unit = expectLobbies(userManager)
