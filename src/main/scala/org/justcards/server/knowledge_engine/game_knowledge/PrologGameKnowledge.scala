@@ -25,6 +25,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private val briscolaSetting = "chooseBriscola"
   private val currentBriscola = "currentBriscola"
   private val seed = "seed"
+  private val turn = "turn"
   private val variableStart = "VAR"
   private val knowledge: Prolog = createKnowledge(game)
   private val baseTheory = knowledge getTheory
@@ -64,12 +65,20 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
       val newCurrentBriscola = Struct(currentBriscola,seed)
       knowledge setTheory baseTheory
       knowledge addTheory Theory(Struct(newCurrentBriscola,Struct()))
-      println(knowledge.getTheory)
     }
     briscolaValid
   }
 
-  override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = ???
+  override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = {
+    val newField = getVariables(1) head;
+    knowledge.getFirstSolution(
+      Struct(turn, card.toTerm, fieldCards map(_.toTerm), handCards map(_.toTerm), newField),
+      newField
+    )(_.toList) match {
+      case Some(list) => Some(list map(_.toCard) filter(_.isDefined) map(_.get))
+      case _ => None
+    }
+  }
 
   override def handWinner(fieldCards: List[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
 
@@ -85,13 +94,20 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private implicit class RichProlog(knowledge: Prolog) {
 
     def getFirstSolution[X](goal: Term, variable: Var)(termToOptionX: Term => Option[X]): Option[X] =
-      getFirstSolution(goal).getOptionValue(variable)(termToOptionX)
+      getFirstSolution(goal) match {
+        case Some(solution) => solution.getOptionValue(variable)(termToOptionX)
+        case _ => None
+      }
 
-    def getFirstSolution(goal: Term): Map[String,Term] = getSolvedVars(knowledge solve goal)
+    def getFirstSolution(goal: Term): Option[Map[String,Term]] =
+      knowledge solve goal match {
+        case info if info.isSuccess => Some(getSolvedVars(info))
+        case _ => None
+      }
 
     def getAllSolutions(goal: Term): Set[Map[String,Term]] = solveAll(knowledge solve goal)()
 
-    def exist(goal: Term): Boolean = knowledge.solve(goal).isSuccess
+    def exist(goal: Term): Boolean = knowledge solve goal isSuccess
 
     @scala.annotation.tailrec
     private[this] final def solveAll(info: SolveInfo)(solutions: Set[Map[String,Term]] = Set()): Set[Map[String,Term]] =
@@ -109,7 +125,32 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   private implicit class RichTerm(term: Term) {
     import alice.tuprolog.Number
+    import scala.collection.JavaConverters._
     def toInt: Option[Int] = if (term.isInstanceOf[Number]) Some(term.toString.toInt) else None
+    def toList: Option[List[Term]] = {
+      if (term.isList) {
+        val list = term.asInstanceOf[Struct]
+        Some(list.listIterator().asScala.toList)
+      } else None
+    }
+    def toCard: Option[Card] = {
+      if (term.isCompound) {
+        val card = term.asInstanceOf[Struct]
+        card.getArg(0).toString.toOptionInt match {
+          case Some(number) => Some(Card(number, card.getArg(1).toString))
+          case _ => None
+        }
+      } else None
+    }
+  }
+
+  private implicit class RichString(value: String) {
+    def toOptionInt: Option[Int] =
+      try {
+        Some(value.toInt)
+      } catch {
+        case _: Exception => None
+      }
   }
 
   private implicit class RichMap[K,V](map: Map[K,V]) {
@@ -123,10 +164,16 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
       }
   }
 
+  private implicit class PrologCard(card: Card) {
+    def toTerm: Term = Term.createTerm(card.number + "," + card.seed)
+  }
+
   private[this] object Struct {
     def apply(name: String, parameters: Term*): Struct = new Struct(name, parameters.toArray)
 
-    def apply(terms: Term*): Struct = new Struct(terms.toArray)
+    def apply(terms: Term*): Struct = Struct(terms.toArray)
+
+    def apply(terms: Array[Term]): Struct = new Struct(terms)
 
     def apply(): Struct = new Struct()
     
@@ -138,6 +185,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   private implicit def varToString(variable: Var): String = variable getName
+  private implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = Struct(traversable.toArray)
+
 
 }
 

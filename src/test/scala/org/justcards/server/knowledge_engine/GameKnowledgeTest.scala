@@ -39,5 +39,35 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
       gameKnowledge.setBriscola(nonValidBriscola) shouldBe false
     }
 
+    "allow to play a card in the hand of a player" when {
+
+      "there are no cards on the field" in {
+        val cardToPlay = Card(1,spadeBriscola)
+        gameKnowledge.play(cardToPlay,List(),Set(cardToPlay)) shouldBe Some(List(cardToPlay))
+      }
+
+      "has the same seed of the first card played in the current turn" in {
+        val cardToPlay = Card(3,spadeBriscola)
+        val cardsOnField = List(Card(1,spadeBriscola))
+        gameKnowledge.play(cardToPlay,cardsOnField,Set(cardToPlay)) shouldBe Some(cardsOnField:::List(cardToPlay))
+      }
+
+      "has a different seed of the first card played in the current turn and the player does not have card with that seed in his hand" in {
+        val cardToPlay = Card(3,spadeBriscola)
+        val cardsOnField = List(Card(1,bastoniBriscola))
+        gameKnowledge.play(cardToPlay,cardsOnField,Set(cardToPlay)) shouldBe Some(cardsOnField:::List(cardToPlay))
+      }
+
+    }
+
+    "deny to play a card" when {
+
+      "the player does not have the card in his hand" in {
+        val cardToPlay = Card(1,spadeBriscola)
+        gameKnowledge.play(cardToPlay,List(),Set(Card(2,spadeBriscola))) shouldBe None
+      }
+
+    }
+
   }
 }
