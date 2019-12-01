@@ -5,6 +5,7 @@ import java.io.FileInputStream
 import alice.tuprolog.{Prolog, SolveInfo, Struct, Term, Theory, Var}
 import org.justcards.commons.{Card, GameId}
 import org.justcards.server.Commons
+import org.justcards.server.Commons.BriscolaSetting
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge._
@@ -12,6 +13,7 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge._
 class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   import PrologGameKnowledge._
+  import Struct._
 
   private val defaultCardsInHand = 0
   private val defaultCardsToDraw = 0
@@ -20,8 +22,12 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private val draw = "draw"
   private val hand = "startHand"
   private val card = "card"
+  private val briscolaSetting = "chooseBriscola"
+  private val currentBriscola = "currentBriscola"
+  private val seed = "seed"
   private val variableStart = "VAR"
   private val knowledge: Prolog = createKnowledge(game)
+  private val baseTheory = knowledge getTheory
 
   override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = {
     val variable = getVariables(1) head
@@ -43,9 +49,25 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     cardsFound filter (card => card._1.isDefined && card._2.isDefined) map (card => Card(card._1.get, card._2.get))
   }
 
-  override def hasToChooseBriscola: BriscolaSetting = ???
+  override def hasToChooseBriscola: BriscolaSetting = {
+    val setting = getVariables(1).head
+    knowledge.getFirstSolution(new Struct(briscolaSetting,setting),setting)(_.toInt) match {
+      case Some(value) if value == 1 => BriscolaSetting.USER
+      case Some(value) if value == 0 => BriscolaSetting.SYSTEM
+      case _ => BriscolaSetting.NOT_BRISCOLA
+    }
+  }
 
-  override def setBriscola(seed: Seed): Boolean = ???
+  override def setBriscola(seed: Seed): Boolean = {
+    val briscolaValid = knowledge exist Struct(this.seed, seed)
+    if (briscolaValid) {
+      val newCurrentBriscola = Struct(currentBriscola,seed)
+      knowledge setTheory baseTheory
+      knowledge addTheory Theory(Struct(newCurrentBriscola,Struct()))
+      println(knowledge.getTheory)
+    }
+    briscolaValid
+  }
 
   override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = ???
 
@@ -68,6 +90,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     def getFirstSolution(goal: Term): Map[String,Term] = getSolvedVars(knowledge solve goal)
 
     def getAllSolutions(goal: Term): Set[Map[String,Term]] = solveAll(knowledge solve goal)()
+
+    def exist(goal: Term): Boolean = knowledge.solve(goal).isSuccess
 
     @scala.annotation.tailrec
     private[this] final def solveAll(info: SolveInfo)(solutions: Set[Map[String,Term]] = Set()): Set[Map[String,Term]] =
@@ -97,6 +121,20 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
         case Some(value) => Some(termToX(value))
         case _ => None
       }
+  }
+
+  private[this] object Struct {
+    def apply(name: String, parameters: Term*): Struct = new Struct(name, parameters.toArray)
+
+    def apply(terms: Term*): Struct = new Struct(terms.toArray)
+
+    def apply(): Struct = new Struct()
+    
+    implicit def fromStringToTerm(value: String): Term = Term.createTerm(value)
+  }
+
+  private[this] object Theory {
+    def apply(clauseList: Struct): Theory = new Theory(clauseList)
   }
 
   private implicit def varToString(variable: Var): String = variable getName
