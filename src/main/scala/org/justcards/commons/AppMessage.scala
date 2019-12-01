@@ -52,9 +52,11 @@ case class CreateLobby(game: GameId) extends AppMessage
 case class LobbyCreated(lobby: LobbyId) extends AppMessage
 
 /**
-  * Message to ask which are the available lobbies.
+  * Message to ask which are the available lobbies, with possible filters.
+  * @param gameName the game you want to play
+  * @param ownerName the name of the owner of the lobby
   */
-case class RetrieveAvailableLobbies(options: String = "") extends AppMessage
+case class RetrieveAvailableLobbies(gameName: String = "", ownerName: String = "") extends AppMessage
 
 /**
   * Message that contains all the available lobbies

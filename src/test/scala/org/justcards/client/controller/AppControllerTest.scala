@@ -6,8 +6,9 @@ import scala.concurrent.duration._
 import org.justcards.client.{TestConnectionManager, TestView}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.controller.AppController._
-import org.justcards.client.view.{MenuChoice, OptionConnectionFailed}
+import org.justcards.client.view.{MenuChoice, OptionConnectionFailed, FilterChoice}
 import org.justcards.client.view.View._
+import org.justcards.client.view.FilterChoice._
 import org.justcards.commons.AppError._
 import org.justcards.commons._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -89,7 +90,16 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
       "send a message to the connection manager to get the available lobbies" in {
         val (appController, testProbe) = login()
         appController ! MenuSelection(MenuChoice.LIST_LOBBY)
-        testProbe.expectMsgType[RetrieveAvailableLobbies]
+        testProbe expectMsg RetrieveAvailableLobbies()
+      }
+
+      "send a message to the connection manager to get the filtered available lobbies" in {
+        val (appController, testProbe) = login()
+        appController ! MenuSelection(MenuChoice.LIST_LOBBY_WITH_FILTERS, Map(
+          (BY_OWNER-> username),
+          (BY_GAME -> game.name)
+        ))
+        testProbe expectMsg RetrieveAvailableLobbies(game.name, username)
       }
 
       "inform the user about the available lobbies when received" in {
@@ -103,6 +113,12 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         val (appController, testProbe) = retrieveAvailableLobbies
         appController ! AppControllerJoinLobby(lobby)
         testProbe expectMsg JoinLobby(lobby)
+      }
+
+      "send a message to the connection manager to join a lobby if a user already knows the lobby Id" in {
+        val (appController, testProbe) = login()
+        appController ! MenuSelection(MenuChoice.JOIN_LOBBY_BY_ID, Map(BY_ID -> lobby.id.toString))
+        testProbe expectMsg JoinLobby(LobbyId(lobby.id))
       }
 
       "inform the user that he joined a lobby when notified" in {

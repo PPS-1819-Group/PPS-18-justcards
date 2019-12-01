@@ -4,6 +4,8 @@ import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import org.justcards.client.controller.AppController._
+import MenuChoice._
+import FilterChoice._
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 
@@ -34,16 +36,46 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def inMenu: Receive = {
     case NewUserCommand(choice) => //chosen a menu voice
       parseToNumberAnd(choice, MenuChoice.maxId - 1) { numberChoice =>
-        controller ! MenuSelection(numberChoice)
+        MenuChoice(numberChoice) match {
+          case LIST_LOBBY_WITH_FILTERS =>
+            askLobbyFilters()
+            context >>> lobbyByFilters
+          case JOIN_LOBBY_BY_ID =>
+            askLobbyId()
+            context >>> lobbyById
+          case other => controller ! MenuSelection(other)
+        }
       } (askMenuChoice())
     case ShowLobbyCreation(games) =>
       val gamesList = games.toList
       showLobbyCreationOptions(gamesList)
       context >>> lobbyCreation(gamesList)
-    case ShowLobbies(lobbies) =>
-      val lobbiesList = lobbies.toList
-      showLobbies(lobbiesList)
-      context >>> lobbyLookup(lobbiesList)
+    case ShowLobbies(lobbies) => context toLobbyLookup lobbies
+  }
+
+  private def lobbyById: Receive = {
+    case NewUserCommand(choice) => controller ! MenuSelection(JOIN_LOBBY_BY_ID, Map(BY_ID -> choice))
+    case ShowError(error) if error == LOBBY_NOT_EXISTING =>
+      println(errorMessage(error))
+      askLobbyId()
+    case ShowJoinedLobby(lobby, members) => context joinLobby(lobby, members)
+  }
+
+  private def lobbyByFilters: Receive = {
+    case NewUserCommand(choice) =>
+      parseToNumberAnd(choice, FilterChoice.maxId - 2){ numberChoice =>
+        askToUser(FILTER_CHOICE)
+        val filterChoice = FilterChoice(numberChoice)
+        context >>> {
+          case NewUserCommand(filter) =>
+            controller ! MenuSelection(LIST_LOBBY_WITH_FILTERS, Map(filterChoice -> filter))
+            context >>> lobbyByFilters
+        }
+      }(askLobbyFilters())
+    case ShowError(error) if error == LOBBY_NOT_EXISTING =>
+      println(errorMessage(error))
+      askLobbyFilters()
+    case ShowLobbies(lobbies) => context toLobbyLookup lobbies
   }
 
   private def lobbyLookup(lobbies: List[(LobbyId, Set[UserId])]): Receive = {
@@ -55,10 +87,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
       val lobbiesList = newLobbies.toList
       showLobbies(lobbiesList)
       context >>> lobbyLookup(lobbiesList)
-    case ShowJoinedLobby(lobby, members) =>
-      clearAndPrint(LOBBY_JOINED_MESSAGE(lobby))
-      printLobbyState(lobby, members)
-      context toLobby
+    case ShowJoinedLobby(lobby, members) => context joinLobby(lobby, members)
   }
 
   private def lobbyCreation(games: List[GameId]): Receive = {
@@ -137,6 +166,18 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def askMenuChoice(): Unit = {
     clearAndPrint(MENU_TITLE)
     for (choice <- MenuChoice.values)
+      println(choice.id + ")" + choice)
+    askToUser(NUMBER_CHOICE)
+  }
+
+  private def askLobbyId(): Unit = {
+    clearAndPrint(LOBBY_BY_ID_TITLE)
+    askToUser(ID_CHOICE)
+  }
+
+  private def askLobbyFilters(): Unit = {
+    clearAndPrint(LOBBY_BY_FILTER_TITLE)
+    for (choice <- FilterChoice.values; if !choice.toString.isEmpty)
       println(choice.id + ")" + choice)
     askToUser(NUMBER_CHOICE)
   }
@@ -253,10 +294,24 @@ class ConsoleView(controller: ActorRef) extends Actor {
       inMenu
     }
 
+    def toLobbyLookup(lobbies: Set[(LobbyId, Set[UserId])]): Receive = {
+      val lobbiesList = lobbies.toList
+      showLobbies(lobbiesList)
+      val nextBehaviour = lobbyLookup(lobbiesList)
+      context >>> nextBehaviour
+      nextBehaviour
+    }
+
     def toLobby: Receive = {
       showLobbyOptions()
       context >>> inLobby
       inLobby
+    }
+
+    def joinLobby(lobby:LobbyId, members: Set[UserId]): Unit = {
+      clearAndPrint(LOBBY_JOINED_MESSAGE(lobby))
+      printLobbyState(lobby, members)
+      toLobby
     }
   }
 
@@ -266,7 +321,9 @@ object ConsoleView {
 
   def apply(): View = controller => Props(classOf[ConsoleView], controller)
 
-  private val NUMBER_CHOICE = "Insert number of your choice:"
+  private val NUMBER_CHOICE = "Insert number of your choice:" // or \"back\" to return to the previous page:"
+  private val ID_CHOICE = "Insert the lobby ID you want to join:"
+  private val FILTER_CHOICE = "Insert value:"
   private val WRONG_VALUE = "Error: unacceptable value"
   private val EMPTY_RESPONSE = "Empty answer isn't allowed"
   private val NEW_LINE = "---------------------------"
@@ -319,8 +376,7 @@ object ConsoleView {
   private def ask(question: String): String = {
     import scala.io.StdIn._
     println(question)
-    print(View.INPUT_SYMBOL)
-    readLine match {
+    readLine(View.INPUT_SYMBOL) match {
       case a if a.isBlank || a.isEmpty =>
         println(EMPTY_RESPONSE)
         ask(question)
@@ -349,7 +405,7 @@ object TestConsole extends App {
   val fieldCards = List(Card(3, "coppe"))
 
   view ! ShowMenu
-  view ! ShowLobbies(Set())
+  /*view ! ShowLobbies(Set())
   view ! ShowJoinedLobby(LobbyId(1234, "pippo", GameId("beccaccino")), Set(UserId(1, "io")))
   view ! ShowGameStarted(TeamId("team pippe"))
   view ! ShowGameInformation(myCards, fieldCards)
@@ -358,7 +414,7 @@ object TestConsole extends App {
   view ! ShowGameWinner(TeamId("team pippe"))
 
   view ! ShowTurn(myCards, fieldCards, 10)
-  view ! ShowTimeForMoveExceeded
+  view ! ShowTimeForMoveExceeded*/
 
   //view ! ViewChooseBriscola(Set("cuori", "picche"), 3)
 }

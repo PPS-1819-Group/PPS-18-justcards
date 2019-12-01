@@ -31,10 +31,10 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
       lobbyManager ! UserExitFromLobby(lobbyId, UserInfo(username, sender()))
     case msg: UserExitFromLobby => lobbyManager.askAndInformUser(msg)(sender())
     case msg: RetrieveAvailableGames => knowledgeEngine.askAndInformUser(msg)(sender())
-    case _: RetrieveAvailableLobbies =>
+    case msg: RetrieveAvailableLobbies =>
       val user = sender()
-      checkLogInAnd(user) { _ => 
-        lobbyManager ! GetLobbies(user)
+      checkLogInAnd(user) { username =>
+        lobbyManager ! GetLobbies(msg, UserInfo(username, user))
       }
     case msg: CreateLobby =>
       val user = sender()
@@ -84,7 +84,7 @@ private[user_manager] object UserManagerMessage {
   case class PlayerLogged(user: ActorRef) extends UserManagerMessage
   case class PlayerLoggedResult(found: Boolean, username: String) extends UserManagerMessage
 
-  case class GetLobbies(sender: ActorRef) extends UserManagerMessage
+  case class GetLobbies(message: RetrieveAvailableLobbies, user: UserInfo) extends UserManagerMessage
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
   case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
   case class UserExitFromLobby(lobbyId: LobbyId, userInfo: UserInfo) extends UserManagerMessage

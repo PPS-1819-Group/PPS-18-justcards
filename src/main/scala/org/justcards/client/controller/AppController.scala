@@ -5,16 +5,16 @@ import java.util.Calendar
 import akka.actor.{Actor, ActorContext, Props, Timers}
 
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.client.connection_manager.ConnectionManager
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
-import org.justcards.client.view.{MenuChoice, OptionConnectionFailed, View}
+import org.justcards.client.view.View
 import org.justcards.client.view.View._
 import org.justcards.client.view.MenuChoice._
+import org.justcards.client.view.FilterChoice._
 import org.justcards.client.view.OptionConnectionFailed._
-
-import scala.reflect.ClassTag
 
 object AppController {
 
@@ -24,7 +24,7 @@ object AppController {
   case class ChosenUsername(username: String)
   case class ChosenBriscola(briscola: String)
   case class ChosenCard(card: Card)
-  case class MenuSelection(choice: MenuChoice, filters: List[String] = List())
+  case class MenuSelection(choice: MenuChoice, options: Map[FilterChoice,String] = Map())
   case class AppControllerCreateLobby(game: GameId)
   case class AppControllerJoinLobby(lobby: LobbyId)
   case class ReconnectOption(option: OptionConnectionFailed)
@@ -63,6 +63,19 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       case LIST_LOBBY =>
         context >>> searchForLobby
         connectionManagerActor ! RetrieveAvailableLobbies()
+      case LIST_LOBBY_WITH_FILTERS =>
+        context >>> searchForLobby
+        connectionManagerActor ! RetrieveAvailableLobbies(
+          filters.getOrElse(BY_GAME, ""),
+          filters.getOrElse(BY_OWNER, "")
+        )
+      case JOIN_LOBBY_BY_ID =>
+        val lobbyId = toLong(filters(BY_ID))
+        if(lobbyId.isEmpty) viewActor ! ShowError(LOBBY_NOT_EXISTING)
+        else {
+          connectionManagerActor ! JoinLobby(LobbyId(lobbyId.get))
+          context >>> waitForLobbyJoined
+        }
       case _ => viewActor ! ShowError(SELECTION_NOT_AVAILABLE)
     }
   }
@@ -83,11 +96,13 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       viewActor ! ShowLobbies(lobbies)
     case AppControllerJoinLobby(lobby) =>
       connectionManagerActor ! JoinLobby(lobby)
-      context >>> {
-        case LobbyJoined(lobby, members) =>
-          context >>> inLobby(lobby)
-          viewActor ! ShowJoinedLobby(lobby,members)
-      }
+      context >>> waitForLobbyJoined
+  }
+
+  private def waitForLobbyJoined: Receive = {
+    case LobbyJoined(lobby, members) =>
+      context >>> inLobby(lobby)
+      viewActor ! ShowJoinedLobby(lobby,members)
   }
 
   private def inLobby(myLobby: LobbyId): Receive = {
@@ -229,4 +244,11 @@ private[this] object AppControllerActor {
 
   private case object TimerTimeoutId
   private case object Timeout
+
+  private def toLong(value: String): Option[Long] =
+    try {
+      Some(value.toLong)
+    } catch {
+      case _: NumberFormatException => None
+    }
 }

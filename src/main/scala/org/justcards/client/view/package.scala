@@ -16,6 +16,13 @@ package object view {
     val CREATE_GAME: Value = Value(5, "Create a new game")
   }
 
+  object FilterChoice extends Enumeration {
+    type FilterChoice = FilterChoice.Value
+    val BY_OWNER: Value = Value(1, "Owner")
+    val BY_GAME: Value = Value(2, "Game")
+    val BY_ID: Value = Value(3, "")
+  }
+
   object OptionConnectionFailed extends Enumeration {
     type OptionConnectionFailed = OptionConnectionFailed.Value
     val TRY_TO_RECONNECT: Value = Value(1, "Try to reconnect")

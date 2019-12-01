@@ -34,6 +34,8 @@ object View {
   val INPUT_SYMBOL: String = "> "
   val MENU_TITLE: String = "MENU"
   val ERROR_TITLE: String = "ERROR"
+  val LOBBY_BY_ID_TITLE: String = "LOBBY BY ID - Insert the lobby ID you want to join"
+  val LOBBY_BY_FILTER_TITLE: String = "LOBBY LIST - Choose the filter you want to filter lobbies with"
   val LOBBY_CREATION_TITLE: String = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE: String = "LOBBY LIST - Choose the lobby you want to join"
   val EXIT: String = "exit"
