@@ -24,7 +24,7 @@ sealed trait GameBoard {
    * Getter
    * @return last card of deck
    */
-  def getLastCardDeck: Card
+  def getLastCardDeck: Option[Card]
 
   /**
    * Getter
@@ -37,14 +37,14 @@ sealed trait GameBoard {
    * @param player player
    * @return cards in the player hand
    */
-  def getPlayerHandCards(player: UserInfo): Set[Card]
+  def getHandCardsOf(player: UserInfo): Set[Card]
 
   /**
    * Getter
    * @param player player
    * @return cards that player won
    */
-  def getPlayerTookCards(player: UserInfo): Set[Card]
+  def getTookCardsOf(player: UserInfo): Set[Card]
 
   /**
    * Players draw
@@ -114,13 +114,13 @@ object GameBoard {
       GameBoardImpl(field, playerCards, deck, handTurn, turn, nCardsDraw)
     }
 
-    override def getLastCardDeck: Card = deck last
+    override def getLastCardDeck: Option[Card] = deck lastOption
 
     override def getTurnPlayer: UserInfo = handTurn.head
 
-    override def getPlayerHandCards(player: UserInfo): Set[Card] = playerCards(player).hand
+    override def getHandCardsOf(player: UserInfo): Set[Card] = playerCards(player).hand
 
-    override def getPlayerTookCards(player: UserInfo): Set[Card] = playerCards(player).took
+    override def getTookCardsOf(player: UserInfo): Set[Card] = playerCards(player).took
 
     override def draw: GameBoard =
       this(

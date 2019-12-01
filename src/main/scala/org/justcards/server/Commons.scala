@@ -1,7 +1,7 @@
 package org.justcards.server
 
 import akka.actor.ActorRef
-import org.justcards.commons.Card
+import org.justcards.commons.{Card, TeamId}
 
 object Commons {
 
@@ -14,9 +14,15 @@ object Commons {
     type Team = Value
     val TEAM_1: Value = Value(1,"team 1")
     val TEAM_2: Value = Value(2,"team 2")
+
+    implicit def toTeamId(team: Team.Value): TeamId = TeamId(team toString)
+
   }
+
 
   case class UserInfo(username: String, userRef: ActorRef)
 
   case class PlayerCards(hand: Set[Card], took: Set[Card])
+
+  case class TeamPoints(players: List[UserInfo], points: Int)
 }
