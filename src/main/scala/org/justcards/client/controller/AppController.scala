@@ -24,10 +24,10 @@ object AppController {
   case class ChosenUsername(username: String)
   case class ChosenBriscola(briscola: String)
   case class ChosenCard(card: Card)
-  case class MenuSelection(choice: MenuChoice.Value)
+  case class MenuSelection(choice: MenuChoice, filters: List[String] = List())
   case class AppControllerCreateLobby(game: GameId)
   case class AppControllerJoinLobby(lobby: LobbyId)
-  case class ReconnectOption(option: OptionConnectionFailed.Value)
+  case class ReconnectOption(option: OptionConnectionFailed)
   case object ExitFromLobby
 }
 
@@ -52,15 +52,15 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
 
   private def connected: Receive = {
     case ChosenUsername(username) => connectionManagerActor ! LogIn(username)
-    case Logged(_) => context toMenu
+    case Logged(_) => context toLogged
   }
 
   private def logged: Receive = {
-    case MenuSelection(choice) => choice match {
+    case MenuSelection(choice, filters) => choice match {
       case CREATE_LOBBY =>
         context >>> lobbyCreation
         connectionManagerActor ! RetrieveAvailableGames()
-      case JOIN_LOBBY =>
+      case LIST_LOBBY =>
         context >>> searchForLobby
         connectionManagerActor ! RetrieveAvailableLobbies()
       case _ => viewActor ! ShowError(SELECTION_NOT_AVAILABLE)
@@ -93,7 +93,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   private def inLobby(myLobby: LobbyId): Receive = {
     case LobbyUpdate(lobby, members) => viewActor ! ShowLobbyUpdate(lobby,members)
     case ExitFromLobby => connectionManagerActor ! OutOfLobby(myLobby)
-    case OutOfLobby(`myLobby`) => context toMenu
+    case OutOfLobby(`myLobby`) => context toLogged
     case GameStarted(team) =>
       context >>> inGame
       viewActor ! ShowGameStarted(team)
@@ -108,7 +108,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       val availableBriscola = Set("spade", "denara", "coppe", "bastoni") //To be changed, briscola has to be passed from the server
       context toChooseBriscola(availableBriscola, timeout)
     case Turn(handCards, fieldCards, timeout) => context toMyTurn((handCards, fieldCards),timeout)
-    case OutOfLobby(_) => context toMenu
+    case OutOfLobby(_) => context toLogged
   }
 
   private def chooseBriscola(availableBriscola: Set[String], remainingTime: Long, timerStartedTime: Long): Receive =
@@ -133,7 +133,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       context toMyTurn(cards,remainingTime)
     }
 
-  private def waitForChoiceCorrectness[A: ClassTag](error: AppError.Value)(onError: => Unit): Receive = {
+  private def waitForChoiceCorrectness[A: ClassTag](error: AppError)(onError: => Unit): Receive = {
     case _: A =>
       if(timers isTimerActive TimerTimeoutId) timers cancel TimerTimeoutId
       viewActor ! MoveWasCorrect
@@ -179,9 +179,9 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     connectionManagerActor ! InitializeConnection
   }
 
-  private def notifyError(message: AppError.Value): Unit = viewActor ! ShowError(message)
+  private def notifyError(message: AppError): Unit = viewActor ! ShowError(message)
 
-  private def chooseNicknameAgain(error: AppError.Value): Unit = {
+  private def chooseNicknameAgain(error: AppError): Unit = {
     viewActor ! ShowError(error)
     viewActor ! ShowUsernameChoice
   }
@@ -198,7 +198,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       connectionManagerActor ! TimeoutExceeded()
     }
 
-    def toMenu: Receive = {
+    def toLogged: Receive = {
       val loggedBehaviour = logged
       context >>> loggedBehaviour
       viewActor ! ShowMenu

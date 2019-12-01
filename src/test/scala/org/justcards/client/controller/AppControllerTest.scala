@@ -88,7 +88,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "send a message to the connection manager to get the available lobbies" in {
         val (appController, testProbe) = login()
-        appController ! MenuSelection(MenuChoice.JOIN_LOBBY)
+        appController ! MenuSelection(MenuChoice.LIST_LOBBY)
         testProbe.expectMsgType[RetrieveAvailableLobbies]
       }
 
@@ -348,7 +348,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
   private def retrieveAvailableLobbies:(ActorRef, TestProbe) = {
     val (appController, testProbe) = login()
-    appController ! MenuSelection(MenuChoice.JOIN_LOBBY)
+    appController ! MenuSelection(MenuChoice.LIST_LOBBY)
     testProbe receiveN 1
     (appController, testProbe)
   }
@@ -399,7 +399,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
   }
 
   private def sendErrorAndExpectTimeoutExceeded(appController: ActorRef, timeLimit: FiniteDuration)
-                                               (msgToSend: Any, errorToSend: AppError.Value)
+                                               (msgToSend: Any, errorToSend: AppError)
                                                (implicit testProbe: TestProbe): Unit = {
     Thread.sleep(timeLimit.toMillis/2)
     appController ! msgToSend

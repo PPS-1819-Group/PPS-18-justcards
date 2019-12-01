@@ -11,7 +11,7 @@ object View {
   def apply(): View = ConsoleView()
 
   sealed trait ViewMessage
-  case class ShowError(error: AppError.Value) extends ViewMessage
+  case class ShowError(error: AppError) extends ViewMessage
   case object ShowUsernameChoice extends ViewMessage
   case object ShowMenu extends ViewMessage
   case object MoveWasCorrect extends ViewMessage
@@ -50,7 +50,7 @@ object View {
   val GAME_LOST: TeamId => String = "You've lost! " concat _.name concat " wins the game"
   val MATCH_ENDS: (TeamId, (Int,Int)) => String = (winnerTeam, teamPoints) =>
     winnerTeam.name + " wins! " + teamPoints._1 + " - " + teamPoints._2
-  val UNKNOWN_ERROR: AppError.Value => String = "Unknown error: " + _
+  val UNKNOWN_ERROR: AppError => String = "Unknown error: " + _
 
   val ERROR_CONNECTION_LOST: String = "Error: Connection Lost"
   val ERROR_CANNOT_CONNECT: String = "Error: I can't connect"
@@ -71,7 +71,7 @@ object View {
 
   val ERROR_WRONG_CHOICE: String = "Error: The selected choice is not available"
 
-  def errorMessage(error: AppError.Value): String = error match {
+  def errorMessage(error: AppError): String = error match {
     case CONNECTION_LOST => ERROR_CONNECTION_LOST
     case CANNOT_CONNECT => ERROR_CANNOT_CONNECT
     case MESSAGE_SENDING_FAILED => ERROR_LAST_MESSAGE_LOST

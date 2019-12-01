@@ -8,12 +8,16 @@ import scala.util.Success
 package object view {
 
   object MenuChoice extends Enumeration {
+    type MenuChoice = MenuChoice.Value
     val CREATE_LOBBY: Value = Value(1, "Create a new lobby")
-    val JOIN_LOBBY: Value = Value(2, "Join to existing lobby")
-    val CREATE_GAME: Value = Value(3, "Create a new game")
+    val LIST_LOBBY: Value = Value(2, "List existing lobbies")
+    val LIST_LOBBY_WITH_FILTERS: Value = Value(3, "Search lobbies by filter")
+    val JOIN_LOBBY_BY_ID: Value = Value(4, "Join lobby")
+    val CREATE_GAME: Value = Value(5, "Create a new game")
   }
 
   object OptionConnectionFailed extends Enumeration {
+    type OptionConnectionFailed = OptionConnectionFailed.Value
     val TRY_TO_RECONNECT: Value = Value(1, "Try to reconnect")
     val QUIT: Value = Value(2, "Close App")
   }

@@ -1,7 +1,7 @@
 package org.justcards.commons
 
 object AppError extends Enumeration {
-
+  type AppError = AppError.Value
   val CONNECTION_LOST: Value = Value("#1")
   val CANNOT_CONNECT: Value = Value("#2")
   val MESSAGE_SENDING_FAILED: Value = Value("#3")

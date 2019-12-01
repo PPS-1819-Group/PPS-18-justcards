@@ -5,6 +5,7 @@ import java.util.concurrent.Executors
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import org.justcards.client.controller.AppController._
 import org.justcards.commons._
+import org.justcards.commons.AppError._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -100,7 +101,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
     case ShowMenu => context toMenu
   }
 
-  private def userDoMove(onUserChoice: String => Unit)(errorToIntercept: AppError.Value)
+  private def userDoMove(onUserChoice: String => Unit)(errorToIntercept: AppError)
                         (myTeam: TeamId, myCards: List[Card]): Receive = {
     case NewUserCommand(choice) => onUserChoice(choice)
     case ShowTimeForMoveExceeded =>
