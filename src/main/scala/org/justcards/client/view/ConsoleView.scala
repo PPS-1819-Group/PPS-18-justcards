@@ -11,13 +11,14 @@ import org.justcards.commons.AppError._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.util.Success
 
 
 class ConsoleView(controller: ActorRef) extends Actor {
   import View._
   import ConsoleView._
 
-  implicit val executor: ExecutionContextExecutor =
+  private implicit val executor: ExecutionContextExecutor =
     scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
   private var awaitingUserChoice: Boolean = false
@@ -54,7 +55,11 @@ class ConsoleView(controller: ActorRef) extends Actor {
   }
 
   private def lobbyById: Receive = {
-    case NewUserCommand(choice) => controller ! MenuSelection(JOIN_LOBBY_BY_ID, Map(BY_ID -> choice))
+    case NewUserCommand(choice) =>
+      if(choice == BACK)
+        context toMenu
+      else
+        controller ! MenuSelection(JOIN_LOBBY_BY_ID, Map(BY_ID -> choice))
     case ShowError(error) if error == LOBBY_NOT_EXISTING =>
       println(errorMessage(error))
       askLobbyId()
@@ -63,15 +68,20 @@ class ConsoleView(controller: ActorRef) extends Actor {
 
   private def lobbyByFilters: Receive = {
     case NewUserCommand(choice) =>
-      parseToNumberAnd(choice, FilterChoice.maxId - 2){ numberChoice =>
-        askToUser(FILTER_CHOICE)
-        val filterChoice = FilterChoice(numberChoice)
-        context >>> {
-          case NewUserCommand(filter) =>
-            controller ! MenuSelection(LIST_LOBBY_WITH_FILTERS, Map(filterChoice -> filter))
-            context >>> lobbyByFilters
-        }
-      }(askLobbyFilters())
+      if(choice == BACK)
+        context toMenu
+      else {
+        val limit = FilterChoice.values.count(!_.toString.isEmpty)
+        parseToNumberAnd(choice, limit) { numberChoice =>
+          askToUser(FILTER_CHOICE)
+          val filterChoice = FilterChoice(numberChoice)
+          context >>> {
+            case NewUserCommand(filter) =>
+              controller ! MenuSelection(LIST_LOBBY_WITH_FILTERS, Map(filterChoice -> filter))
+              context >>> lobbyByFilters
+          }
+        }(askLobbyFilters())
+      }
     case ShowError(error) if error == LOBBY_NOT_EXISTING =>
       println(errorMessage(error))
       askLobbyFilters()
@@ -106,9 +116,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
       println() ; clearAndPrint()
       printLobbyState(lobby, members)
       showLobbyOptions()
-    case NewUserCommand(command) => command match {
-      case EXIT => controller ! ExitFromLobby
-    }
+    case NewUserCommand(EXIT) => case EXIT => controller ! ExitFromLobby
     case ShowGameStarted(team) =>
       clearAndPrint(GAME_STARTED(team))
       context >>> inGame(team)
@@ -272,9 +280,17 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def askToUser(question: String): Unit = {
     if(!awaitingUserChoice) {
       awaitingUserChoice = true
-      Future { ask(question) } onSuccessfulComplete {
+      Future { ask(question) } onSuccessfulComplete { result =>
+        import akka.pattern.ask
+        import akka.util.Timeout
+        implicit val timeout = Timeout(3 seconds)
         awaitingUserChoice = false
-        self ! NewUserCommand(_)
+        if(result == BACK)
+          controller ? CanGoBackToMenu onComplete {
+            case Success(GoBackToMenu(true)) => context toMenu
+            case _ => self ! NewUserCommand(result)
+          }
+        else self ! NewUserCommand(result)
       }
     } else {
       println(question)
@@ -321,7 +337,8 @@ object ConsoleView {
 
   def apply(): View = controller => Props(classOf[ConsoleView], controller)
 
-  private val NUMBER_CHOICE = "Insert number of your choice:" // or \"back\" to return to the previous page:"
+  private val BACK = "back"
+  private val NUMBER_CHOICE = "Insert number of your choice or \"" concat BACK concat "\" to return to the menu:"
   private val ID_CHOICE = "Insert the lobby ID you want to join:"
   private val FILTER_CHOICE = "Insert value:"
   private val WRONG_VALUE = "Error: unacceptable value"

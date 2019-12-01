@@ -28,7 +28,9 @@ object AppController {
   case class AppControllerCreateLobby(game: GameId)
   case class AppControllerJoinLobby(lobby: LobbyId)
   case class ReconnectOption(option: OptionConnectionFailed)
+  case class GoBackToMenu(allowed: Boolean)
   case object ExitFromLobby
+  case object CanGoBackToMenu
 }
 
 private[this] class AppControllerActor(connectionManager: ConnectionManager, view: View) extends Actor with Timers {
@@ -81,6 +83,9 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   }
 
   private def lobbyCreation: Receive = {
+    case CanGoBackToMenu =>
+      sender() ! GoBackToMenu(true)
+      context >>> logged
     case AvailableGames(games) => viewActor ! ShowLobbyCreation(games)
     case AppControllerCreateLobby(game) =>
       connectionManagerActor ! CreateLobby(game)
@@ -92,6 +97,9 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   }
 
   private def searchForLobby: Receive = {
+    case CanGoBackToMenu =>
+      sender() ! GoBackToMenu(true)
+      context >>> logged
     case AvailableLobbies(lobbies) =>
       viewActor ! ShowLobbies(lobbies)
     case AppControllerJoinLobby(lobby) =>
@@ -167,6 +175,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   }
 
   private def default: Receive = {
+    case CanGoBackToMenu => sender() ! GoBackToMenu(false)
     case ErrorOccurred(message) =>
       val error = AppError.values.find(_.toString == message)
       if (error.isDefined) error.get match {
