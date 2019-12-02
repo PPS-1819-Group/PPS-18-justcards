@@ -30,7 +30,7 @@ sealed trait GameBoard {
    * Getter
    * @return User that must play
    */
-  def getTurnPlayer: UserInfo
+  def getTurnPlayer: Option[UserInfo]
 
   /**
    * Getter
@@ -38,6 +38,12 @@ sealed trait GameBoard {
    * @return cards in the player hand
    */
   def getHandCardsOf(player: UserInfo): Set[Card]
+
+  /**
+   * Getter
+   * @return cards in the hand of player have to play
+   */
+  def getHandCardsOfTurnPlayer: Option[Set[Card]]
 
   /**
    * Getter
@@ -50,7 +56,7 @@ sealed trait GameBoard {
    * Players draw
    * @return GameBoard after the players draw
    */
-  def draw: GameBoard
+  def draw: Option[GameBoard]
 
   /**
    * Player play a card
@@ -116,23 +122,39 @@ object GameBoard {
 
     override def getLastCardDeck: Option[Card] = deck lastOption
 
-    override def getTurnPlayer: UserInfo = handTurn.head
+    override def getTurnPlayer: Option[UserInfo] = handTurn headOption
 
     override def getHandCardsOf(player: UserInfo): Set[Card] = playerCards(player).hand
 
+    override def getHandCardsOfTurnPlayer: Option[Set[Card]] = getTurnPlayer match {
+      case Some(x) => Some(getHandCardsOf(x))
+      case None => None
+    }
+
     override def getTookCardsOf(player: UserInfo): Set[Card] = playerCards(player).took
 
-    override def draw: GameBoard =
-      this(
-        fieldCards,
-        playerCards.mapValues( cards => PlayerCards(cards.hand ++ deck.take(nCardsDraw), cards.took)),
-        deck drop nCardsDraw,
-        handTurn
-      )
+    override def draw: Option[GameBoard] = {
+      if (deck isEmpty) {
+        None
+      } else {
+        var tmpDeck: List[Card] = deck
+        Some(this(
+          fieldCards,
+          playerCards.mapValues( cards => {
+            val result = PlayerCards(cards.hand ++ tmpDeck.take(nCardsDraw), cards.took)
+            tmpDeck = tmpDeck drop nCardsDraw
+            result
+          }),
+          tmpDeck,
+          handTurn
+        ))
+      }
+    }
+
 
     override def playerPlays(card: Card): GameBoard =
       this(
-        fieldCards,
+        fieldCards :+ (card, handTurn.head),
         playerCards.map{
           case (player, cards) if player == handTurn.head => handTurn.head -> PlayerCards(cards.hand - card, cards.took)
           case x => x

@@ -32,7 +32,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, val teams: Map[Team.Value
       val gameBoard = GameBoard(gameKnowledge, teams(TEAM_1) players, teams(TEAM_2) players, firstPlayer)
       gameKnowledge hasToChooseBriscola match {
         case BriscolaSetting.NOT_BRISCOLA =>
-          context become inMatch(gameBoard)
+          startMatch(gameBoard, firstPlayer)
         case BriscolaSetting.SYSTEM =>
           val briscolaSeed = if (gameBoard.getLastCardDeck.isDefined) {
             gameBoard.getLastCardDeck.get.seed
@@ -41,10 +41,10 @@ class SessionManager(val gameKnowledge: GameKnowledge, val teams: Map[Team.Value
           }
           gameKnowledge setBriscola briscolaSeed
           this broadcast CorrectBriscola(briscolaSeed)
-          context become inMatch(gameBoard)
+          startMatch(gameBoard,firstPlayer)
         case BriscolaSetting.USER =>
           for (player <- allPlayers)
-            player.userRef ! Information(gameBoard getHandCardsOf player, gameBoard.fieldCards.map(_._1))
+            sendGameBoardInformation(gameBoard, player)
           context become chooseBriscolaPhase(gameBoard, firstPlayer)
           firstPlayer.userRef ! ChooseBriscola(TIMEOUT)
           timers startSingleTimer(briscolaTimer, Timeout, TIMEOUT seconds)
@@ -53,27 +53,64 @@ class SessionManager(val gameKnowledge: GameKnowledge, val teams: Map[Team.Value
 
   }
 
-  private def chooseBriscolaPhase(gameBoard: GameBoard, userInfo: UserInfo): Receive = {
-    case Briscola(seed) if sender() == userInfo.userRef =>
+  private def chooseBriscolaPhase(gameBoard: GameBoard, firstPlayer: UserInfo): Receive = {
+    case Briscola(seed) if sender() == firstPlayer.userRef =>
       if (gameKnowledge setBriscola seed) {
+        timers.cancel(briscolaTimer)
         this broadcast CorrectBriscola(seed)
-        context become inMatch(gameBoard)
+        startMatch(gameBoard, firstPlayer)
       } else {
-        userInfo.userRef ! ErrorOccurred(BRISCOLA_NOT_VALID)
+        firstPlayer.userRef ! ErrorOccurred(BRISCOLA_NOT_VALID)
       }
     case Timeout =>
-      val briscolaSeed = if (gameBoard.getHandCardsOf(userInfo).nonEmpty)
-        gameBoard.getHandCardsOf(userInfo).head.seed
+      val briscolaSeed = if (gameBoard.getHandCardsOf(firstPlayer).nonEmpty)
+        gameBoard.getHandCardsOf(firstPlayer).head.seed
       else
         gameBoard.getLastCardDeck.get.seed
       this broadcast CorrectBriscola(briscolaSeed)
-      context become inMatch(gameBoard)
+      startMatch(gameBoard, firstPlayer)
   }
 
   private def inMatch(gameBoard: GameBoard): Receive = {
-    case msg: AppMessage => ???
+    case Play(card) if playable(gameBoard, card) && sender() == gameBoard.getTurnPlayer.get.userRef =>
+      timers cancel playCardTimer
+      var newGameBoard: GameBoard = gameBoard playerPlays card
+      if (newGameBoard.getTurnPlayer.isEmpty) {
+        newGameBoard = newGameBoard handWinner gameKnowledge.handWinner(newGameBoard.fieldCards)
+        newGameBoard = newGameBoard.draw match {
+          case None => newGameBoard
+          case Some(x) => x
+        }
+      }
+      if (newGameBoard.getHandCardsOfTurnPlayer.get.isEmpty) {
+        ???
+      } else {
+        context become inMatch(newGameBoard)
+        turn(newGameBoard, newGameBoard.getTurnPlayer.get)
+      }
+    case Timeout() =>
+      val playableCards = for (card <- gameBoard.getHandCardsOfTurnPlayer.get if playable(gameBoard, card)) yield card
+      self ! Play(playableCards.head)
   }
 
+  private def startMatch(gameBoard: GameBoard, firstPlayer: UserInfo): Unit = {
+    context become inMatch(gameBoard)
+    turn(gameBoard, firstPlayer)
+  }
+
+  private def turn(gameBoard: GameBoard, turnPlayer: UserInfo): Unit = {
+    for (player <- allPlayers filter (_!=turnPlayer))
+      sendGameBoardInformation(gameBoard, player)
+    turnPlayer.userRef ! Turn(gameBoard getHandCardsOf turnPlayer, gameBoard.fieldCards.map(_._1), TIMEOUT)
+    timers startSingleTimer(playCardTimer, Timeout, TIMEOUT seconds)
+  }
+
+  private def playable(gameBoard: GameBoard, card: Card): Boolean =
+    gameBoard.getHandCardsOfTurnPlayer.get.contains(card) &&
+      gameKnowledge.play(card, gameBoard.fieldCards.map(_._1), gameBoard.getHandCardsOfTurnPlayer.get).isDefined
+
+  private def sendGameBoardInformation(gameBoard: GameBoard, player: UserInfo): Unit =
+    player.userRef ! Information(gameBoard getHandCardsOf player, gameBoard.fieldCards.map(_._1))
 
   private def broadcast(appMessage: AppMessage): Unit = {
     for (player <- allPlayers)
@@ -106,7 +143,10 @@ case class GameWinner(team: TeamId) extends AppMessage
 case class OutOfLobby(lobby: LobbyId) extends AppMessage*/
 
 object SessionManager {
-  def apply(lobby: Lobby, gameModel: GameKnowledge): Props = Props(classOf[SessionManager], lobby, gameModel)
+  def apply(lobby: Lobby, gameModel: GameKnowledge): Props = {
+    val members = lobby.members.toList.splitAt(lobby.members.size/2)
+    Props(classOf[SessionManager], gameModel, Map((Team.TEAM_1, TeamPoints(members._1, 0)), (Team.TEAM_2, TeamPoints(members._2, 0))))
+  }
 }
 
 
