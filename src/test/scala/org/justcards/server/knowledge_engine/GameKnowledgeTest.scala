@@ -8,12 +8,12 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
   private val gameName = "beccaccino"
-  private val bastoniBriscola = "bastoni"
-  private val coppeBriscola = "coppe"
-  private val spadeBriscola = "spade"
-  private val denaraBriscola = "denara"
-  private val nonValidBriscola = "nonValid"
-  private val seeds = Set(bastoniBriscola,coppeBriscola,spadeBriscola,denaraBriscola)
+  private val bastoni = "bastoni"
+  private val coppe = "coppe"
+  private val spade = "spade"
+  private val denara = "denara"
+  private val nonValidSeed = "nonValid"
+  private val seeds = Set(bastoni,coppe,spade,denara)
   private val gameKnowledge = GameKnowledge()(GameId(gameName))
 
   "The game knowledge" should {
@@ -32,29 +32,29 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
     }
 
     "allow to choose a valid Briscola" in {
-      gameKnowledge.setBriscola(bastoniBriscola) shouldBe true
+      gameKnowledge.setBriscola(bastoni) shouldBe true
     }
 
     "deny to choose a non valid Briscola" in {
-      gameKnowledge.setBriscola(nonValidBriscola) shouldBe false
+      gameKnowledge.setBriscola(nonValidSeed) shouldBe false
     }
 
     "allow to play a card in the hand of a player" when {
 
       "there are no cards on the field" in {
-        val cardToPlay = Card(1,spadeBriscola)
+        val cardToPlay = Card(1,spade)
         gameKnowledge.play(cardToPlay,List(),Set(cardToPlay)) shouldBe Some(List(cardToPlay))
       }
 
       "has the same seed of the first card played in the current turn" in {
-        val cardToPlay = Card(3,spadeBriscola)
-        val cardsOnField = List(Card(1,spadeBriscola))
+        val cardToPlay = Card(3,spade)
+        val cardsOnField = List(Card(1,spade))
         gameKnowledge.play(cardToPlay,cardsOnField,Set(cardToPlay)) shouldBe Some(cardsOnField:::List(cardToPlay))
       }
 
       "has a different seed of the first card played in the current turn and the player does not have card with that seed in his hand" in {
-        val cardToPlay = Card(3,spadeBriscola)
-        val cardsOnField = List(Card(1,bastoniBriscola))
+        val cardToPlay = Card(3,spade)
+        val cardsOnField = List(Card(1,bastoni))
         gameKnowledge.play(cardToPlay,cardsOnField,Set(cardToPlay)) shouldBe Some(cardsOnField:::List(cardToPlay))
       }
 
@@ -63,27 +63,27 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
     "deny to play a card" when {
 
       "the player does not have the card in his hand" in {
-        val cardToPlay = Card(1,spadeBriscola)
-        gameKnowledge.play(cardToPlay,List(),Set(Card(2,spadeBriscola))) shouldBe None
+        val cardToPlay = Card(1,spade)
+        gameKnowledge.play(cardToPlay,List(),Set(Card(2,spade))) shouldBe None
       }
 
     }
 
     "determine who wins the current hand" in {
       val winner = "player3"
-      val cardsOnField = for (number <- 1 to 4) yield (Card(number, spadeBriscola),UserInfo("player" + number, null))
+      val cardsOnField = for (number <- 1 to 4) yield (Card(number, spade),UserInfo("player" + number, null))
       gameKnowledge.handWinner(cardsOnField.toList).username shouldBe winner
     }
 
     "determine who wins the current match" in {
-      val firstTeamCards = for (number <- 1 to 4) yield Card(number, spadeBriscola)
-      val secondTeamCards = for (number <- 2 to 5) yield Card(number, coppeBriscola)
+      val firstTeamCards = for (number <- 1 to 4) yield Card(number, spade)
+      val secondTeamCards = for (number <- 2 to 5) yield Card(number, coppe)
       gameKnowledge.matchWinner(firstTeamCards toSet, secondTeamCards toSet, Team.TEAM_1) shouldBe (Team.TEAM_1,2,0)
     }
 
     "determine the points obtained in a match" in {
-      val firstTeamCards = for (number <- 1 to 4) yield Card(number, spadeBriscola)
-      val secondTeamCards = for (number <- 2 to 5) yield Card(number, coppeBriscola)
+      val firstTeamCards = for (number <- 1 to 4) yield Card(number, spade)
+      val secondTeamCards = for (number <- 2 to 5) yield Card(number, coppe)
       gameKnowledge.matchPoints(firstTeamCards toSet, secondTeamCards toSet, Team.TEAM_1) shouldBe (6,2)
     }
 

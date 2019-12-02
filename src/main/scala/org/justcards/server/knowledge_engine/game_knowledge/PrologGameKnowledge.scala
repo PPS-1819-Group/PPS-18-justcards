@@ -12,12 +12,12 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge._
 class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   import PrologGameKnowledge._
-  import Struct._
   import PrologUtils._
 
   private val defaultCardsInHand = 0
   private val defaultCardsToDraw = 0
   private val defaultCardsOnField = 0
+  private val defaultPoints = 0
 
   private val draw = "draw"
   private val hand = "startHand"
@@ -35,28 +35,24 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private val baseTheory = knowledge getTheory
 
   override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = {
-    val variable = getVariables(1) head
-    val cardsInHand = knowledge.getFirstSolution(new Struct(hand,variable),variable)(_.toInt)
-    val cardsToDraw = knowledge.getFirstSolution(new Struct(draw,variable),variable)(_.toInt)
-    (
-      cardsInHand getOrElse defaultCardsInHand,
-      cardsToDraw getOrElse defaultCardsToDraw,
-      defaultCardsOnField
-    )
+    val variable = variables() head
+    val cardsInHand = knowledge.firstSolution(new Struct(hand,variable),variable)(_.toInt)
+    val cardsToDraw = knowledge.firstSolution(new Struct(draw,variable),variable)(_.toInt)
+    (cardsInHand getOrElse defaultCardsInHand, cardsToDraw getOrElse defaultCardsToDraw, defaultCardsOnField)
   }
 
   override def deckCards: Set[Card] = {
-    val variables = getVariables(2)
-    val number = variables head
-    val seed = variables(1)
-    val cardsFound = for (solution <- knowledge.getAllSolutions(new Struct(card,number,seed)))
-      yield (solution.getOptionValue(number)(_.toInt),solution.getValue(seed)(_.toString))
+    val vars = variables(amount = 2)
+    val number = vars head
+    val seed = vars(1)
+    val cardsFound = for (solution <- knowledge.allSolutions(Struct(card,number,seed)))
+      yield (solution.valueAsOption(number)(_.toInt),solution.valueAs(seed)(_.toString))
     cardsFound filter (card => card._1.isDefined && card._2.isDefined) map (card => Card(card._1.get, card._2.get))
   }
 
   override def hasToChooseBriscola: BriscolaSetting = {
-    val setting = getVariables(1).head
-    knowledge.getFirstSolution(new Struct(briscolaSetting,setting),setting)(_.toInt) match {
+    val setting = variables().head
+    knowledge.firstSolution(new Struct(briscolaSetting,setting),setting)(_.toInt) match {
       case Some(value) if value == 1 => BriscolaSetting.USER
       case Some(value) if value == 0 => BriscolaSetting.SYSTEM
       case _ => BriscolaSetting.NOT_BRISCOLA
@@ -74,110 +70,94 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = {
-    val newField = getVariables(1).head
-    knowledge.getFirstSolution(
-      Struct(turn, card.toTerm, fieldCards map(_.toTerm), handCards map(_.toTerm), newField),
-      newField
-    )(_.toList) match {
+    val newField = variables().head
+    knowledge.firstSolution(Struct(turn, card.toTerm, fieldCards, handCards, newField), newField)(_.toList) match {
       case Some(list) => Some(list map(_.toCard) filter(_.isDefined) map(_.get))
       case _ => None
     }
   }
 
   override def handWinner(fieldCards: List[(Card, UserInfo)]): UserInfo = {
-    val winner = getVariables(1) head
-    val players = fieldCards.map(_._2)
-    knowledge.getFirstSolution(
-      Struct(fieldWinner,
-        fieldCards.map(v => toTupleTerm(v._1.number,v._1.seed,v._2.username)),
-        winner
-      ),
+    val winner = variables() head
+    val players = fieldCards map(_._2)
+    knowledge.firstSolution(
+      Struct(fieldWinner, fieldCards map(v => TupleTerm(v._1.number,v._1.seed,v._2.username)), winner),
       winner
     )(t => Some(t.toString)) match {
-      case Some(player) => players find(_.username == player) getOrElse null
+      case Some(player) => players find(_.username == player) orNull
       case _ => null
     }
   }
 
   override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = {
-    val variables = getVariables(3)
-    val teamWinner = variables head
-    val firstTeamPoints = variables(1)
-    val secondTeamPoints = variables(2)
-    knowledge.getFirstSolution(
-      Struct(
-        matchWinner,
-        firstTeamCards map(_.toTerm), secondTeamCards map(_.toTerm), lastHandWinner.id,
+    val vars = variables(amount = 3)
+    val teamWinner = vars head
+    val firstTeamPoints = vars(1)
+    val secondTeamPoints = vars(2)
+    knowledge.firstSolution(
+      Struct(matchWinner,
+        firstTeamCards, secondTeamCards, lastHandWinner.id,
         teamWinner, firstTeamPoints, secondTeamPoints
       )
     ) match {
       case Some(solution) =>
-        val winner = solution.getOptionValue(teamWinner)(_.toTeam)
-        val firstTeamGainedPoints = solution.getOptionValue(firstTeamPoints)(_.toInt)
-        val secondTeamGainedPoints = solution.getOptionValue(secondTeamPoints)(_.toInt)
-        (winner getOrElse null, firstTeamGainedPoints getOrElse 0, secondTeamGainedPoints getOrElse 0)
+        val winner = solution.valueAsOption(teamWinner)(_.toTeam)
+        val firstTeamGainedPoints = solution.valueAsOption(firstTeamPoints)(_.toInt)
+        val secondTeamGainedPoints = solution.valueAsOption(secondTeamPoints)(_.toInt)
+        (winner orNull, firstTeamGainedPoints getOrElse defaultPoints, secondTeamGainedPoints getOrElse defaultPoints)
       case _ => null
     }
   }
 
   override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = {
-    val winner = getVariables(amount = 1).head
-    knowledge.getFirstSolution(
-      Struct(sessionWinner,firstTeamPoints,secondTeamPoints, winner),
-      winner
-    )(_.toTeam)
+    val winner = variables().head
+    knowledge.firstSolution(Struct(sessionWinner,firstTeamPoints,secondTeamPoints, winner),winner)(_.toTeam)
   }
 
   override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = {
-    val variables = getVariables(amount = 2)
-    val firstTeamPoints = variables head
-    val secondTeamPoints = variables(1)
-    knowledge.getFirstSolution(
-      Struct(
-        totalPoints,
-        firstTeamCards map(_.toTerm), secondTeamCards map(_.toTerm), lastHandWinner.id,
-        firstTeamPoints, secondTeamPoints
-      )
+    val vars = variables(amount = 2)
+    val firstTeamPoints = vars head
+    val secondTeamPoints = vars(1)
+    knowledge.firstSolution(
+      Struct(totalPoints, firstTeamCards, secondTeamCards, lastHandWinner id, firstTeamPoints, secondTeamPoints)
     ) match {
       case Some(solution) =>
-        val firstTeamGainedPoints = solution.getOptionValue(firstTeamPoints)(_.toInt)
-        val secondTeamGainedPoints = solution.getOptionValue(secondTeamPoints)(_.toInt)
-        (firstTeamGainedPoints getOrElse 0, secondTeamGainedPoints getOrElse 0)
+        val firstTeamGainedPoints = solution.valueAsOption(firstTeamPoints)(_.toInt)
+        val secondTeamGainedPoints = solution.valueAsOption(secondTeamPoints)(_.toInt)
+        (firstTeamGainedPoints getOrElse defaultPoints, secondTeamGainedPoints getOrElse defaultPoints)
       case _ => null
     }
   }
 
-  private def getVariables(amount: Int): List[Var] =
+  private def variables(amount: Int = 1): List[Var] =
     (for (variableNumber <- 0 until amount) yield new Var(variableStart + variableNumber)).toList
 
   private implicit class RichProlog(knowledge: Prolog) {
 
-    def getFirstSolution[X](goal: Term, variable: Var)(termToOptionX: Term => Option[X]): Option[X] =
-      getFirstSolution(goal) match {
-        case Some(solution) => solution.getOptionValue(variable)(termToOptionX)
+    def firstSolution[X](goal: Term, variable: Var)(termToOptionX: Term => Option[X]): Option[X] = firstSolution(goal) match {
+        case Some(solution) => solution.valueAsOption(variable)(termToOptionX)
         case _ => None
       }
 
-    def getFirstSolution(goal: Term): Option[Map[String,Term]] =
-      knowledge solve goal match {
-        case info if info.isSuccess => Some(getSolvedVars(info))
+    def firstSolution(goal: Term): Option[Map[String,Term]] = knowledge solve goal match {
+        case info if info.isSuccess => Some(solvedVars(info))
         case _ => None
       }
 
-    def getAllSolutions(goal: Term): Set[Map[String,Term]] = solveAll(knowledge solve goal)()
+    def allSolutions(goal: Term): Set[Map[String,Term]] = solveAll(knowledge solve goal)()
 
     def exist(goal: Term): Boolean = knowledge solve goal isSuccess
 
     @scala.annotation.tailrec
     private[this] final def solveAll(info: SolveInfo)(solutions: Set[Map[String,Term]] = Set()): Set[Map[String,Term]] =
       if (info isSuccess) {
-        val newSolutions = solutions + getSolvedVars(info)
+        val newSolutions = solutions + solvedVars(info)
         if (knowledge hasOpenAlternatives) solveAll(knowledge solveNext())(newSolutions) else newSolutions
       } else solutions
 
-    private[this] def getSolvedVars(info: SolveInfo): Map[String,Term] = {
+    private[this] def solvedVars(info: SolveInfo): Map[String,Term] = {
       import scala.collection.JavaConverters._
-      val solvedVars = for (variable <- info.getBindingVars.asScala) yield (variable.getName, variable.getTerm)
+      val solvedVars = for (v <- info.getBindingVars.asScala) yield (v getName, v getTerm)
       solvedVars filter (_ != null) toMap
     }
   }
@@ -186,27 +166,23 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     import alice.tuprolog.Number
     import scala.collection.JavaConverters._
     def toInt: Option[Int] = if (term.isInstanceOf[Number]) Some(term.toString.toInt) else None
-    def toList: Option[List[Term]] = {
+    def toList: Option[List[Term]] =
       if (term.isList) {
         val list = term.asInstanceOf[Struct]
         Some(list.listIterator().asScala.toList)
       } else None
-    }
-    def toCard: Option[Card] = {
+    def toCard: Option[Card] =
       if (term.isCompound) {
         val card = term.asInstanceOf[Struct]
         card.getArg(0).toString.toOptionInt match {
-          case Some(number) => Some(Card(number, card.getArg(1).toString))
+          case Some(number) => Some(Card(number, card getArg 1 toString))
           case _ => None
         }
       } else None
-    }
-    def toTeam: Option[Team] = {
-      term toInt match {
+    def toTeam: Option[Team] = term toInt match {
         case Some(id) => Some(Team(id))
         case _ => None
       }
-    }
   }
 
   private implicit class RichString(value: String) {
@@ -219,45 +195,49 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   private implicit class RichMap[K,V](map: Map[K,V]) {
-    def getOptionValue[X](key: K)(termToOptionX: V => Option[X]): Option[X] = map get key match {
+    def valueAsOption[X](key: K)(termToOptionX: V => Option[X]): Option[X] = map get key match {
         case Some(value) => termToOptionX(value)
         case _ => None
       }
-    def getValue[X](key: K)(termToX: V => X): Option[X] = map get key match {
+    def valueAs[X](key: K)(termToX: V => X): Option[X] = map get key match {
         case Some(value) => Some(termToX(value))
         case _ => None
       }
   }
 
   private implicit class PrologCard(card: Card) {
-    def toTerm: Term = toTupleTerm(card.number,card.seed)
+    def toTerm: Term = TupleTerm(card number,card seed)
   }
 
   private[this] object Struct {
-    def apply(name: String, parameters: Term*): Struct = new Struct(name, parameters.toArray)
+    def apply(name: String, parameters: Term*): Struct = new Struct(name, parameters toArray)
 
-    def apply(terms: Term*): Struct = Struct(terms.toArray)
+    def apply(terms: Term*): Struct = Struct(terms toArray)
 
     def apply(terms: Array[Term]): Struct = new Struct(terms)
 
     def apply(): Struct = new Struct()
-    
-    implicit def fromStringToTerm(value: String): Term = Term.createTerm(value)
+
   }
 
   private[this] object Theory {
     def apply(clauseList: Struct): Theory = new Theory(clauseList)
   }
 
+  private[this] object TupleTerm {
+    private[this] val elementSeparator = ","
+    def apply(values: String*): Term = Term createTerm values.mkString(elementSeparator)
+  }
+
   private[this] object PrologUtils {
-    implicit def fromIntToTerm(value: Int): Term = Term createTerm(value)
-    def toTupleTerm(values: String*): Term = Term.createTerm(values.mkString(","))
+    implicit def fromStringToTerm(value: String): Term = Term createTerm value
+    implicit def fromIntToTerm(value: Int): Term = Term createTerm value
+    implicit def fromVarToString(variable: Var): String = variable getName
+    implicit def fromCardsToTerm(traversable: Traversable[Card]): Term = Struct(traversable map(_.toTerm) toArray)
+    implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = Struct(traversable toArray)
   }
 
   private implicit def fromIntToString(value: Int): String = value toString
-  private implicit def fromVarToString(variable: Var): String = variable getName
-  private implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = Struct(traversable.toArray)
-
 
 }
 
