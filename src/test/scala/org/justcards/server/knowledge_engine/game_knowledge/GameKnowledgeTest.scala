@@ -1,8 +1,7 @@
-package org.justcards.server.knowledge_engine
+package org.justcards.server.knowledge_engine.game_knowledge
 
 import org.justcards.commons.{Card, GameId}
 import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
-import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAll {

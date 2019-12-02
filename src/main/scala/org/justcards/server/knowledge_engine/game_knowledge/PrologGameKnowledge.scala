@@ -12,7 +12,7 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge._
 class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   import PrologGameKnowledge._
-  import PrologUtils._
+  import TuPrologHelpers._
 
   private val defaultCardsInHand = 0
   private val defaultCardsToDraw = 0
@@ -130,17 +130,86 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private def variables(amount: Int = 1): List[Var] =
     (for (variableNumber <- 0 until amount) yield new Var(variableStart + variableNumber)).toList
 
-  private implicit class RichProlog(knowledge: Prolog) {
+  private[this] implicit class MyRichTerm(term: Term) {
+    def toCard: Option[Card] =
+      if (term.isCompound) {
+        val card = term.asInstanceOf[Struct]
+        card.getArg(0).toString.toOptionInt match {
+          case Some(number) => Some(Card(number, card getArg 1 toString))
+          case _ => None
+        }
+      } else None
+
+    def toTeam: Option[Team] = term toInt match {
+        case Some(id) => Some(Team(id))
+        case _ => None
+      }
+  }
+
+  private implicit class RichString(value: String) {
+    def toOptionInt: Option[Int] =
+      try {
+        Some(value.toInt)
+      } catch {
+        case _: Exception => None
+      }
+  }
+
+  private implicit class PrologCard(card: Card) {
+    def toTerm: Term = TupleTerm(card number,card seed)
+  }
+
+  private implicit def fromIntToString(value: Int): String = value toString
+  private implicit def toOption[X](v: X): Option[X] = Option(v)
+  private implicit def fromCardsToTerm(traversable: Traversable[Card]): Term = Struct(traversable map(_.toTerm) toArray)
+
+}
+
+object PrologGameKnowledge {
+
+  def apply(): GameKnowledgeFactory = (game: GameId) => new PrologGameKnowledge(game)
+
+  private[this] val COMMON_RULES_FILE: FileInputStream = GameKnowledge.COMMON_RULES_PATH
+  private[this] val COMMON_RULES = new Theory(COMMON_RULES_FILE)
+
+  private[this] implicit def fromStringToInputStream(path: String): FileInputStream = new FileInputStream(path)
+
+  private def createKnowledge(game: GameId): Prolog = {
+    val engine = new Prolog()
+    val gameTheoryFile: FileInputStream = GAMES_PATH concat game.name.toLowerCase concat ".pl"
+    val gameTheory = new Theory(gameTheoryFile)
+    engine setTheory COMMON_RULES
+    engine addTheory gameTheory
+    engine
+  }
+
+}
+
+object TuPrologHelpers {
+
+  implicit def fromStringToTerm(value: String): Term = Term createTerm value
+  implicit def fromIntToTerm(value: Int): Term = Term createTerm value.toString
+  implicit def fromVarToString(variable: Var): String = variable getName
+  implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = Struct(traversable toArray)
+
+  implicit class RichMap[K,V](map: Map[K,V]) {
+    def valueOf[X](key: K)(toOption: V => Option[X]): Option[X] = map get key match {
+      case Some(value) => toOption(value)
+      case _ => None
+    }
+  }
+
+  implicit class RichProlog(knowledge: Prolog) {
 
     def find[X](goal: Term, variable: Var)(termToOptionX: Term => Option[X]): Option[X] = find(goal) match {
-        case Some(solution) => solution.valueOf(variable)(termToOptionX)
-        case _ => None
-      }
+      case Some(solution) => solution.valueOf(variable)(termToOptionX)
+      case _ => None
+    }
 
     def find(goal: Term): Option[Map[String,Term]] = knowledge solve goal match {
-        case info if info.isSuccess => Some(solvedVars(info))
-        case _ => None
-      }
+      case info if info.isSuccess => Some(solvedVars(info))
+      case _ => None
+    }
 
     def findAll(goal: Term): Set[Map[String,Term]] = {
       @scala.annotation.tailrec
@@ -173,7 +242,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     }
   }
 
-  private implicit class RichTerm(term: Term) {
+  implicit class RichTerm(term: Term) {
     import alice.tuprolog.Number
     import scala.collection.JavaConverters._
 
@@ -186,91 +255,21 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
         val list = term.asInstanceOf[Struct]
         Some(list.listIterator().asScala.toList)
       } else None
-
-    def toCard: Option[Card] =
-      if (term.isCompound) {
-        val card = term.asInstanceOf[Struct]
-        card.getArg(0).toString.toOptionInt match {
-          case Some(number) => Some(Card(number, card getArg 1 toString))
-          case _ => None
-        }
-      } else None
-
-    def toTeam: Option[Team] = term toInt match {
-        case Some(id) => Some(Team(id))
-        case _ => None
-      }
   }
 
-  private implicit class RichString(value: String) {
-    def toOptionInt: Option[Int] =
-      try {
-        Some(value.toInt)
-      } catch {
-        case _: Exception => None
-      }
-  }
-
-  private implicit class RichMap[K,V](map: Map[K,V]) {
-    def valueOf[X](key: K)(termToOptionX: V => Option[X]): Option[X] = map get key match {
-        case Some(value) => termToOptionX(value)
-        case _ => None
-      }
-  }
-
-  private implicit class PrologCard(card: Card) {
-    def toTerm: Term = TupleTerm(card number,card seed)
-  }
-
-  private[this] object Struct {
+  object Struct {
     def apply(name: String, parameters: Term*): Struct = new Struct(name, parameters toArray)
-
     def apply(terms: Term*): Struct = Struct(terms toArray)
-
     def apply(terms: Array[Term]): Struct = new Struct(terms)
-
     def apply(): Struct = new Struct()
-
   }
 
-  private[this] object Theory {
+  object Theory {
     def apply(clauses: Term*): Theory = new Theory(Struct(clauses))
   }
 
-  private[this] object TupleTerm {
+  object TupleTerm {
     private[this] val elementSeparator = ","
     def apply(values: String*): Term = Term createTerm values.mkString(elementSeparator)
   }
-
-  private[this] object PrologUtils {
-    implicit def fromStringToTerm(value: String): Term = Term createTerm value
-    implicit def fromIntToTerm(value: Int): Term = Term createTerm value
-    implicit def fromVarToString(variable: Var): String = variable getName
-    implicit def fromCardsToTerm(traversable: Traversable[Card]): Term = Struct(traversable map(_.toTerm) toArray)
-    implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = Struct(traversable toArray)
-  }
-
-  private implicit def fromIntToString(value: Int): String = value toString
-  private implicit def toOption[X](v: X): Option[X] = Option(v)
-
-}
-
-object PrologGameKnowledge {
-
-  def apply(): GameKnowledgeFactory = (game: GameId) => new PrologGameKnowledge(game)
-
-  private[this] val COMMON_RULES_FILE: FileInputStream = GameKnowledge.COMMON_RULES_PATH
-  private[this] val COMMON_RULES = new Theory(COMMON_RULES_FILE)
-
-  private[this] implicit def fromStringToInputStream(path: String): FileInputStream = new FileInputStream(path)
-
-  private def createKnowledge(game: GameId): Prolog = {
-    val engine = new Prolog()
-    val gameTheoryFile: FileInputStream = GAMES_PATH concat game.name.toLowerCase concat ".pl"
-    val gameTheory = new Theory(gameTheoryFile)
-    engine setTheory COMMON_RULES
-    engine addTheory gameTheory
-    engine
-  }
-
 }
