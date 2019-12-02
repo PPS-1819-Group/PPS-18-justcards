@@ -52,8 +52,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   override def hasToChooseBriscola: BriscolaSetting = {
     val setting = variables().head
     knowledge.find(PrologStruct(briscolaSetting,setting),setting)(_.toInt) match {
-      case Some(value) if value == 1 => USER
-      case Some(value) if value == 0 => SYSTEM
+      case Some(1) => USER
+      case Some(0) => SYSTEM
       case _ => NOT_BRISCOLA
     }
   }
@@ -94,7 +94,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     val secondTeamPoints = vars(2)
     knowledge.find(
       PrologStruct(matchWinner,
-        firstTeamCards, secondTeamCards, lastHandWinner.id,
+        firstTeamCards, secondTeamCards, lastHandWinner id,
         teamWinner, firstTeamPoints, secondTeamPoints
       )
     ) match {
@@ -132,8 +132,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   private[this] implicit class MyRichTerm(term: Term) {
     def toCard: Option[Card] = term toTupleTerm match {
-      case Some(card) => (card getArg 0).toInt match {
-        case Some(number) => Some(Card(number, card getArg 1 toString))
+      case Some(card) => card(0).toInt match {
+        case Some(number) => Some(Card(number, card(1) toString))
         case _ => None
       }
       case _ => None
@@ -218,7 +218,7 @@ object TuPrologHelpers {
 
     def --(goal: Term): Set[Map[String,Term]] = findAll(RetractTerm(goal))
 
-    def +(clauses: Struct*): Unit = knowledge addTheory PrologTheory(clauses)
+    def +(clauses: Term*): Unit = knowledge addTheory PrologTheory(clauses)
 
     private[this] def solvedVars(info: SolveInfo): Map[String,Term] = {
       import scala.collection.JavaConverters._
@@ -263,7 +263,6 @@ object TuPrologHelpers {
     def apply(name: String, parameters: Term*): Struct = new Struct(name, parameters toArray)
     def apply(terms: Term*): Struct = PrologStruct(terms toArray)
     def apply(terms: Array[Term]): Struct = new Struct(terms)
-    def apply(): Struct = new Struct()
   }
 
   object PrologTheory {
@@ -272,7 +271,7 @@ object TuPrologHelpers {
   }
 
   trait PrologTuple {
-    def getArg(index: Int): Term
+    def apply(index: Int): Term
   }
 
   object PrologTuple {
@@ -282,7 +281,7 @@ object TuPrologHelpers {
     def apply(struct: Struct): PrologTuple = new PrologTupleImpl(struct)
 
     private[this] class PrologTupleImpl(struct: Struct) extends PrologTuple {
-      override def getArg(index: Int): Term = struct getArg index
+      override def apply(index: Int): Term = struct getArg index
     }
   }
 
