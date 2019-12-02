@@ -1,11 +1,12 @@
 package org.justcards.server.user_manager
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorContext, ActorRef, Props}
 import akka.io.Tcp._
 import org.justcards.commons._
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
 import org.justcards.server
-import org.justcards.server.user_manager.UserManagerMessage.LogOutAndExitFromLobby
+import org.justcards.server.Commons.UserInfo
+import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection {
 
@@ -18,21 +19,26 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(_: LogOut) =>
     case Logged(username) =>
       userRef ==> Logged(username)
-      this become completeBehaviour(logged(username), username)
+      this >>> (logged(username), username)
   }
 
   private def logged(username: String): Receive = {
     case Outer(LogOut(`username`)) =>
       userManager ! LogOut(username)
       context stop self
-    case message: LobbyJoined => changeToLobbyState(message, username)
-    case message: LobbyCreated => changeToLobbyState(message, username)
+    case message: LobbyJoined => toLobby(message, username)
+    case message: LobbyCreated => toLobby(message, username)
   }
 
   private def inLobby(username: String, lobby: LobbyId): Receive = {
     case Outer(LogOut(`username`)) =>
       userManager ! LogOutAndExitFromLobby(username, lobby)
       context stop self
+    case Outer(OutOfLobby(`lobby`)) => userManager ! UserExitFromLobby(lobby, UserInfo(username, self))
+    case UserRemoved(true) =>
+      this >>> logged(username)
+      userRef ==> OutOfLobby(lobby)
+    case UserRemoved(false) => userRef ==> ErrorOccurred(LOBBY_NOT_EXISTING)
   }
 
   private def commonBehaviour: Receive = {
@@ -50,12 +56,15 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   private def completeBehaviour(behaviour: Receive, username: String = ""): Receive =
     behaviour orElse commonBehaviour orElse errorBehaviour(username)
 
-  private def changeToLobbyState[A <: {val lobby: LobbyId}](msg: A, username: String): Unit = {
+  private def >>>(behaviour: Receive, username: String = ""): Unit = {
+    this become completeBehaviour(behaviour, username)
+  }
+
+  private def toLobby[A <: {val lobby: LobbyId}](msg: A, username: String): Receive = {
     userRef ==> msg.asInstanceOf[AppMessage]
-    this become completeBehaviour(
-      inLobby(username, msg.lobby),
-      username
-    )
+    val nextBehaviour = inLobby(username, msg.lobby)
+    this >>> (nextBehaviour, username)
+    nextBehaviour
   }
 
 }

@@ -18,14 +18,14 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
   override def receive: Receive = defaultBehaviour(lobbyDatabase)
 
   private def defaultBehaviour(lobbies: LobbyDatabase): Receive = {
-    case GetLobbies(sender) =>
-      val availableLobbies: Set[(LobbyId, Set[UserId])] = lobbies.filter(!_.isFull).map(lobbyInfo =>
-        lobbyToLobbyId(lobbyInfo) -> lobbyInfo.members.map(user => UserId(1,user.username))
-      )
-      sender ! AvailableLobbies(availableLobbies)
+    case GetLobbies(msg, userInfo) =>
+      val result = searchLobbyWithFilters(msg.gameName, msg.ownerName)(lobbies)
+      userInfo.userRef ! AvailableLobbies(result)
     case UserCreateLobby(CreateLobby(gameId), userInfo) => createLobby(lobbies)(gameId, userInfo)
-    case UserJoinLobby(JoinLobby(lobbyId), userInfo) => joinUserToLobby(lobbies)(lobbyId, userInfo)
-    case UserExitFromLobby(lobbyId, userInfo) => exitUserFromLobby(lobbies)(lobbyId, userInfo)
+    case UserJoinLobby(JoinLobby(lobbyId), userInfo) => joinUserToLobby(lobbies)(lobbyId.id, userInfo)
+    case UserExitFromLobby(lobbyId, userInfo) =>
+      val userRemoved = exitUserFromLobby(lobbies)(lobbyId.id, userInfo)
+      sender() ! UserRemoved(userRemoved)
   }
 
   private def createLobby(lobbies: LobbyDatabase)(gameId: GameId, userInfo: UserInfo): Unit = {
@@ -44,29 +44,31 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
     }
   }
 
-  private def joinUserToLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Unit = {
-    if(!(lobbies contains lobbyId.id)) userInfo.userRef ! ErrorOccurred(LOBBY_NOT_EXISTING)
+  private def joinUserToLobby(lobbies: LobbyDatabase)(id: Long, userInfo: UserInfo): Unit = {
+    if(!(lobbies contains id)) userInfo.userRef ! ErrorOccurred(LOBBY_NOT_EXISTING)
     else {
       val userInAnotherLobby = lobbies find (_.members contains userInfo)
       if(userInAnotherLobby isDefined) userInfo.userRef ! ErrorOccurred(USER_ALREADY_IN_A_LOBBY)
       else {
-        val lobby = lobbies(lobbyId.id)
+        val lobby = lobbies(id)
         if(lobby isFull) userInfo.userRef ! ErrorOccurred(LOBBY_FULL)
         else {
-          val newLobby = addUserToLobby(lobby, lobbyId, userInfo)
+          val newLobby = addUserToLobby(lobby, userInfo)
           context become defaultBehaviour(lobbies + newLobby)
         }
       }
     }
   }
 
-  private def exitUserFromLobby(lobbies: LobbyDatabase)(lobbyId: LobbyId, userInfo: UserInfo): Unit = {
-    val lobby = lobbies.find(_.id == lobbyId.id)
-    if(lobby.isDefined && (lobby.get.members contains userInfo) ) {
+  private def exitUserFromLobby(lobbies: LobbyDatabase)(id: Long, userInfo: UserInfo): Boolean = {
+    val lobby = lobbies.find(_.id == id)
+    val userFoundInLobby = lobby.isDefined && (lobby.get.members contains userInfo)
+    if(userFoundInLobby) {
       val newLobby = lobby.get - userInfo
       if(newLobby isDefined) {
         val newLobbyVal = newLobby.get
         val newMembers = newLobbyVal.members map (user => UserId(1, user.username))
+        val lobbyId = LobbyId(id, newLobbyVal.owner.username, newLobbyVal.game)
         newLobbyVal.members foreach {
           _.userRef ! LobbyUpdate(lobbyId, newMembers)
         }
@@ -74,11 +76,13 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
       } else
         context become defaultBehaviour(lobbies - lobby.get)
     }
+    userFoundInLobby
   }
 
-  private def addUserToLobby(lobby: Lobby, lobbyId: LobbyId, userInfo: UserInfo): Lobby = {
+  private def addUserToLobby(lobby: Lobby, userInfo: UserInfo): Lobby = {
     val newLobby =  lobby + userInfo
     val newMembers = newLobby.members map (user => UserId(1, user.username))
+    val lobbyId = LobbyId(lobby.id, lobby.owner.username, lobby.game)
     userInfo.userRef ! LobbyJoined(lobbyId, newMembers)
     newLobby.members filter (_ != userInfo) foreach {
       _.userRef ! LobbyUpdate(lobbyId, newMembers)
@@ -86,7 +90,17 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
     newLobby
   }
 
-
+  private def searchLobbyWithFilters(game: String, owner: String)(lobbies: LobbyDatabase): Set[(LobbyId, Set[UserId])] = {
+    var availableLobbies = lobbies.filter(!_.isFull)
+    val gameToSearch = game.toLowerCase
+    if(!owner.isEmpty)
+      availableLobbies = availableLobbies.filter(_.owner.username == owner)
+    if(!game.isEmpty)
+      availableLobbies = availableLobbies.filter(_.game.name.toLowerCase == gameToSearch)
+    availableLobbies.map(lobbyInfo =>
+      lobbyToLobbyId(lobbyInfo) -> lobbyInfo.members.map(user => UserId(1,user.username))
+    )
+  }
 }
 
 private[user_manager] object LobbyManager {

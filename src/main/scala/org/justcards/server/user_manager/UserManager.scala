@@ -8,6 +8,8 @@ import scala.concurrent.duration._
 import org.justcards.commons._
 import org.justcards.server.Commons.UserInfo
 
+import scala.util.Success
+
 /**
   * Actor that manages all the users in the system
   * @param knowledgeEngine the system knowledgeEngine
@@ -27,16 +29,12 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
     case LogOutAndExitFromLobby(username, lobbyId) =>
       playerManager ! UserLogout(username, sender())
       lobbyManager ! UserExitFromLobby(lobbyId, UserInfo(username, sender()))
-    case _: RetrieveAvailableGames =>
+    case msg: UserExitFromLobby => lobbyManager.askAndInformUser(msg)(sender())
+    case msg: RetrieveAvailableGames => knowledgeEngine.askAndInformUser(msg)(sender())
+    case msg: RetrieveAvailableLobbies =>
       val user = sender()
-      (knowledgeEngine ? RetrieveAvailableGames()) onComplete { result =>
-        if(result.isSuccess) user ! result.get
-        else user ! ErrorOccurred(MESSAGE_SENDING_FAILED)
-      }
-    case _: RetrieveAvailableLobbies =>
-      val user = sender()
-      checkLogInAnd(user) { _ => 
-        lobbyManager ! GetLobbies(user)
+      checkLogInAnd(user) { username =>
+        lobbyManager ! GetLobbies(msg, UserInfo(username, user))
       }
     case msg: CreateLobby =>
       val user = sender()
@@ -52,13 +50,18 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
     case msg: UserManagerMessage => playerManager ! msg
   }
 
-  private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit) : Unit = {
-    val request = playerManager ? PlayerLogged(user)
-    request collect {
-      case PlayerLoggedResult(true, username) => username
-    } onComplete { result =>
-      if(result.isSuccess) onComplete(result.get)
-      else user ! ErrorOccurred(USER_NOT_LOGGED)
+  private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit) : Unit =
+    playerManager ? PlayerLogged(user) onComplete {
+      case Success(PlayerLoggedResult(true, username)) => onComplete(username)
+      case _ => user ! ErrorOccurred(USER_NOT_LOGGED)
+    }
+
+  private implicit class RichActorRef(actorRef: ActorRef) {
+    def askAndInformUser(msg: Any)(user: ActorRef): Unit = {
+      actorRef ? msg onComplete {
+        case Success(response) => user ! response
+        case _ => user ! ErrorOccurred(SERVER_ERROR)
+      }
     }
   }
 
@@ -81,9 +84,10 @@ private[user_manager] object UserManagerMessage {
   case class PlayerLogged(user: ActorRef) extends UserManagerMessage
   case class PlayerLoggedResult(found: Boolean, username: String) extends UserManagerMessage
 
-  case class GetLobbies(sender: ActorRef) extends UserManagerMessage
+  case class GetLobbies(message: RetrieveAvailableLobbies, user: UserInfo) extends UserManagerMessage
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
   case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
   case class UserExitFromLobby(lobbyId: LobbyId, userInfo: UserInfo) extends UserManagerMessage
+  case class UserRemoved(removed: Boolean) extends UserManagerMessage
 
 }
