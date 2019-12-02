@@ -4,8 +4,8 @@ import java.io.FileInputStream
 
 import alice.tuprolog.{Prolog, SolveInfo, Struct, Term, Theory, Var}
 import org.justcards.commons.{Card, GameId}
-import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.server.Commons.{Team, UserInfo}
+import org.justcards.server.Commons.BriscolaSetting._
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge._
 
@@ -32,7 +32,6 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private val sessionWinner = "sessionWinner"
   private val variableStart = "VAR"
   private val knowledge: Prolog = createKnowledge(game)
-  private val baseTheory = knowledge getTheory
 
   override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = {
     val variable = variables() head
@@ -53,25 +52,24 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   override def hasToChooseBriscola: BriscolaSetting = {
     val setting = variables().head
     knowledge.find(new Struct(briscolaSetting,setting),setting)(_.toInt) match {
-      case Some(value) if value == 1 => BriscolaSetting.USER
-      case Some(value) if value == 0 => BriscolaSetting.SYSTEM
-      case _ => BriscolaSetting.NOT_BRISCOLA
+      case Some(value) if value == 1 => USER
+      case Some(value) if value == 0 => SYSTEM
+      case _ => NOT_BRISCOLA
     }
   }
 
   override def setBriscola(seed: Seed): Boolean = {
-    val briscolaValid = knowledge exists Struct(this.seed, seed)
+    val briscolaValid = knowledge ? Struct(this.seed, seed)
     if (briscolaValid) {
-      val newCurrentBriscola = Struct(currentBriscola,seed)
-      knowledge setTheory baseTheory
-      knowledge addTheory Theory(Struct(newCurrentBriscola,Struct()))
+      knowledge -- Struct(currentBriscola,variables() head)
+      knowledge + Struct(currentBriscola,seed)
     }
     briscolaValid
   }
 
   override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = {
-    val newField = variables().head
-    knowledge.find(Struct(turn, card.toTerm, fieldCards, handCards, newField), newField)(_.toList) match {
+    val newFieldCards = variables().head
+    knowledge.find(Struct(turn, card toTerm, fieldCards, handCards, newFieldCards), newFieldCards)(_.toList) match {
       case Some(list) => Some(list map(_.toCard) filter(_.isDefined) map(_.get))
       case _ => None
     }
@@ -144,21 +142,34 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
         case _ => None
       }
 
-    def findAll(goal: Term): Set[Map[String,Term]] = solveAll(knowledge solve goal)()
+    def findAll(goal: Term): Set[Map[String,Term]] = {
+      @scala.annotation.tailrec
+      def _findAll(info: SolveInfo)(solutions: Set[Map[String,Term]]): Set[Map[String,Term]] = {
+        if (info isSuccess) {
+          val newSolutions = solutions + solvedVars(info)
+          if (knowledge hasOpenAlternatives) _findAll(knowledge solveNext())(newSolutions) else newSolutions
+        } else solutions
+      }
+      _findAll(knowledge solve goal)(Set())
+    }
 
-    def exists(goal: Term): Boolean = knowledge solve goal isSuccess
+    def ?(goal: Term): Boolean = knowledge solve goal isSuccess
 
-    @scala.annotation.tailrec
-    private[this] final def solveAll(info: SolveInfo)(solutions: Set[Map[String,Term]] = Set()): Set[Map[String,Term]] =
-      if (info isSuccess) {
-        val newSolutions = solutions + solvedVars(info)
-        if (knowledge hasOpenAlternatives) solveAll(knowledge solveNext())(newSolutions) else newSolutions
-      } else solutions
+    def -(goal: Term): Option[Map[String,Term]] = find(RetractTerm(goal))
+
+    def --(goal: Term): Set[Map[String,Term]] = findAll(RetractTerm(goal))
+
+    def +(clauses: Struct*): Unit = knowledge addTheory Theory(clauses)
 
     private[this] def solvedVars(info: SolveInfo): Map[String,Term] = {
       import scala.collection.JavaConverters._
       val solvedVars = for (v <- info.getBindingVars.asScala) yield (v getName, v getTerm)
       solvedVars filter (_ != null) toMap
+    }
+
+    private[this] object RetractTerm {
+      private val retract = "retract"
+      def apply(termToRetract: Term): Term = Struct(retract, termToRetract)
     }
   }
 
@@ -223,7 +234,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   private[this] object Theory {
-    def apply(clauseList: Struct): Theory = new Theory(clauseList)
+    def apply(clauses: Term*): Theory = new Theory(Struct(clauses))
   }
 
   private[this] object TupleTerm {
