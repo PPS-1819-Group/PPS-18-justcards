@@ -19,7 +19,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
 
   private def defaultBehaviour(lobbies: LobbyDatabase): Receive = {
     case GetLobbies(msg, userInfo) =>
-      val result = searchLobbyWithFilters(msg.gameName.toLowerCase, msg.ownerName)(lobbies)
+      val result = searchLobbyWithFilters(msg.gameName, msg.ownerName)(lobbies)
       userInfo.userRef ! AvailableLobbies(result)
     case UserCreateLobby(CreateLobby(gameId), userInfo) => createLobby(lobbies)(gameId, userInfo)
     case UserJoinLobby(JoinLobby(lobbyId), userInfo) => joinUserToLobby(lobbies)(lobbyId.id, userInfo)
@@ -92,10 +92,11 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
 
   private def searchLobbyWithFilters(game: String, owner: String)(lobbies: LobbyDatabase): Set[(LobbyId, Set[UserId])] = {
     var availableLobbies = lobbies.filter(!_.isFull)
+    val gameToSearch = game.toLowerCase
     if(!owner.isEmpty)
       availableLobbies = availableLobbies.filter(_.owner.username == owner)
     if(!game.isEmpty)
-      availableLobbies = availableLobbies.filter(_.game.name.toLowerCase == game)
+      availableLobbies = availableLobbies.filter(_.game.name.toLowerCase == gameToSearch)
     availableLobbies.map(lobbyInfo =>
       lobbyToLobbyId(lobbyInfo) -> lobbyInfo.members.map(user => UserId(1,user.username))
     )

@@ -24,7 +24,7 @@ object AppController {
   case class ChosenUsername(username: String)
   case class ChosenBriscola(briscola: String)
   case class ChosenCard(card: Card)
-  case class MenuSelection(choice: MenuChoice, options: Map[FilterChoice,String] = Map())
+  case class MenuSelection(choice: MenuChoice, filters: Map[FilterChoice,String] = Map())
   case class AppControllerCreateLobby(game: GameId)
   case class AppControllerJoinLobby(lobby: LobbyId)
   case class ReconnectOption(option: OptionConnectionFailed)

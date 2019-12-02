@@ -71,6 +71,7 @@ object View {
   val ERROR_WRONG_CARD: String = "You can't play this card"
   val ERROR_WRONG_BRISCOLA: String = "This Briscola doesn't exist"
 
+  val ERROR_SERVER: String = "Error: An error has occured server side, try again."
   val ERROR_WRONG_CHOICE: String = "Error: The selected choice is not available"
 
   def errorMessage(error: AppError): String = error match {
@@ -86,8 +87,9 @@ object View {
     case LOBBY_NOT_EXISTING => ERROR_GAME_NOT_EXIST
     case LOBBY_FULL => ERROR_LOBBY_FULL
     case SELECTION_NOT_AVAILABLE => ERROR_WRONG_CHOICE
-    case BRISCOLA_NOT_VALID =>ERROR_WRONG_BRISCOLA
-    case CARD_NOT_VALID =>ERROR_WRONG_CARD
+    case BRISCOLA_NOT_VALID => ERROR_WRONG_BRISCOLA
+    case CARD_NOT_VALID => ERROR_WRONG_CARD
+    case SERVER_ERROR => ERROR_SERVER
     case _ => UNKNOWN_ERROR(error)
   }
 }

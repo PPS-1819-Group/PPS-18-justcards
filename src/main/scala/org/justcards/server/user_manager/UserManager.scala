@@ -60,7 +60,7 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
     def askAndInformUser(msg: Any)(user: ActorRef): Unit = {
       actorRef ? msg onComplete {
         case Success(response) => user ! response
-        case _ => user ! ErrorOccurred(MESSAGE_SENDING_FAILED)
+        case _ => user ! ErrorOccurred(SERVER_ERROR)
       }
     }
   }
