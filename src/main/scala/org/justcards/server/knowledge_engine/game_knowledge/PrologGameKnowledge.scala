@@ -36,8 +36,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = {
     val variable = variables() head
-    val cardsInHand = knowledge.firstSolution(new Struct(hand,variable),variable)(_.toInt)
-    val cardsToDraw = knowledge.firstSolution(new Struct(draw,variable),variable)(_.toInt)
+    val cardsInHand = knowledge.find(new Struct(hand,variable),variable)(_.toInt)
+    val cardsToDraw = knowledge.find(new Struct(draw,variable),variable)(_.toInt)
     (cardsInHand getOrElse defaultCardsInHand, cardsToDraw getOrElse defaultCardsToDraw, defaultCardsOnField)
   }
 
@@ -45,14 +45,14 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     val vars = variables(amount = 2)
     val number = vars head
     val seed = vars(1)
-    val cardsFound = for (solution <- knowledge.allSolutions(Struct(card,number,seed)))
-      yield (solution.valueAsOption(number)(_.toInt),solution.valueAs(seed)(_.toString))
+    val cardsFound = for (solution <- knowledge findAll Struct(card,number,seed))
+      yield (solution.valueOf(number)(_.toInt),solution.valueOf(seed)(_.toString))
     cardsFound filter (card => card._1.isDefined && card._2.isDefined) map (card => Card(card._1.get, card._2.get))
   }
 
   override def hasToChooseBriscola: BriscolaSetting = {
     val setting = variables().head
-    knowledge.firstSolution(new Struct(briscolaSetting,setting),setting)(_.toInt) match {
+    knowledge.find(new Struct(briscolaSetting,setting),setting)(_.toInt) match {
       case Some(value) if value == 1 => BriscolaSetting.USER
       case Some(value) if value == 0 => BriscolaSetting.SYSTEM
       case _ => BriscolaSetting.NOT_BRISCOLA
@@ -60,7 +60,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   override def setBriscola(seed: Seed): Boolean = {
-    val briscolaValid = knowledge exist Struct(this.seed, seed)
+    val briscolaValid = knowledge exists Struct(this.seed, seed)
     if (briscolaValid) {
       val newCurrentBriscola = Struct(currentBriscola,seed)
       knowledge setTheory baseTheory
@@ -71,7 +71,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = {
     val newField = variables().head
-    knowledge.firstSolution(Struct(turn, card.toTerm, fieldCards, handCards, newField), newField)(_.toList) match {
+    knowledge.find(Struct(turn, card.toTerm, fieldCards, handCards, newField), newField)(_.toList) match {
       case Some(list) => Some(list map(_.toCard) filter(_.isDefined) map(_.get))
       case _ => None
     }
@@ -80,10 +80,10 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   override def handWinner(fieldCards: List[(Card, UserInfo)]): UserInfo = {
     val winner = variables() head
     val players = fieldCards map(_._2)
-    knowledge.firstSolution(
+    knowledge.find(
       Struct(fieldWinner, fieldCards map(v => TupleTerm(v._1.number,v._1.seed,v._2.username)), winner),
       winner
-    )(t => Some(t.toString)) match {
+    )(_.toString) match {
       case Some(player) => players find(_.username == player) orNull
       case _ => null
     }
@@ -94,16 +94,16 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     val teamWinner = vars head
     val firstTeamPoints = vars(1)
     val secondTeamPoints = vars(2)
-    knowledge.firstSolution(
+    knowledge.find(
       Struct(matchWinner,
         firstTeamCards, secondTeamCards, lastHandWinner.id,
         teamWinner, firstTeamPoints, secondTeamPoints
       )
     ) match {
       case Some(solution) =>
-        val winner = solution.valueAsOption(teamWinner)(_.toTeam)
-        val firstTeamGainedPoints = solution.valueAsOption(firstTeamPoints)(_.toInt)
-        val secondTeamGainedPoints = solution.valueAsOption(secondTeamPoints)(_.toInt)
+        val winner = solution.valueOf(teamWinner)(_.toTeam)
+        val firstTeamGainedPoints = solution.valueOf(firstTeamPoints)(_.toInt)
+        val secondTeamGainedPoints = solution.valueOf(secondTeamPoints)(_.toInt)
         (winner orNull, firstTeamGainedPoints getOrElse defaultPoints, secondTeamGainedPoints getOrElse defaultPoints)
       case _ => null
     }
@@ -111,19 +111,19 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = {
     val winner = variables().head
-    knowledge.firstSolution(Struct(sessionWinner,firstTeamPoints,secondTeamPoints, winner),winner)(_.toTeam)
+    knowledge.find(Struct(sessionWinner,firstTeamPoints,secondTeamPoints, winner),winner)(_.toTeam)
   }
 
   override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = {
     val vars = variables(amount = 2)
     val firstTeamPoints = vars head
     val secondTeamPoints = vars(1)
-    knowledge.firstSolution(
+    knowledge.find(
       Struct(totalPoints, firstTeamCards, secondTeamCards, lastHandWinner id, firstTeamPoints, secondTeamPoints)
     ) match {
       case Some(solution) =>
-        val firstTeamGainedPoints = solution.valueAsOption(firstTeamPoints)(_.toInt)
-        val secondTeamGainedPoints = solution.valueAsOption(secondTeamPoints)(_.toInt)
+        val firstTeamGainedPoints = solution.valueOf(firstTeamPoints)(_.toInt)
+        val secondTeamGainedPoints = solution.valueOf(secondTeamPoints)(_.toInt)
         (firstTeamGainedPoints getOrElse defaultPoints, secondTeamGainedPoints getOrElse defaultPoints)
       case _ => null
     }
@@ -134,19 +134,19 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   private implicit class RichProlog(knowledge: Prolog) {
 
-    def firstSolution[X](goal: Term, variable: Var)(termToOptionX: Term => Option[X]): Option[X] = firstSolution(goal) match {
-        case Some(solution) => solution.valueAsOption(variable)(termToOptionX)
+    def find[X](goal: Term, variable: Var)(termToOptionX: Term => Option[X]): Option[X] = find(goal) match {
+        case Some(solution) => solution.valueOf(variable)(termToOptionX)
         case _ => None
       }
 
-    def firstSolution(goal: Term): Option[Map[String,Term]] = knowledge solve goal match {
+    def find(goal: Term): Option[Map[String,Term]] = knowledge solve goal match {
         case info if info.isSuccess => Some(solvedVars(info))
         case _ => None
       }
 
-    def allSolutions(goal: Term): Set[Map[String,Term]] = solveAll(knowledge solve goal)()
+    def findAll(goal: Term): Set[Map[String,Term]] = solveAll(knowledge solve goal)()
 
-    def exist(goal: Term): Boolean = knowledge solve goal isSuccess
+    def exists(goal: Term): Boolean = knowledge solve goal isSuccess
 
     @scala.annotation.tailrec
     private[this] final def solveAll(info: SolveInfo)(solutions: Set[Map[String,Term]] = Set()): Set[Map[String,Term]] =
@@ -165,12 +165,17 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private implicit class RichTerm(term: Term) {
     import alice.tuprolog.Number
     import scala.collection.JavaConverters._
+
     def toInt: Option[Int] = if (term.isInstanceOf[Number]) Some(term.toString.toInt) else None
+
+    def toOptionString: Option[String] = Some(term.toString)
+
     def toList: Option[List[Term]] =
       if (term.isList) {
         val list = term.asInstanceOf[Struct]
         Some(list.listIterator().asScala.toList)
       } else None
+
     def toCard: Option[Card] =
       if (term.isCompound) {
         val card = term.asInstanceOf[Struct]
@@ -179,6 +184,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
           case _ => None
         }
       } else None
+
     def toTeam: Option[Team] = term toInt match {
         case Some(id) => Some(Team(id))
         case _ => None
@@ -195,12 +201,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   private implicit class RichMap[K,V](map: Map[K,V]) {
-    def valueAsOption[X](key: K)(termToOptionX: V => Option[X]): Option[X] = map get key match {
+    def valueOf[X](key: K)(termToOptionX: V => Option[X]): Option[X] = map get key match {
         case Some(value) => termToOptionX(value)
-        case _ => None
-      }
-    def valueAs[X](key: K)(termToX: V => X): Option[X] = map get key match {
-        case Some(value) => Some(termToX(value))
         case _ => None
       }
   }
@@ -238,6 +240,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   private implicit def fromIntToString(value: Int): String = value toString
+  private implicit def toOption[X](v: X): Option[X] = Option(v)
 
 }
 
