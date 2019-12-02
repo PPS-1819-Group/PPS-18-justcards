@@ -2,7 +2,6 @@ package org.justcards.server.knowledge_engine.game_knowledge
 
 import java.io.FileInputStream
 
-import alice.tuprolog.{Prolog, SolveInfo, Struct, Term, Theory, Var}
 import org.justcards.commons.{Card, GameId}
 import org.justcards.server.Commons.{Team, UserInfo}
 import org.justcards.server.Commons.BriscolaSetting._
@@ -35,8 +34,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = {
     val variable = variables() head
-    val cardsInHand = knowledge.find(new Struct(hand,variable),variable)(_.toInt)
-    val cardsToDraw = knowledge.find(new Struct(draw,variable),variable)(_.toInt)
+    val cardsInHand = knowledge.find(Struct(hand,variable),variable)(_.toInt)
+    val cardsToDraw = knowledge.find(Struct(draw,variable),variable)(_.toInt)
     (cardsInHand getOrElse defaultCardsInHand, cardsToDraw getOrElse defaultCardsToDraw, defaultCardsOnField)
   }
 
@@ -51,7 +50,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   override def hasToChooseBriscola: BriscolaSetting = {
     val setting = variables().head
-    knowledge.find(new Struct(briscolaSetting,setting),setting)(_.toInt) match {
+    knowledge.find(Struct(briscolaSetting,setting),setting)(_.toInt) match {
       case Some(value) if value == 1 => USER
       case Some(value) if value == 0 => SYSTEM
       case _ => NOT_BRISCOLA
@@ -128,17 +127,18 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   private def variables(amount: Int = 1): List[Var] =
-    (for (variableNumber <- 0 until amount) yield new Var(variableStart + variableNumber)).toList
+    (for (variableNumber <- 0 until amount) yield Var(variableStart + variableNumber)).toList
 
   private[this] implicit class MyRichTerm(term: Term) {
-    def toCard: Option[Card] =
-      if (term.isCompound) {
-        val card = term.asInstanceOf[Struct]
-        card.getArg(0).toString.toOptionInt match {
+    def toCard: Option[Card] = {
+      term toTupleTerm match {
+        case Some(card) => (card getArg 0 toString).toOptionInt match {
           case Some(number) => Some(Card(number, card getArg 1 toString))
           case _ => None
         }
-      } else None
+        case _ => None
+      }
+    }
 
     def toTeam: Option[Team] = term toInt match {
         case Some(id) => Some(Team(id))
@@ -167,30 +167,36 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
 object PrologGameKnowledge {
 
+  import alice.tuprolog.Prolog
+  import TuPrologHelpers._
+
   def apply(): GameKnowledgeFactory = (game: GameId) => new PrologGameKnowledge(game)
 
-  private[this] val COMMON_RULES_FILE: FileInputStream = GameKnowledge.COMMON_RULES_PATH
-  private[this] val COMMON_RULES = new Theory(COMMON_RULES_FILE)
-
-  private[this] implicit def fromStringToInputStream(path: String): FileInputStream = new FileInputStream(path)
-
-  private def createKnowledge(game: GameId): Prolog = {
-    val engine = new Prolog()
-    val gameTheoryFile: FileInputStream = GAMES_PATH concat game.name.toLowerCase concat ".pl"
-    val gameTheory = new Theory(gameTheoryFile)
-    engine setTheory COMMON_RULES
-    engine addTheory gameTheory
-    engine
-  }
+  private def createKnowledge(game: GameId): Prolog =
+    prolog(COMMON_RULES_PATH,GAMES_PATH concat game.name.toLowerCase concat ".pl")
 
 }
 
 object TuPrologHelpers {
 
+  import alice.tuprolog.{Term,SolveInfo}
+
+  type Term = alice.tuprolog.Term
+  type Struct = alice.tuprolog.Struct
+  type Var = alice.tuprolog.Var
+  type Theory = alice.tuprolog.Theory
+  type Prolog = alice.tuprolog.Prolog
+
   implicit def fromStringToTerm(value: String): Term = Term createTerm value
   implicit def fromIntToTerm(value: Int): Term = Term createTerm value.toString
   implicit def fromVarToString(variable: Var): String = variable getName
   implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = Struct(traversable toArray)
+
+  def prolog(files: String*): Prolog = {
+    val engine = new Prolog()
+    files foreach {f => engine addTheory Theory(f)}
+    engine
+  }
 
   implicit class RichMap[K,V](map: Map[K,V]) {
     def valueOf[X](key: K)(toOption: V => Option[X]): Option[X] = map get key match {
@@ -255,6 +261,12 @@ object TuPrologHelpers {
         val list = term.asInstanceOf[Struct]
         Some(list.listIterator().asScala.toList)
       } else None
+
+    def toTupleTerm: Option[TupleTerm] = {
+      if (term.isCompound)
+        Some(TupleTerm(term.asInstanceOf[Struct]))
+      else None
+    }
   }
 
   object Struct {
@@ -266,10 +278,25 @@ object TuPrologHelpers {
 
   object Theory {
     def apply(clauses: Term*): Theory = new Theory(Struct(clauses))
+    def apply(path: String): Theory = new Theory(new FileInputStream(path))
+  }
+
+  trait TupleTerm {
+    def getArg(index: Int): Term
   }
 
   object TupleTerm {
     private[this] val elementSeparator = ","
     def apply(values: String*): Term = Term createTerm values.mkString(elementSeparator)
+
+    def apply(struct: Struct): TupleTerm = new TupleTermImpl(struct)
+
+    private[this] class TupleTermImpl(struct: Struct) extends TupleTerm {
+      override def getArg(index: Int): Term = struct getArg index
+    }
+  }
+
+  object Var {
+    def apply(name: String): Var = new Var(name)
   }
 }
