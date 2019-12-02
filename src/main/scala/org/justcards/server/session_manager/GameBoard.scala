@@ -22,6 +22,12 @@ sealed trait GameBoard {
 
   /**
    * Getter
+   * @return turn order of all player
+   */
+  def turn: List[UserInfo]
+
+  /**
+   * Getter
    * @return last card of deck
    */
   def getLastCardDeck: Option[Card]
@@ -31,6 +37,12 @@ sealed trait GameBoard {
    * @return User that must play
    */
   def getTurnPlayer: Option[UserInfo]
+
+  /**
+   * Getter
+   * @return player after given player
+   */
+  def getPlayerAfter(player: UserInfo): UserInfo
 
   /**
    * Getter
@@ -123,6 +135,11 @@ object GameBoard {
     override def getLastCardDeck: Option[Card] = deck lastOption
 
     override def getTurnPlayer: Option[UserInfo] = handTurn headOption
+
+    override def getPlayerAfter(player: UserInfo): UserInfo = turn.indexOf(player) + 1 match {
+      case x if x >= turn.size || x < 0 => turn.head
+      case x => turn(x)
+    }
 
     override def getHandCardsOf(player: UserInfo): Set[Card] = playerCards(player).hand
 
