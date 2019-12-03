@@ -20,10 +20,11 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   private case object briscolaTimer
   private case object playCardTimer
 
+  self ! StartMatch(teams(TEAM_1).players.head)
 
   val TIMEOUT: Int = 40
 
-  var firstPlayerMatch: UserInfo = _ //WorkAround
+  var firstPlayerMatch: UserInfo = _
 
   override def receive: Receive = preMatchBehaviour
 
@@ -33,6 +34,8 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
       broadcastTo(TEAM_1) (GameStarted(TEAM_1))
       broadcastTo(TEAM_2) (GameStarted(TEAM_2))
       val gameBoard = GameBoard(gameKnowledge, teams(TEAM_1) players, teams(TEAM_2) players, firstPlayer)
+      for (player <- allPlayers)
+        sendGameBoardInformation(gameBoard, player)
       gameKnowledge hasToChooseBriscola match {
         case BriscolaSetting.NOT_BRISCOLA =>
           startMatch(gameBoard, firstPlayer)
@@ -46,8 +49,6 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
           this broadcast CorrectBriscola(briscolaSeed)
           startMatch(gameBoard,firstPlayer)
         case BriscolaSetting.USER =>
-          for (player <- allPlayers)
-            sendGameBoardInformation(gameBoard, player)
           context become chooseBriscolaPhase(gameBoard, firstPlayer)
           firstPlayer.userRef ! ChooseBriscola(TIMEOUT)
           timers startSingleTimer(briscolaTimer, Timeout, TIMEOUT seconds)
