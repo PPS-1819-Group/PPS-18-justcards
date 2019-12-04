@@ -16,7 +16,6 @@ chooseBriscola(1).
 
 % currentBriscola(+Briscola).
 % Has to be changed at runtime every match if chooseBriscola(1|0)
-currentBriscola(denara).
 
 pointsToWinSession(41).
 winnerPoints(X,Y):- Y is X/3.

@@ -2,11 +2,13 @@ package org.justcards.client.controller
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
+import scala.concurrent.duration._
 import org.justcards.client.{TestConnectionManager, TestView}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.controller.AppController._
-import org.justcards.client.view.{MenuChoice, OptionConnectionFailed}
+import org.justcards.client.view.{MenuChoice, OptionConnectionFailed, FilterChoice}
 import org.justcards.client.view.View._
+import org.justcards.client.view.FilterChoice._
 import org.justcards.commons.AppError._
 import org.justcards.commons._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -23,7 +25,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
   "The application controller" when {
 
-    "the application start" should {
+    "the application starts" should {
 
       "tell the view to make the user choose a nickname" in {
         val (appController, testProbe) = initComponents
@@ -87,8 +89,17 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "send a message to the connection manager to get the available lobbies" in {
         val (appController, testProbe) = login()
-        appController ! MenuSelection(MenuChoice.JOIN_LOBBY)
-        testProbe.expectMsgType[RetrieveAvailableLobbies]
+        appController ! MenuSelection(MenuChoice.LIST_LOBBY)
+        testProbe expectMsg RetrieveAvailableLobbies()
+      }
+
+      "send a message to the connection manager to get the filtered available lobbies" in {
+        val (appController, testProbe) = login()
+        appController ! MenuSelection(MenuChoice.LIST_LOBBY_WITH_FILTERS, Map(
+          (BY_OWNER-> username),
+          (BY_GAME -> game.name)
+        ))
+        testProbe expectMsg RetrieveAvailableLobbies(game.name, username)
       }
 
       "inform the user about the available lobbies when received" in {
@@ -104,6 +115,12 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg JoinLobby(lobby)
       }
 
+      "send a message to the connection manager to join a lobby if a user already knows the lobby Id" in {
+        val (appController, testProbe) = login()
+        appController ! MenuSelection(MenuChoice.JOIN_LOBBY_BY_ID, Map(BY_ID -> lobby.id.toString))
+        testProbe expectMsg JoinLobby(LobbyId(lobby.id))
+      }
+
       "inform the user that he joined a lobby when notified" in {
         val (appController, testProbe) = joinLobby
         val tuple = (lobby, Set(user))
@@ -113,7 +130,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
     }
 
-    "the user is in a lobby" should {
+    "a user is in a lobby" should {
 
       "inform the user if notified of a update regarding the lobby he created" in {
         val (appController, testProbe) = createLobby
@@ -133,9 +150,140 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg ShowLobbyUpdate(tuple._1, tuple._2)
       }
 
+      "inform the user that the game is started" in {
+        val (appController, testProbe) = createLobby
+        appController ! LobbyCreated(lobby)
+        testProbe receiveN 1
+        appController ! GameStarted(team)
+        testProbe expectMsg ShowGameStarted(team)
+      }
+
     }
 
-    "a connection error occur" should {
+    "a user has started a game session" should {
+
+      "inform the user each time it receives new information about the game" in {
+        val (appController, testProbe) = startGame
+        appController ! Information(handCards, fieldCards)
+        testProbe expectMsg ShowGameInformation(handCards, fieldCards)
+      }
+
+      "inform the user about who won the current hand" in {
+        val (appController, testProbe) = startGame
+        appController ! HandWinner(user)
+        testProbe expectMsg ShowHandWinner(user)
+      }
+
+      "inform the user about who won the current match" in {
+        val (appController, testProbe) = startGame
+        val team1Points = 1
+        val team2Points = 2
+        appController ! MatchWinner(team, team1Points, team2Points)
+        testProbe expectMsg ShowMatchWinner(team, team1Points, team2Points)
+      }
+
+      "inform the user about who won the game" in {
+        val (appController, testProbe) = startGame
+        appController ! GameWinner(team)
+        testProbe expectMsg ShowGameWinner(team)
+      }
+
+      "ask the user to choose a Briscola when it receives the command from the connectionManager" in {
+        val (appController, testProbe) = startGame
+        appController ! ChooseBriscola(briscolaTime)
+        testProbe expectMsg ViewChooseBriscola(briscolaSet, briscolaTime)
+      }
+
+      "send a message to the connection manager, when the user chose the Briscola" in {
+        val (appController, testProbe) = chooseBriscola
+        val briscola = "spade"
+        appController ! ChosenBriscola(briscola)
+        testProbe expectMsg Briscola(briscola)
+      }
+
+      "tell the user that the Briscola was correct" in {
+        val (appController, testProbe) = chooseBriscola
+        appController ! ChosenBriscola("spade")
+        testProbe receiveN 1
+        appController ! CorrectBriscola()
+        testProbe expectMsg MoveWasCorrect
+      }
+
+      "send a timeout message after a default time if the user doesn't choose a Briscola" in {
+        implicit val (_, testProbe) = chooseBriscola
+        expectTimeoutExceeded(briscolaTime)
+      }
+
+      "not send a timeout message to the connection manager if the user chooses a Briscola before the timeout" in {
+        implicit val (appController, testProbe) = chooseBriscola
+        expectNoTimeoutExceeded(appController, ChosenBriscola("spade"), briscolaTime)
+      }
+
+      "ask again to the user to choose the Briscola if the choice was incorrect" in {
+        implicit val (appController, testProbe) = chooseBriscola
+        appController ! ChosenBriscola("spade")
+        testProbe receiveN 1
+        appController ! ErrorOccurred(BRISCOLA_NOT_VALID)
+        testProbe expectMsgAllOf(ShowError(BRISCOLA_NOT_VALID), ViewChooseBriscola(briscolaSet, briscolaTime))
+      }
+
+      "send a timeout message after the correct time if the user chosen the wrong Briscola" in {
+        implicit val (appController, testProbe) = chooseBriscola
+        sendErrorAndExpectTimeoutExceeded(appController, briscolaTime)(ChosenBriscola("spade"), BRISCOLA_NOT_VALID)
+      }
+
+      "tell the user that is his turn after receiving a Turn message from connection manager" in {
+        val (appController, testProbe) = startGame
+        appController ! Turn(handCards, fieldCards, turnTime)
+        testProbe expectMsg ShowTurn(handCards, fieldCards, turnTime)
+      }
+
+      "send the card the user wants to play to the connection manager" in {
+        val (appController, testProbe) = myTurn
+        appController ! ChosenCard(card)
+        testProbe expectMsg Play(card)
+      }
+
+      "tell the user that he played the card" in {
+        val (appController, testProbe) = myTurn
+        appController ! ChosenCard(card)
+        testProbe receiveN 1
+        appController ! Played(card)
+        testProbe expectMsg MoveWasCorrect
+      }
+
+      "send a timeout message after a default time if the user doesn't play a card" in {
+        implicit val (_, testProbe) = myTurn
+        expectTimeoutExceeded(turnTime)
+      }
+
+      "not send a timeout message to the connection manager if the user plays a card before the timeout" in {
+        implicit val (appController, testProbe) = myTurn
+        expectNoTimeoutExceeded(appController, ChosenCard(card), turnTime)
+      }
+
+      "ask again to the user to play a card if the choice was incorrect" in {
+        val (appController, testProbe) = myTurn
+        appController ! ChosenCard(card)
+        testProbe receiveN 1
+        appController ! ErrorOccurred(CARD_NOT_VALID)
+        testProbe expectMsgAllOf(ShowError(CARD_NOT_VALID), ShowTurn(handCards, fieldCards, turnTime))
+      }
+
+      "send a timeout message after the correct time if the user played the wrong card" in {
+        implicit val (appController, testProbe) = myTurn
+        sendErrorAndExpectTimeoutExceeded(appController, turnTime)(ChosenCard(card), CARD_NOT_VALID)
+      }
+
+      "end game session and return to the menu when the session is over" in {
+        val (appController, testProbe) = startGame
+        appController ! OutOfLobby(lobby)
+        testProbe expectMsg ShowMenu
+      }
+
+    }
+
+    "a connection error occurs" should {
 
       "inform the user that the system is not available and the application won't work" in {
         val (appController, testProbe) = initComponents
@@ -216,7 +364,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
   private def retrieveAvailableLobbies:(ActorRef, TestProbe) = {
     val (appController, testProbe) = login()
-    appController ! MenuSelection(MenuChoice.JOIN_LOBBY)
+    appController ! MenuSelection(MenuChoice.LIST_LOBBY)
     testProbe receiveN 1
     (appController, testProbe)
   }
@@ -227,4 +375,54 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
     testProbe receiveN 1
     (appController, testProbe)
   }
+
+  private def startGame: (ActorRef, TestProbe) = {
+    val (appController, testProbe) = createLobby
+    appController ! LobbyCreated(lobby)
+    appController ! GameStarted(team)
+    testProbe receiveN 2
+    (appController, testProbe)
+  }
+
+  private def chooseBriscola: (ActorRef, TestProbe) = {
+    val (appController, testProbe) = startGame
+    appController ! ChooseBriscola(briscolaTime)
+    testProbe receiveN 1
+    (appController, testProbe)
+  }
+
+  private def myTurn: (ActorRef, TestProbe) = {
+    val (appController, testProbe) = startGame
+    appController ! Turn(handCards, fieldCards, turnTime)
+    testProbe receiveN 1
+    (appController, testProbe)
+  }
+
+  private def expectTimeoutExceeded(timeLimit: FiniteDuration)(implicit testProbe: TestProbe): Unit = {
+    testProbe.within(timeLimit + 1.second){
+      testProbe.expectMsgAllOf(TimeoutExceeded(), ShowTimeForMoveExceeded)
+    }
+  }
+
+  private def expectNoTimeoutExceeded(appController: ActorRef, msgToSend: Any, timeLimit: FiniteDuration)
+                                  (implicit testProbe: TestProbe): Unit = {
+    testProbe.within(briscolaTime + 1.second){
+      Thread.sleep(1000)
+      appController ! msgToSend
+      testProbe receiveN 1
+      testProbe expectNoMessage
+    }
+  }
+
+  private def sendErrorAndExpectTimeoutExceeded(appController: ActorRef, timeLimit: FiniteDuration)
+                                               (msgToSend: Any, errorToSend: AppError)
+                                               (implicit testProbe: TestProbe): Unit = {
+    Thread.sleep(timeLimit.toMillis/2)
+    appController ! msgToSend
+    testProbe receiveN 1
+    appController ! ErrorOccurred(errorToSend)
+    testProbe receiveN 2
+    expectTimeoutExceeded(FiniteDuration(timeLimit._1/2, timeLimit._2))
+  }
+
 }

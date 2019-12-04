@@ -4,9 +4,13 @@ import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import org.justcards.client.controller.AppController._
-import org.justcards.commons.{AppError, GameId, LobbyId, UserId}
+import MenuChoice._
+import FilterChoice._
+import org.justcards.commons._
+import org.justcards.commons.AppError._
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.Success
 
 
@@ -14,34 +18,74 @@ class ConsoleView(controller: ActorRef) extends Actor {
   import View._
   import ConsoleView._
 
-  implicit val executor: ExecutionContextExecutor =
+  private implicit val executor: ExecutionContextExecutor =
     scala.concurrent.ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
-  var awaitingUserChoice: Boolean = false
+  private var awaitingUserChoice: Boolean = false
+  private var myUsername: String = ""
 
   override def receive: Receive = init orElse errorManagement
 
   def init: Receive = {
     case ShowUsernameChoice => askUsername()
-    case NewUserCommand(username) => controller ! ChosenUsername(username)
-    case ShowMenu =>
-      askMenuChoice()
-      context >>> inMenu
+    case NewUserCommand(username) =>
+      controller ! ChosenUsername(username)
+      myUsername = username
+    case ShowMenu => context toMenu
   }
 
   private def inMenu: Receive = {
     case NewUserCommand(choice) => //chosen a menu voice
       parseToNumberAnd(choice, MenuChoice.maxId - 1) { numberChoice =>
-        controller ! MenuSelection(MenuChoice(numberChoice))
+        MenuChoice(numberChoice) match {
+          case LIST_LOBBY_WITH_FILTERS =>
+            askLobbyFilters()
+            context >>> lobbyByFilters
+          case JOIN_LOBBY_BY_ID =>
+            askLobbyId()
+            context >>> lobbyById
+          case other => controller ! MenuSelection(other)
+        }
       } (askMenuChoice())
     case ShowLobbyCreation(games) =>
       val gamesList = games.toList
       showLobbyCreationOptions(gamesList)
       context >>> lobbyCreation(gamesList)
-    case ShowLobbies(lobbies) =>
-      val lobbiesList = lobbies.toList
-      showLobbies(lobbiesList)
-      context >>> lobbyLookup(lobbiesList)
+    case ShowLobbies(lobbies) => context toLobbyLookup lobbies
+  }
+
+  private def lobbyById: Receive = {
+    case NewUserCommand(choice) =>
+      if(choice == BACK)
+        context toMenu
+      else
+        controller ! MenuSelection(JOIN_LOBBY_BY_ID, Map(BY_ID -> choice))
+    case ShowError(error) if error == LOBBY_NOT_EXISTING =>
+      println(errorMessage(error))
+      askLobbyId()
+    case ShowJoinedLobby(lobby, members) => context joinLobby(lobby, members)
+  }
+
+  private def lobbyByFilters: Receive = {
+    case NewUserCommand(choice) =>
+      if(choice == BACK)
+        context toMenu
+      else {
+        val limit = FilterChoice.values.count(!_.toString.isEmpty)
+        parseToNumberAnd(choice, limit) { numberChoice =>
+          askToUser(FILTER_CHOICE)
+          val filterChoice = FilterChoice(numberChoice)
+          context >>> {
+            case NewUserCommand(filter) =>
+              controller ! MenuSelection(LIST_LOBBY_WITH_FILTERS, Map(filterChoice -> filter))
+              context >>> lobbyByFilters
+          }
+        }(askLobbyFilters())
+      }
+    case ShowError(error) if error == LOBBY_NOT_EXISTING =>
+      println(errorMessage(error))
+      askLobbyFilters()
+    case ShowLobbies(lobbies) => context toLobbyLookup lobbies
   }
 
   private def lobbyLookup(lobbies: List[(LobbyId, Set[UserId])]): Receive = {
@@ -53,11 +97,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
       val lobbiesList = newLobbies.toList
       showLobbies(lobbiesList)
       context >>> lobbyLookup(lobbiesList)
-    case ShowJoinedLobby(lobby, members) =>
-      clearAndPrint(LOBBY_JOINED_MESSAGE(lobby))
-      printLobbyState(lobby, members)
-      showLobbyOptions()
-      context >>> inLobby
+    case ShowJoinedLobby(lobby, members) => context joinLobby(lobby, members)
   }
 
   private def lobbyCreation(games: List[GameId]): Receive = {
@@ -67,24 +107,53 @@ class ConsoleView(controller: ActorRef) extends Actor {
       } (showLobbyCreationOptions(games))
     case ShowCreatedLobby(lobby) =>
       clearAndPrint(LOBBY_CREATED_MESSAGE(lobby))
-      showLobbyOptions()
-      context >>> inLobby
+      context toLobby
   }
 
   private def inLobby: Receive = {
+    case ShowMenu => context toMenu
     case ShowLobbyUpdate(lobby, members) =>
-      println() ; println(NEW_LINE)
+      println() ; clearAndPrint()
       printLobbyState(lobby, members)
       showLobbyOptions()
-    case NewUserCommand(command) => command match {
-      case EXIT => controller ! ExitFromLobby
-    }
+    case NewUserCommand(EXIT) => case EXIT => controller ! ExitFromLobby
+    case ShowGameStarted(team) =>
+      clearAndPrint(GAME_STARTED(team))
+      context >>> inGame(team)
+  }
+
+  private def inGame(myTeam: TeamId, myCards: List[Card] = List()): Receive = {
+    case ShowGameWinner(teamWinner) =>
+      clearAndPrint(if(teamWinner == myTeam) GAME_WON else GAME_LOST(teamWinner))
+    case ShowMatchWinner(winnerTeam, team1Points, team2Points) =>
+      clearAndPrint(MATCH_ENDS(winnerTeam, (team1Points, team2Points)))
+    case ShowHandWinner(player) =>
+      clearAndPrint(if(player.name == myUsername) HAND_WON else HAND_LOST(player))
+    case ShowGameInformation(myCards, fieldCards) =>
+      val orderedCards = myCards.ordered
+      printGameInformation(orderedCards, fieldCards, isMyTurn = false)
+      context >>> inGame(myTeam, orderedCards)
+    case ShowTurn(myCards, fieldCards, timeout) => askCard(myTeam, myCards.ordered, fieldCards, timeout seconds)
+    case ViewChooseBriscola(briscolaSet, timeout) => askBriscola(briscolaSet.toList, timeout seconds)(myTeam, myCards)
+    case ShowMenu => context toMenu
+  }
+
+  private def userDoMove(onUserChoice: String => Unit)(errorToIntercept: AppError)
+                        (myTeam: TeamId, myCards: List[Card]): Receive = {
+    case NewUserCommand(choice) => onUserChoice(choice)
+    case ShowTimeForMoveExceeded =>
+      println(TIME_IS_UP)
+      context >>> inGame(myTeam, myCards)
+    case MoveWasCorrect => context >>> inGame(myTeam, myCards)
+    case ShowError(`errorToIntercept`) =>
+      println(errorMessage(errorToIntercept))
+      context >>> inGame(myTeam, myCards)
   }
 
   private def disconnected: Receive = {
     case NewUserCommand(command) => //chosen what to do
       parseToNumberAnd(command, OptionConnectionFailed.maxId - 1) { numberChoice =>
-        val option = OptionConnectionFailed(numberChoice)
+        val option = fromIntToOptionConnectionFailed(numberChoice)
         controller ! ReconnectOption(option)
         if(option == OptionConnectionFailed.QUIT) goodbye()
         context >>> init
@@ -109,19 +178,64 @@ class ConsoleView(controller: ActorRef) extends Actor {
     askToUser(NUMBER_CHOICE)
   }
 
+  private def askLobbyId(): Unit = {
+    clearAndPrint(LOBBY_BY_ID_TITLE)
+    askToUser(ID_CHOICE)
+  }
+
+  private def askLobbyFilters(): Unit = {
+    clearAndPrint(LOBBY_BY_FILTER_TITLE)
+    for (choice <- FilterChoice.values; if !choice.toString.isEmpty)
+      println(choice.id + ")" + choice)
+    askToUser(NUMBER_CHOICE)
+  }
+
+  private def askBriscola(briscolaList: List[String], timeout: FiniteDuration)(myTeam: TeamId, myCards: List[Card]): Unit = {
+    def ask(showTimeout: Boolean = false): Unit = {
+      println(briscolaList mkString " | ")
+      askToUser(if(showTimeout) CHOOSE_BRISCOLA_TIMEOUT(timeout) else CHOOSE_BRISCOLA)
+    }
+
+    ask(showTimeout = true)
+    context >>> userDoMove (choice => {
+      val briscola = briscolaList find(_.toLowerCase == choice.toLowerCase)
+      if(briscola isDefined) controller ! ChosenBriscola(briscola.get)
+      else {
+        println(WRONG_VALUE)
+        ask()
+      }
+    })(AppError.BRISCOLA_NOT_VALID)(myTeam, myCards)
+  }
+
+  private def askCard(myTeam: TeamId, myCards: List[Card], fieldCards: List[Card], timeout: FiniteDuration): Unit = {
+    def ask() : Unit = {
+      printGameInformation(myCards, fieldCards, isMyTurn = true)
+      askToUser(CHOOSE_CARD(timeout))
+    }
+
+    ask()
+    context >>> userDoMove { choice =>
+      parseToNumberAnd(choice, myCards.size)(numberChoice => {
+        controller ! ChosenCard(myCards(numberChoice - 1))
+        context >>> inGame(myTeam, myCards)
+      })(ask())
+    }(AppError.CARD_NOT_VALID)(myTeam, myCards)
+  }
+
   private def showLobbyCreationOptions(games: List[GameId]): Unit = {
     clearAndPrint(LOBBY_CREATION_TITLE)
-    for (index <- 1 to games.size)
-      println(index + ")" + games(index - 1).name)
+    printNumberAndOption(games)(_.name)
     askToUser(NUMBER_CHOICE)
   }
 
   private def showLobbies(lobbies: List[(LobbyId, Set[UserId])]): Unit = {
     clearAndPrint(LOBBY_LIST_TITLE)
-    for (
-      index <- 1 to lobbies.size;
-      lobby = lobbies(index - 1)
-    ) println(index + ")" + "[" + lobby._2.size + "/4 players]" + fromLobbyToString(lobby._1))
+    if(lobbies isEmpty) println(DEFAULT_LOBBIES_MESSAGE)
+    else
+      for (
+        index <- 1 to lobbies.size;
+        lobby = lobbies(index - 1)
+      ) println(index + ")" + "[" + lobby._2.size + "/4 players]" + fromLobbyToString(lobby._1))
     askToUser(NUMBER_CHOICE)
   }
 
@@ -135,8 +249,26 @@ class ConsoleView(controller: ActorRef) extends Actor {
 
   private def printLobbyState(lobby: LobbyId, players: Set[UserId]): Unit = {
     println(lobby + ", players (" + players.size + "/4):")
-    for(player <- players)
-      println("- " + player.name)
+    println(players map fromUserToString mkString(start = "- ", sep = "\n- ", end = ""))
+  }
+
+  private def printGameInformation(myCards: List[Card], fieldCards: List[Card], isMyTurn: Boolean): Unit = {
+    printFieldCards(fieldCards)
+    printMyCards(myCards, isMyTurn)
+  }
+
+  private def printFieldCards(cards: List[Card]): Unit = {
+    clearAndPrint()
+    printCards(FIELD_CARD_MESSAGE, cards)
+  }
+
+  private def printMyCards(cards: List[Card], isMyTurn: Boolean): Unit =  {
+    if(isMyTurn) {
+      println(HAND_CARD_MESSAGE)
+      printNumberAndOption(cards)(fromCardToString)
+    } else {
+      printCards(HAND_CARD_MESSAGE, cards)
+    }
   }
 
   private def goodbye(): Unit = {
@@ -148,9 +280,17 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def askToUser(question: String): Unit = {
     if(!awaitingUserChoice) {
       awaitingUserChoice = true
-      Future { ask(question) } onSuccessfulComplete {
+      Future { ask(question) } onSuccessfulComplete { result =>
+        import akka.pattern.ask
+        import akka.util.Timeout
+        implicit val timeout = Timeout(3 seconds)
         awaitingUserChoice = false
-        self ! NewUserCommand(_)
+        if(result == BACK)
+          controller ? CanGoBackToMenu onComplete {
+            case Success(GoBackToMenu(true)) => context toMenu
+            case _ => self ! NewUserCommand(result)
+          }
+        else self ! NewUserCommand(result)
       }
     } else {
       println(question)
@@ -158,19 +298,36 @@ class ConsoleView(controller: ActorRef) extends Actor {
     }
   }
 
-  private def parseToNumberAnd(choice: String, size: Int)(okThen: => Int => Unit)(orElse: => Unit): Unit = {
-    val numberChoice = parseNumberChoice(choice, size)
-    if(numberChoice isDefined) okThen(numberChoice.get)
-    else {
-      println(WRONG_VALUE)
-      orElse
-    }
-  }
-
   private implicit class RichContext(context: ActorContext) {
     def >>>(behaviour: Receive): Unit = {
       require(behaviour != errorManagement)
       context become (behaviour orElse errorManagement)
+    }
+
+    def toMenu: Receive = {
+      askMenuChoice()
+      context >>> inMenu
+      inMenu
+    }
+
+    def toLobbyLookup(lobbies: Set[(LobbyId, Set[UserId])]): Receive = {
+      val lobbiesList = lobbies.toList
+      showLobbies(lobbiesList)
+      val nextBehaviour = lobbyLookup(lobbiesList)
+      context >>> nextBehaviour
+      nextBehaviour
+    }
+
+    def toLobby: Receive = {
+      showLobbyOptions()
+      context >>> inLobby
+      inLobby
+    }
+
+    def joinLobby(lobby:LobbyId, members: Set[UserId]): Unit = {
+      clearAndPrint(LOBBY_JOINED_MESSAGE(lobby))
+      printLobbyState(lobby, members)
+      toLobby
     }
   }
 
@@ -180,18 +337,46 @@ object ConsoleView {
 
   def apply(): View = controller => Props(classOf[ConsoleView], controller)
 
-  private val NUMBER_CHOICE = "Insert number of your choice:"
+  private val BACK = "back"
+  private val NUMBER_CHOICE = "Insert number of your choice or \"" concat BACK concat "\" to return to the menu:"
+  private val ID_CHOICE = "Insert the lobby ID you want to join:"
+  private val FILTER_CHOICE = "Insert value:"
   private val WRONG_VALUE = "Error: unacceptable value"
   private val EMPTY_RESPONSE = "Empty answer isn't allowed"
   private val NEW_LINE = "---------------------------"
+  private val FIELD_CARD_MESSAGE = "Cards on the field: => "
+  private val HAND_CARD_MESSAGE = "Cards on your hand: "
+  private val CHOOSE_NICKNAME = "Choose your nickname:"
+  private val CHOOSE_BRISCOLA = "Choose the briscola you want"
+  private val CHOOSE_BRISCOLA_TIMEOUT = (time: FiniteDuration) => CHOOSE_BRISCOLA + ", you have " + time + ":"
+  private val CHOOSE_CARD = (time: FiniteDuration) => "Insert the number of the card you want to play, you have " + time + ":"
   private val GOODBYE = "Bye"
 
   //my messages
   private case class NewUserCommand(command: String)
 
-  private def clearAndPrint(message: String): Unit = {
+  private def clearAndPrint(message: String = ""): Unit = {
     println(NEW_LINE)
-    println(message)
+    if(!message.isEmpty) println(message)
+  }
+
+  private def printCards(message: String, cards: List[Card]): Unit = {
+    print(message)
+    println(cards map fromCardToString mkString " | ")
+  }
+
+  private def printNumberAndOption[A](list: List[A])(extractor: A => String): Unit = {
+    for (index <- 1 to list.size)
+      println(index + ")" + extractor(list(index - 1)))
+  }
+
+  private def parseToNumberAnd(choice: String, size: Int)(okThen: Int => Unit)(orElse: => Unit): Unit = {
+    val numberChoice = parseNumberChoice(choice, size)
+    if(numberChoice isDefined) okThen(numberChoice.get)
+    else {
+      println(WRONG_VALUE)
+      orElse
+    }
   }
 
   private def parseNumberChoice(choice: String, maxValue: Int): Option[Int] = {
@@ -208,8 +393,7 @@ object ConsoleView {
   private def ask(question: String): String = {
     import scala.io.StdIn._
     println(question)
-    print(View.INPUT_SYMBOL)
-    readLine match {
+    readLine(View.INPUT_SYMBOL) match {
       case a if a.isBlank || a.isEmpty =>
         println(EMPTY_RESPONSE)
         ask(question)
@@ -217,24 +401,37 @@ object ConsoleView {
     }
   }
 
-  implicit private def fromLobbyToString(lobby: LobbyId): String =
-    "Lobby <" + lobby.id + "> created by " + lobby.owner + " | Game: " + lobby.game.name
-
-  @throws(classOf[Exception])
-  implicit private def IntToMenuChoice(choice: Int): MenuChoice.Value = MenuChoice(choice)
-
-  @throws(classOf[Exception])
-  implicit private def IntToOptionConnectionFailed(choice: Int): OptionConnectionFailed.Value = OptionConnectionFailed(choice)
-
-  implicit class RichFuture[A](future: Future[A]) {
-    def onSuccessfulComplete(nextOperation: => A => Unit)(implicit executor: ExecutionContext): Unit =
-      future onComplete {
-        case Success(value) => nextOperation(value)
-        case _ =>
-      }
-  }
-
 }
 
 object TestConsole extends App {
+
+  import akka.actor._
+  import View._
+
+  class Pippo extends Actor {
+    override def receive: Receive = {
+      case m => println(m)
+    }
+  }
+
+  val actorSystem = ActorSystem("view-test")
+  val ooo = actorSystem.actorOf(Props(classOf[Pippo]))
+  val view = actorSystem.actorOf(View()(ooo))
+
+  val myCards = Set(Card(2, "denara"), Card(1, "denara"), Card(1, "coppe"), Card(2, "coppe"), Card(3, "denara"), Card(3, "coppe"))
+  val fieldCards = List(Card(3, "coppe"))
+
+  view ! ShowMenu
+  /*view ! ShowLobbies(Set())
+  view ! ShowJoinedLobby(LobbyId(1234, "pippo", GameId("beccaccino")), Set(UserId(1, "io")))
+  view ! ShowGameStarted(TeamId("team pippe"))
+  view ! ShowGameInformation(myCards, fieldCards)
+  view ! ShowMatchWinner(TeamId("team ciccio"), 12, 45)
+  view ! ShowGameWinner(TeamId("team ciccio"))
+  view ! ShowGameWinner(TeamId("team pippe"))
+
+  view ! ShowTurn(myCards, fieldCards, 10)
+  view ! ShowTimeForMoveExceeded*/
+
+  //view ! ViewChooseBriscola(Set("cuori", "picche"), 3)
 }
