@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import org.justcards.commons.{Briscola, Card, ChooseBriscola, CorrectBriscola, ErrorOccurred, GameId, GameStarted, Information, LobbyId, Play, Played, Turn}
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team._
-import org.justcards.server.Commons.{BriscolaSetting, UserInfo}
+import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.justcards.server.user_manager.Lobby
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -171,17 +171,20 @@ object SessionManagerTest {
   object TestGameKnowledge {
 
     val SEED = "bastoni"
+    val endInfo: (Team.Value, Int, Int) = (TEAM_1, 1, 0)
 
     def apply(briscolaSetting: BriscolaSetting.Value,
               correctBriscola: Boolean = true,
               playableCard: Boolean = true,
-              firstHandWinner: UserInfo = null): GameKnowledge =
-      TestGameKnowledge(briscolaSetting, correctBriscola, playableCard, firstHandWinner)
+              firstHandWinner: UserInfo = null,
+              sessionWinner: Boolean = true): GameKnowledge =
+      TestGameKnowledge(briscolaSetting, correctBriscola, playableCard, firstHandWinner, sessionWinner)
 
     case class TestGameKnowledge(briscolaSetting: BriscolaSetting.Value,
                                  correctBriscola: Boolean,
                                  playableCard: Boolean,
-                                 firstHandWinner: UserInfo
+                                 firstHandWinner: UserInfo,
+                                 sessionWinner: Boolean
                                 ) extends GameKnowledge {
 
       override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = (0,0,0)
@@ -196,13 +199,12 @@ object SessionManagerTest {
 
       override def handWinner(fieldCards: List[(Card, UserInfo)]): UserInfo = firstHandWinner
 
-      override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = ???
+      override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = endInfo
 
-      override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = ???
+      override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = if (sessionWinner) Some(endInfo._1) else None
 
-      override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
+      override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = (endInfo._2, endInfo._3)
     }
   }
-
 
 }
