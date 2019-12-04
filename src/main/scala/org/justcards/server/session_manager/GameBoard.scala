@@ -6,7 +6,7 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 
 import scala.util.Random
 
-sealed trait GameBoard {
+trait GameBoard {
 
   /**
    * Getter

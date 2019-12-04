@@ -16,13 +16,12 @@ import org.justcards.server.user_manager.Lobby
 class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value,TeamPoints], lobby: Lobby) extends Actor with Timers{
   import Team._
   import org.justcards.commons.AppError._
+  import SessionManager._
 
   private case object briscolaTimer
   private case object playCardTimer
 
   self ! StartMatch(teams(TEAM_1).players.head)
-
-  val TIMEOUT: Int = 40
 
   var firstPlayerMatch: UserInfo = _
 
@@ -50,11 +49,9 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
           startMatch(gameBoard,firstPlayer)
         case BriscolaSetting.USER =>
           context become chooseBriscolaPhase(gameBoard, firstPlayer)
-          firstPlayer.userRef ! ChooseBriscola(TIMEOUT)
+          firstPlayer.userRef ! ChooseBriscola(TIMEOUT_TO_USER)
           timers startSingleTimer(briscolaTimer, Timeout, TIMEOUT seconds)
       }
-    case StartMatch(_) => //error
-
   }
 
   private def chooseBriscolaPhase(gameBoard: GameBoard, firstPlayer: UserInfo): Receive = {
@@ -89,13 +86,8 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
           case Some(x) => x
         }
       }
-      if (newGameBoard.getHandCardsOfTurnPlayer.get.isEmpty) {
-        context become endMatch(newGameBoard)
-        self ! endMatchMessage(newGameBoard.getTurnPlayer.get)
-      } else {
-        context become inMatch(newGameBoard)
-        turn(newGameBoard, newGameBoard.getTurnPlayer.get)
-      }
+      context become inMatch(newGameBoard)
+      turn(newGameBoard, newGameBoard.getTurnPlayer.get)
     case Play(_) =>
       sender() ! ErrorOccurred(CARD_NOT_VALID)
     case Timeout() =>
@@ -135,14 +127,18 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   }
 
   private def turn(gameBoard: GameBoard, turnPlayer: UserInfo): Unit = {
-    for (player <- allPlayers filter (_!=turnPlayer))
-      sendGameBoardInformation(gameBoard, player)
-    turnPlayer.userRef ! Turn(gameBoard getHandCardsOf turnPlayer, gameBoard.fieldCards.map(_._1), TIMEOUT)
-    timers startSingleTimer(playCardTimer, Timeout, TIMEOUT seconds)
+    if (gameBoard.getHandCardsOfTurnPlayer.get.isEmpty) {
+      context become endMatch(gameBoard)
+      self ! endMatchMessage(gameBoard.getTurnPlayer.get)
+    } else {
+      for (player <- allPlayers filter (_!=turnPlayer))
+        sendGameBoardInformation(gameBoard, player)
+      turnPlayer.userRef ! Turn(gameBoard getHandCardsOf turnPlayer, gameBoard.fieldCards.map(_._1), TIMEOUT_TO_USER)
+      timers startSingleTimer(playCardTimer, Timeout, TIMEOUT seconds)
+    }
   }
 
   private def playable(gameBoard: GameBoard, card: Card): Boolean =
-    //gameBoard.getHandCardsOfTurnPlayer.get.contains(card) &&
       gameKnowledge.play(card, gameBoard.fieldCards.map(_._1), gameBoard.getHandCardsOfTurnPlayer.get).isDefined
 
   private def sendGameBoardInformation(gameBoard: GameBoard, player: UserInfo): Unit =
@@ -163,6 +159,10 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
 
 object SessionManager {
+
+  val TIMEOUT: Int = 40
+  val TIMEOUT_TO_USER: Int = 30
+
   def apply(lobby: Lobby, gameModel: GameKnowledge): Props = {
     val members = lobby.members.toList.splitAt(lobby.members.size/2)
     Props(classOf[SessionManager], gameModel, Map((Team.TEAM_1, TeamPoints(members._1, 0)), (Team.TEAM_2, TeamPoints(members._2, 0))), lobby)
