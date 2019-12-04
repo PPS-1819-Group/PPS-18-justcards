@@ -142,7 +142,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   }
 
   private def playable(gameBoard: GameBoard, card: Card): Boolean =
-    gameBoard.getHandCardsOfTurnPlayer.get.contains(card) &&
+    //gameBoard.getHandCardsOfTurnPlayer.get.contains(card) &&
       gameKnowledge.play(card, gameBoard.fieldCards.map(_._1), gameBoard.getHandCardsOfTurnPlayer.get).isDefined
 
   private def sendGameBoardInformation(gameBoard: GameBoard, player: UserInfo): Unit =
