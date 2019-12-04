@@ -30,7 +30,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
 
   private def createLobby(lobbies: LobbyDatabase)(gameId: GameId, userInfo: UserInfo): Unit = {
     import context.dispatcher
-    implicit val timeout = Timeout(3 seconds)
+    implicit val timeout: Timeout = Timeout(3 seconds)
     val request = knowledgeEngine ? GameExistenceRequest(gameId)
     request filter {
       case GameExistenceResponse(response) => response
@@ -54,7 +54,10 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
         if(lobby isFull) userInfo.userRef ! ErrorOccurred(LOBBY_FULL)
         else {
           val newLobby = addUserToLobby(lobby, userInfo)
-          context become defaultBehaviour(lobbies + newLobby)
+          if (newLobby isFull) {
+            context become defaultBehaviour(lobbies - lobby)
+            sender() ! FullLobby(lobby)
+          } else context become defaultBehaviour(lobbies + newLobby)
         }
       }
     }

@@ -39,6 +39,18 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
       this >>> logged(username)
       userRef ==> OutOfLobby(lobby)
     case UserRemoved(false) => userRef ==> ErrorOccurred(LOBBY_NOT_EXISTING)
+    case msg: GameStarted =>
+      this >>> inGame(username, lobby, sender())
+      userRef ==> msg
+  }
+
+  private def inGame(username: String, lobby: LobbyId, sessionManager: ActorRef): Receive = {
+    case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
+    case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
+    case Outer(msg: AppMessage) => sessionManager ! msg
+    case msg @ OutOfLobby(`lobby`) =>
+      userRef ==> msg
+      this >>> logged(username)
   }
 
   private def commonBehaviour: Receive = {
