@@ -83,7 +83,7 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
     "determine the points obtained in a match" in {
       val firstTeamCards = for (number <- 1 to 4) yield Card(number, spade)
       val secondTeamCards = for (number <- 2 to 5) yield Card(number, coppe)
-      gameKnowledge.matchPoints(firstTeamCards toSet, secondTeamCards toSet, Team.TEAM_1) shouldBe (6,2)
+      gameKnowledge.matchPoints(firstTeamCards toSet, secondTeamCards toSet, Team.TEAM_1) shouldBe (2,0)
     }
 
     "determine a winner team for the session" when {

@@ -18,9 +18,14 @@ chooseBriscola(1).
 % Has to be changed at runtime every match if chooseBriscola(1|0)
 
 pointsToWinSession(41).
-winnerPoints(X,Y):- Y is X/3.
-loserPoints(X,Y):- Y is X/3.
+winnerPoints(X,X).
+loserPoints(X,X).
 drawPoints(X,0).
+
+points(X,Y):- Y is X/3.
+
+starterCard(4,denara).
+
 
 % Knowledge to know if the last take of a match has one more point
 lastTakeHasOneMorePoint.
