@@ -5,8 +5,13 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.commons.AppError._
+import org.justcards.server.Commons
+import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.server.Commons.Team.Team
 import org.justcards.server.Commons.UserInfo
-import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse}
+import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
+import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
+import org.justcards.server.session_manager.SessionCreator.CreateSession
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
 import scala.util.Random
@@ -15,7 +20,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
 
   import UserManagerLobbyTest._
 
-  private implicit val system = ActorSystem("UserManagerLobbyTest")
+  private implicit val system: ActorSystem = ActorSystem("UserManagerLobbyTest")
   private val knowledgeEngine = system.actorOf(createKnowledgeEngine(_ => true))
   private var tempActors: Set[ActorRef] = Set()
 
@@ -37,7 +42,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "not contain any lobby" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef,knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         expectNoLobby(userManager)
       }
@@ -49,7 +54,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "allow to create a lobby" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         userManager ! CreateLobby(GameId(GAME_TEST))
         me.expectMsgType[LobbyCreated]
@@ -58,7 +63,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "not allow to create a lobby if not logged" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         userManager ! CreateLobby(GameId(GAME_TEST))
         me expectMsg ErrorOccurred(USER_NOT_LOGGED)
       }
@@ -67,7 +72,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         implicit val me = TestProbe()
         implicit val myRef = me.ref
         val knowledgeEngineWithNoGames = system.actorOf(createKnowledgeEngine(_ => false))
-        val myUserManager = system.actorOf(UserManager(knowledgeEngineWithNoGames))
+        val myUserManager = system.actorOf(UserManager(myRef, knowledgeEngineWithNoGames))
         this.tempActors = this.tempActors ++ Set(knowledgeEngineWithNoGames, myUserManager)
 
         doLogIn(myUserManager, TEST_USERNAME)
@@ -78,7 +83,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "allow to see the available lobbies" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val msg = createLobby(userManager)
         expectLobbies(userManager, (msg.lobby, Set(UserId(1, TEST_USERNAME))))
@@ -87,7 +92,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "allow to filter which lobbies the user wants to see" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val lobbies = createLobbies(userManager, 4, GAME_TEST)
         expectLobbies(
@@ -100,7 +105,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "not allow to see the available lobbies if not logged" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         createLobby(userManager)
         userManager ! LogOut(TEST_USERNAME)
@@ -108,20 +113,31 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
         me expectMsg ErrorOccurred(USER_NOT_LOGGED)
       }
 
-      "not allow to see a lobby if it's full" in {
+      "start a game session when the lobby is full" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         fillLobby(lobbyInfo.lobby)(userManager)
+        me.expectMsgType[CreateSession]
+      }
+
+      "not allow to see a lobby if it's full" in {
+        implicit val me = TestProbe()
+        implicit val myRef = me.ref
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
+        doLogIn(userManager, TEST_USERNAME)
+        val lobbyInfo = createLobby(userManager)
+        fillLobby(lobbyInfo.lobby)(userManager)
+        me receiveN 1
         expectNoLobby(userManager)
       }
 
       "allow to join a lobby" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         this.tempActors = this.tempActors + joiner
         doLogIn(userManager, TEST_USERNAME)
@@ -135,7 +151,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "inform all the members of a lobby when a new user joins" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         val joiner1 = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         val joiner2 = createJoinerAndLogIn(userManager, JOINER_USERNAME + "2")
         this.tempActors = this.tempActors ++ Set(joiner1,joiner2)
@@ -155,7 +171,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "not allow to join a lobby if not logged" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         userManager ! JoinLobby(LOBBY_TEST)
         me expectMsg ErrorOccurred(USER_NOT_LOGGED)
       }
@@ -163,7 +179,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "not allow to join a lobby if the lobby doesn't exist" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         userManager ! JoinLobby(LOBBY_TEST)
         me expectMsg ErrorOccurred(LOBBY_NOT_EXISTING)
@@ -172,7 +188,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "not allow to join a lobby if the user is already in another lobby" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val lobbyId = createLobby(userManager)
         userManager ! JoinLobby(lobbyId.lobby)
@@ -182,22 +198,23 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "not allow to join a lobby if it reached maximum capacity" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         /* create lobby and let enter n-1 people */
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         this.tempActors = this.tempActors ++ fillLobby(lobbyInfo.lobby)(userManager)
+        me receiveN 1
         /* now the lobby is full */
         val lastJoiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + "-illegal")
         this.tempActors = this.tempActors + lastJoiner
         lastJoiner ! JoinLobby(lobbyInfo.lobby)
-        me expectMsg ErrorOccurred(LOBBY_FULL)
+        me expectMsg ErrorOccurred(LOBBY_NOT_EXISTING)
       }
 
       "return all the current members of a lobby" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         this.tempActors = this.tempActors + joiner
         doLogIn(userManager, TEST_USERNAME)
@@ -212,7 +229,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "remove a user from a lobby if he decides to exit from it" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         this.tempActors = this.tempActors + joiner
@@ -230,7 +247,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "remove a user from a lobby if it logs out" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME)
         this.tempActors = this.tempActors + joiner
@@ -245,7 +262,7 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
       "delete a lobby if it remains empty" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         val lobbyInfo = createLobby(userManager)
         userManager ! UserExitFromLobby(lobbyInfo.lobby,UserInfo(TEST_USERNAME, myRef))
@@ -340,7 +357,30 @@ object UserManagerLobbyTest {
   private[this] class KnowledgeEngineStub(acceptMessage: GameExistenceRequest => Boolean) extends Actor {
     override def receive: Receive = {
       case msg: GameExistenceRequest => sender() ! GameExistenceResponse(acceptMessage(msg))
+      case GameKnowledgeRequest(gameId) => sender() ! GameKnowledgeResponse(createGameKnowledge()(gameId))
     }
+  }
+
+  private[this] def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
+  case class TestGameKnowledge(gameId: GameId) extends GameKnowledge {
+
+    override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = ???
+
+    override def deckCards: Set[Card] = ???
+
+    override def hasToChooseBriscola: BriscolaSetting = ???
+
+    override def setBriscola(seed: Seed): Boolean = ???
+
+    override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = ???
+
+    override def handWinner(fieldCards: List[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
+
+    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = ???
+
+    override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = ???
+
+    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
   }
 
 }

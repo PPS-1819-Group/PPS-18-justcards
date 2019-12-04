@@ -70,10 +70,27 @@ class UserTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
         implicit val myRef = me.ref
         val user = createUser(myRef)
         user ! Logged(TEST_USERNAME)
-        me receiveN(1)
+        me receiveN 1
         user ! Outer(LogIn(TEST_USERNAME))
         val msgReceived = me receiveN(1)
         msgReceived should not contain Replicate(LogIn(TEST_USERNAME))
+      }
+
+    }
+
+    "in game" should {
+
+      "redirect the messages received from the outer world to whom sent him the GameStarted message" in {
+        val me = TestProbe()
+        implicit val myRef = me.ref
+        val consumer = system.actorOf(createConsumerActor)
+        val user = createUser(consumer)
+        user ! Logged(TEST_USERNAME)
+        user ! LobbyJoined(LobbyId(1), Set())
+        user ! GameStarted(TeamId(TEST_USERNAME))
+        user ! Outer(Briscola(TEST_USERNAME))
+        me expectMsg Briscola(TEST_USERNAME)
+
       }
 
     }
@@ -101,4 +118,11 @@ object UserTest {
     }
   }
 
+  def createConsumerActor: Props = Props(classOf[ConsumerMessageActor])
+
+  private[this] class ConsumerMessageActor extends Actor {
+    override def receive: Receive = {
+      case _ =>
+    }
+  }
 }

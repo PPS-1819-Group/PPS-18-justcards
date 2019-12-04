@@ -1,25 +1,23 @@
 package org.justcards.server.session_manager
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
-import org.justcards.commons.{Briscola, Card, ChooseBriscola, CorrectBriscola, ErrorOccurred, GameId, GameStarted, GameWinner, Information, LobbyId, MatchWinner, OutOfLobby, Play, Played, Turn}
+import org.justcards.commons._
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team._
 import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
-import org.justcards.server.session_manager.SessionManagerMessage.Timeout
 import org.justcards.server.user_manager.Lobby
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.concurrent.duration._
 
-class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll {
+class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
   import SessionManagerTest._
   import org.justcards.commons.AppError._
 
   private implicit val system: ActorSystem = ActorSystem("SessionManagerTest")
-  private var tempActors: Set[ActorRef] = Set()
 
   val LOBBYID = 1
   val OWNERNAME = "Owner"
@@ -27,12 +25,6 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfter 
   val SEED = "bastoni"
   val CARD = Card(1, SEED)
 
-  after {
-    tempActors foreach {
-      _ ! PoisonPill
-    }
-    tempActors = tempActors.empty
-  }
 
   override def afterAll: Unit = {
     system terminate()
@@ -65,7 +57,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfter 
         val lobby = createLobby
         val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER)))
         me receiveN 8
-        me.expectMsg(ChooseBriscola(SessionManager.TIMEOUT))
+        me.expectMsg(ChooseBriscola(SessionManager.TIMEOUT_TO_USER))
       }
 
       "communicate the briscola to all users after timeout for user decision" in {
