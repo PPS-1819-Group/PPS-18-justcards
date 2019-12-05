@@ -83,7 +83,7 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
     "determine the points obtained in a match" in {
       val firstTeamCards = for (number <- 1 to 4) yield Card(number, spade)
       val secondTeamCards = for (number <- 2 to 5) yield Card(number, coppe)
-      gameKnowledge.matchPoints(firstTeamCards toSet, secondTeamCards toSet, Team.TEAM_1) shouldBe (6,2)
+      gameKnowledge.matchPoints(firstTeamCards toSet, secondTeamCards toSet, Team.TEAM_1) shouldBe (2,0)
     }
 
     "determine a winner team for the session" when {
@@ -106,6 +106,30 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
 
       "neither team has reached enough points to win" in {
         gameKnowledge.sessionWinner(37,39) shouldBe None
+      }
+
+    }
+
+    "determine the session starter player if specified in the game" when {
+
+      "there is one user" in {
+        val starter = UserInfo("player",null)
+        gameKnowledge.sessionStarterPlayer(Set((starter,Set(Card(4,denara))))) shouldBe Some(starter)
+      }
+
+      "there are more users" in {
+        val starter = UserInfo("starter",null)
+        val playersHandCards = Set((starter,Set(Card(4,denara))),(UserInfo("player",null),Set(Card(10,denara))))
+        gameKnowledge.sessionStarterPlayer(playersHandCards) shouldBe Some(starter)
+      }
+
+    }
+
+    "not determine the session starter player if specified in the game" when {
+
+      "there are not users with cards satisfying the requirements" in {
+        val playersHandCards = Set((UserInfo("starter",null),Set(Card(4,bastoni))),(UserInfo("player",null),Set(Card(10,denara))))
+        gameKnowledge.sessionStarterPlayer(playersHandCards) shouldBe None
       }
 
     }

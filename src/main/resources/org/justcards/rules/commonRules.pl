@@ -18,6 +18,14 @@ hand((Number,Seed),Cards):-
 	member((Number,Seed),Cards),
 	!.
 
+% starterPlayer(+Cards)
+starterPlayer([(Number,Seed)|T]):- starterCard(Number,Seed), !.
+starterPlayer([(Number,Seed)|T]):- starterPlayer(T).
+
+% sessionStarterPlayer(+PlayersCards,-FirstSessionPlayer)
+sessionStarterPlayer([(Player,Cards)|T],Player):- starterPlayer(Cards), !.
+sessionStarterPlayer([(Player,Cards)|T],FirstSessionPlayer):- sessionStarterPlayer(T,FirstSessionPlayer).
+
 % turn(+(Number,Seed),+Field,+Hand,-NewField)
 turn((Number,Seed),[],Hand,[(Number,Seed)]):- hand((Number,Seed),Hand), !.
 
@@ -78,14 +86,16 @@ fieldWinner([(Number,Seed,Player)|T],Winner,(NumberWinner,SeedWinner,PlayerWinne
 % matchPoints(+Cards,-Points)
 matchPoints(Cards,Points):- matchPoints(Cards,0,Points).
 
-matchPoints([],Points,Points).
+matchPoints([],Points,FinalPoints):-
+	points(Points,TempPoints),
+	FinalPoints is floor(TempPoints).
 
 matchPoints([(Number,Seed)|T],CurrSum,Points):-
 	card(Number,Seed,_,CardPoints),
 	NewSum is CurrSum + CardPoints,
 	matchPoints(T,NewSum,Points).
 
-% totalPoints(+CardsFirstTeam,+CardsSecondTeam,-TeamWinner,-FirstTeamPoints,-SecondTeamPoints)
+% totalPoints(+CardsFirstTeam,+CardsSecondTeam,+LastFieldWinner,-FirstTeamPoints,-SecondTeamPoints)
 totalPoints(CardsFirstTeam,CardsSecondTeam,1,FirstTeamPoints,SecondTeamPoints):-
 	lastTakeHasOneMorePoint,
 	!,
@@ -123,7 +133,7 @@ matchWinner(CardsFirstTeam,CardsSecondTeam,LastFieldWinner,0,GainedPoints,Gained
 	totalPoints(CardsFirstTeam,CardsSecondTeam,LastFieldWinner,Points,_),
 	drawPoints(Points,GainedPoints).
 
-%sessionWinner(+FirstTeamPoints,+SecondTeamPoints,-SessionWinner)
+% sessionWinner(+FirstTeamPoints,+SecondTeamPoints,-SessionWinner)
 sessionWinner(FirstTeamPoints,SecondTeamPoints,1):-
 	pointsToWinSession(Threshold),
 	FirstTeamPoints >= Threshold,
