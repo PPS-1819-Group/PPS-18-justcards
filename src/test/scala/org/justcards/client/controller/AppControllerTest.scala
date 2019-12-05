@@ -6,7 +6,7 @@ import scala.concurrent.duration._
 import org.justcards.client.{TestConnectionManager, TestView}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.controller.AppController._
-import org.justcards.client.view.{MenuChoice, OptionConnectionFailed, FilterChoice}
+import org.justcards.client.view.{MenuChoice, OptionConnectionFailed}
 import org.justcards.client.view.View._
 import org.justcards.client.view.FilterChoice._
 import org.justcards.commons.AppError._
@@ -96,8 +96,8 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
       "send a message to the connection manager to get the filtered available lobbies" in {
         val (appController, testProbe) = login()
         appController ! MenuSelection(MenuChoice.LIST_LOBBY_WITH_FILTERS, Map(
-          (BY_OWNER-> username),
-          (BY_GAME -> game.name)
+          BY_OWNER -> username,
+          BY_GAME  -> game.name
         ))
         testProbe expectMsg RetrieveAvailableLobbies(game.name, username)
       }
@@ -154,8 +154,14 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         val (appController, testProbe) = createLobby
         appController ! LobbyCreated(lobby)
         testProbe receiveN 1
-        appController ! GameStarted(List((null, team))) //TODO
-        testProbe expectMsg ShowGameStarted(team)
+        val players = List(
+          (null, team),
+          (null, team2),
+          (null, team),
+          (null, team2),
+        )
+        appController ! GameStarted(players)
+        testProbe expectMsg ShowGameStarted(players)
       }
 
     }

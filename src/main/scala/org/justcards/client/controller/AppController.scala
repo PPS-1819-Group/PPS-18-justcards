@@ -117,9 +117,9 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     case LobbyUpdate(lobby, members) => viewActor ! ShowLobbyUpdate(lobby,members)
     case ExitFromLobby => connectionManagerActor ! OutOfLobby(myLobby)
     case OutOfLobby(`myLobby`) => context toLogged
-    case GameStarted(team) =>
+    case GameStarted(players) =>
       context >>> inGame
-      viewActor ! ShowGameStarted(team.head._2) //TODO
+      viewActor ! ShowGameStarted(players)
   }
 
   private def inGame: Receive = {

@@ -117,9 +117,12 @@ class ConsoleView(controller: ActorRef) extends Actor {
       printLobbyState(lobby, members)
       showLobbyOptions()
     case NewUserCommand(EXIT) => case EXIT => controller ! ExitFromLobby
-    case ShowGameStarted(team) =>
-      clearAndPrint(GAME_STARTED(team))
-      context >>> inGame(team)
+    case ShowGameStarted(players) =>
+      val myTeam = players.find(_._1.name == myUsername).get._2
+      val mate = players find(tuple => tuple._2 == myTeam && tuple._1.name != myUsername) map(_._1)
+      clearAndPrint(GAME_STARTED(myTeam, mate))
+      printPlayersOrder(myUsername, players)
+      context >>> inGame(myTeam)
   }
 
   private def inGame(myTeam: TeamId, myCards: List[Card] = List(), briscola: (String, Option[Int]) = ("", None)): Receive = {
@@ -260,6 +263,14 @@ class ConsoleView(controller: ActorRef) extends Actor {
     println(players map fromUserToString mkString(start = "- ", sep = "\n- ", end = ""))
   }
 
+  private def printPlayersOrder(myUsername: String, players: List[(UserId, TeamId)]): Unit = {
+    val playersToPrint = players map {
+      case (UserId(_, `myUsername`), _) => "you"
+      case (UserId(_, username), team) => username + " (" + team.name + ")"
+    } mkString " -> "
+    println(PLAYERS_ORDER + playersToPrint)
+  }
+
   private def printGameInformation(myCards: List[Card], fieldCards: List[Card],
                                    briscola: (String, Option[Int]), isMyTurn: Boolean): Unit = {
     printFieldCards(fieldCards)
@@ -369,6 +380,7 @@ object ConsoleView {
   private val HAND_CARD_MESSAGE = "Cards on your hand: "
   private val CHOOSE_NICKNAME = "Choose your nickname:"
   private val CHOOSE_BRISCOLA = "Choose the briscola you want"
+  private val PLAYERS_ORDER = "Players order: "
   private val CHOOSE_BRISCOLA_TIMEOUT = (time: FiniteDuration) => CHOOSE_BRISCOLA + ", you have " + time + ":"
   private val CHOOSE_CARD = (time: FiniteDuration) => "Insert the number of the card you want to play, you have " + time + ":"
   private val GOODBYE = "Bye"
@@ -442,13 +454,22 @@ object TestConsole extends App {
   val myCards = Set(Card(2, "denara"), Card(1, "denara"), Card(1, "coppe"), Card(2, "coppe"), Card(3, "denara"), Card(3, "coppe"))
   val fieldCards = List(Card(3, "coppe"))
 
+
+  view ! ShowUsernameChoice
+  Thread.sleep(4000)
+
   view ! ShowMenu
   view ! ShowLobbies(Set())
   view ! ShowJoinedLobby(LobbyId(1234, "pippo", GameId("beccaccino")), Set(UserId(1, "io")))
-  view ! ShowGameStarted(TeamId("team pippe"))
-  view ! ShowGameInformation(myCards, fieldCards)
+  view ! ShowGameStarted(List(
+    (UserId(1, "chiara"), TeamId("team pippe")),
+    (UserId(1, "elena"), TeamId("team ciccio")),
+    (UserId(1, "me"), TeamId("team pippe")),
+    (UserId(1, "giovanna"), TeamId("team ciccio"))
+  ))
+  /*view ! ShowGameInformation(myCards, fieldCards)
   view ! ShowMatchWinner(TeamId("team ciccio"), (12,3), (45,23))
-  /*view ! ShowGameWinner(TeamId("team ciccio"))
+  view ! ShowGameWinner(TeamId("team ciccio"))
   view ! ShowGameWinner(TeamId("team pippe"))
 
   /*view ! ShowTurn(myCards, fieldCards, 10)

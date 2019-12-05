@@ -21,7 +21,7 @@ object View {
   case class ShowCreatedLobby(lobby: LobbyId) extends ViewMessage
   case class ShowJoinedLobby(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
   case class ShowLobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
-  case class ShowGameStarted(team: TeamId) extends ViewMessage
+  case class ShowGameStarted(players: List[(UserId, TeamId)]) extends ViewMessage
   case class ShowGameInformation(handCards: Set[Card], fieldCards: List[Card]) extends ViewMessage
   case class ViewChooseBriscola(availableBriscola: Set[String], timeout: Int) extends ViewMessage
   case class ShowTurn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends ViewMessage
@@ -52,7 +52,11 @@ object View {
   val BRISCOLA_WITH_CARD: Card => String = card =>
     BRISCOLA_NO_CARD(card) concat " | Briscola card is " concat fromCardToString(card)
   val LOBBY_JOINED_MESSAGE: LobbyId => String = "You joined lobby " + _.id
-  val GAME_STARTED: TeamId => String = "The game has started! You're on team " + _.name
+  val GAME_STARTED: (TeamId, Option[UserId]) => String = (team, mate) => {
+   val msg = "The game has started! You're on team " + team.name
+   if(mate isDefined) msg concat " and your teammate is " + mate.get.name
+   else msg
+  }
   val HAND_LOST: UserId => String = _.name concat "has " concat HAND_WON_FINAL
   val GAME_LOST: TeamId => String = "You've lost! " concat _.name concat " wins the game"
   val MATCH_RESULTS: ((Int,Int)) => String = results =>
