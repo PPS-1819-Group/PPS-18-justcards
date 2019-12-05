@@ -128,9 +128,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     case MatchWinner(team, team1Points, team2Points) => viewActor ! ShowMatchWinner(team, team1Points._1, team2Points._1) //TODO
     case GameWinner(team) => viewActor ! ShowGameWinner(team)
     case CorrectBriscola(seed, number) => viewActor ! ShowChosenBriscola(seed, number)
-    case ChooseBriscola(briscolas, timeout) => //TODO
-      val availableBriscola = Set("spade", "denara", "coppe", "bastoni") //To be changed, briscola has to be passed from the server
-      context toChooseBriscola(availableBriscola, timeout)
+    case ChooseBriscola(availableBriscola, timeout) => context toChooseBriscola(availableBriscola, timeout)
     case Turn(handCards, fieldCards, timeout) => context toMyTurn((handCards, fieldCards),timeout)
     case OutOfLobby(_) => context toLogged
   }
