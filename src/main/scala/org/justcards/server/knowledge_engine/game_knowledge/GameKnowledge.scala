@@ -25,6 +25,12 @@ trait GameKnowledge {
   def deckCards: Set[Card]
 
   /**
+   * Retrieve all the available seeds to use in the game
+   * @return the available seeds.
+   */
+  def seeds: Set[Seed]
+
+  /**
    * Retrieve how the Briscola should be chosen in the game.
    * @return how to chose the Briscola
    */
