@@ -57,7 +57,7 @@ object View {
    if(mate isDefined) msg concat " and your teammate is " + mate.get.name
    else msg
   }
-  val HAND_LOST: UserId => String = _.name concat "has " concat HAND_WON_FINAL
+  val HAND_LOST: UserId => String = _.name concat " has " concat HAND_WON_FINAL
   val GAME_LOST: TeamId => String = "You've lost! " concat _.name concat " wins the game"
   val MATCH_RESULTS: ((Int,Int)) => String = results =>
     "Match ends! Results: " + results._1 + " - " + results._2
