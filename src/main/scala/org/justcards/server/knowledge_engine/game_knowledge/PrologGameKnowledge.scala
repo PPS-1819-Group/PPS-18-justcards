@@ -30,6 +30,7 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private val matchWinner = "matchWinner"
   private val totalPoints = "totalPoints"
   private val sessionWinner = "sessionWinner"
+  private val sessionStarter = "sessionStarterPlayer"
   private val variableStart = "VAR"
   private val knowledge: Prolog = createKnowledge(game)
 
@@ -76,13 +77,12 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   }
 
   override def handWinner(fieldCards: List[(Card, UserInfo)]): UserInfo = {
-    val winner = variables() head
-    val players = fieldCards map(_._2)
+    val winner = variables().head
     knowledge.find(
       PrologStruct(fieldWinner, fieldCards map(v => PrologTuple(v._1.number,v._1.seed,v._2.username)), winner),
       winner
     )(_.toString) match {
-      case Some(player) => players find(_.username == player) orNull
+      case Some(player) => fieldCards map(_._2) find(_.username == player) orNull
       case _ => null
     }
   }
@@ -124,6 +124,17 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
         val secondTeamGainedPoints = solution.valueOf(secondTeamPoints)(_.toInt)
         (firstTeamGainedPoints getOrElse defaultPoints, secondTeamGainedPoints getOrElse defaultPoints)
       case _ => null
+    }
+  }
+
+  override def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo] = {
+    val starter = variables().head
+    knowledge.find(
+      PrologStruct(sessionStarter, playersHandCards map(v => PrologTuple(v._1.username,v._2)), starter),
+      starter
+    )(_.toString) match {
+      case Some(player) => playersHandCards map(_._1) find(_.username == player)
+      case _ => None
     }
   }
 
@@ -260,7 +271,8 @@ object TuPrologHelpers {
   }
 
   object PrologStruct {
-    def apply(name: String, parameters: Term*): Struct = new Struct(name, parameters toArray)
+    def apply(name: String, parameters: Term*): Struct = PrologStruct(name, parameters toArray)
+    def apply(name: String, parameters: Array[Term]): Struct = new Struct(name, parameters)
     def apply(terms: Term*): Struct = PrologStruct(terms toArray)
     def apply(terms: Array[Term]): Struct = new Struct(terms)
   }
@@ -276,7 +288,7 @@ object TuPrologHelpers {
 
   object PrologTuple {
     private[this] val elementSeparator = ","
-    def apply(values: String*): Term = Term createTerm values.mkString(elementSeparator)
+    def apply(values: Term*): Term = Term createTerm values.map(_.toString).mkString(elementSeparator)
 
     def apply(struct: Struct): PrologTuple = new PrologTupleImpl(struct)
 
