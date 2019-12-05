@@ -381,6 +381,8 @@ object UserManagerLobbyTest {
     override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = ???
 
     override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
+
+    override def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo] = ???
   }
 
 }

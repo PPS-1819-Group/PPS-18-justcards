@@ -239,6 +239,8 @@ object SessionManagerTest {
       override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = if (sessionWinner) Some(endInfo._1) else None
 
       override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = (endInfo._2, endInfo._3)
+
+      override def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo] = ???
     }
   }
 
