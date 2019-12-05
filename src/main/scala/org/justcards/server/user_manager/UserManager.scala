@@ -7,19 +7,22 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import org.justcards.commons._
 import org.justcards.server.Commons.UserInfo
+import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameKnowledgeRequest, GameKnowledgeResponse}
+import org.justcards.server.session_manager.SessionCreator.CreateSession
 
 import scala.util.Success
 
 /**
   * Actor that manages all the users in the system
+  * @param sessionCreator the system sessionCreator
   * @param knowledgeEngine the system knowledgeEngine
   */
-class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
+class UserManager(private val sessionCreator: ActorRef, private val knowledgeEngine: ActorRef) extends Actor {
 
   import UserManagerMessage._
   import org.justcards.commons.AppError._
   import context.dispatcher
-  private implicit val timeout = Timeout(3 seconds)
+  private implicit val timeout: Timeout = Timeout(3 seconds)
   private val playerManager = context.actorOf(PlayerManager())
   private val lobbyManager = context.actorOf(LobbyManager(knowledgeEngine))
 
@@ -46,6 +49,12 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
       checkLogInAnd(user) { username =>
         lobbyManager ! UserJoinLobby(msg, UserInfo(username, user))
       }
+    case FullLobby(lobby) =>
+      knowledgeEngine ? GameKnowledgeRequest(lobby.game) onComplete {
+        case Success(GameKnowledgeResponse(gameKnowledge)) =>
+          sessionCreator ! CreateSession(lobby, gameKnowledge)
+        case _ =>
+      }
     case _: Players =>
     case msg: UserManagerMessage => playerManager ! msg
   }
@@ -68,7 +77,8 @@ class UserManager(private val knowledgeEngine: ActorRef) extends Actor {
 }
 
 object UserManager {
-  def apply(knowledgeEngine: ActorRef): Props = Props(classOf[UserManager], knowledgeEngine)
+  def apply(sessionCreator: ActorRef, knowledgeEngine: ActorRef): Props =
+    Props(classOf[UserManager], sessionCreator, knowledgeEngine)
 }
 
 private[user_manager] object UserManagerMessage {
@@ -87,6 +97,7 @@ private[user_manager] object UserManagerMessage {
   case class GetLobbies(message: RetrieveAvailableLobbies, user: UserInfo) extends UserManagerMessage
   case class UserCreateLobby(message: CreateLobby, user: UserInfo) extends UserManagerMessage
   case class UserJoinLobby(message: JoinLobby, user: UserInfo) extends UserManagerMessage
+  case class FullLobby(lobby: Lobby) extends UserManagerMessage
   case class UserExitFromLobby(lobbyId: LobbyId, userInfo: UserInfo) extends UserManagerMessage
   case class UserRemoved(removed: Boolean) extends UserManagerMessage
 

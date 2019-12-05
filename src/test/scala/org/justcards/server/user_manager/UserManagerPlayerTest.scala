@@ -26,7 +26,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "not contain any logged user" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         expectNoUsers(userManager)
       }
 
@@ -37,7 +37,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "register a user" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         userManager ! LogIn(TEST_USERNAME)
         me.expectMsgType[Logged]
       }
@@ -45,7 +45,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "save the user after its registration" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         expectUsers(userManager, UserInfo(TEST_USERNAME, myRef))
       }
@@ -53,7 +53,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "not register a user if the username is already present" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         userManager ! LogIn(TEST_USERNAME)
         me expectMsg(ErrorOccurred(USER_ALREADY_PRESENT))
@@ -62,7 +62,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "not allow to the same user to register twice with different username" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, DOUBLE_USER_USERNAME)
         userManager ! LogIn(DOUBLE_USER_USERNAME + "-retry")
         me expectMsg(ErrorOccurred(USER_ALREADY_LOGGED))
@@ -71,7 +71,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "unregister a user" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         doLogIn(userManager, TEST_USERNAME)
         userManager ! UserLogout(TEST_USERNAME, myRef)
         me expectNoMessage()
@@ -81,7 +81,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "return the current logged users" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         val actorUsernameSet = for(
           n: Int <- (0 to 4).toSet;
           actor: ActorRef = system.actorOf(createActor(myRef, userManager));
@@ -96,7 +96,7 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
       "ask for available games to the knowledge engine" in {
         implicit val me = TestProbe()
         implicit val myRef = me.ref
-        val userManager = system.actorOf(UserManager(knowledgeEngine))
+        val userManager = system.actorOf(UserManager(myRef, knowledgeEngine))
         userManager ! RetrieveAvailableGames()
         me expectMsg(KnowledgeEngineMsg(RetrieveAvailableGames()))
       }
