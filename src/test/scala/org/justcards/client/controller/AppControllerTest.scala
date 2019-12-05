@@ -196,17 +196,16 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "send a message to the connection manager, when the user chose the Briscola" in {
         val (appController, testProbe) = chooseBriscola
-        val briscola = "spade"
         appController ! ChosenBriscola(briscola)
         testProbe expectMsg Briscola(briscola)
       }
 
       "tell the user that the Briscola was correct" in {
         val (appController, testProbe) = chooseBriscola
-        appController ! ChosenBriscola("spade")
+        appController ! ChosenBriscola(briscola)
         testProbe receiveN 1
-        appController ! CorrectBriscola()
-        testProbe expectMsg MoveWasCorrect
+        appController ! CorrectBriscola(briscola)
+        testProbe expectMsgAllOf(MoveWasCorrect, ShowChosenBriscola(briscola))
       }
 
       "send a timeout message after a default time if the user doesn't choose a Briscola" in {
@@ -216,12 +215,12 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "not send a timeout message to the connection manager if the user chooses a Briscola before the timeout" in {
         implicit val (appController, testProbe) = chooseBriscola
-        expectNoTimeoutExceeded(appController, ChosenBriscola("spade"), briscolaTime)
+        expectNoTimeoutExceeded(appController, ChosenBriscola(briscola), briscolaTime)
       }
 
       "ask again to the user to choose the Briscola if the choice was incorrect" in {
         implicit val (appController, testProbe) = chooseBriscola
-        appController ! ChosenBriscola("spade")
+        appController ! ChosenBriscola(briscola)
         testProbe receiveN 1
         appController ! ErrorOccurred(BRISCOLA_NOT_VALID)
         testProbe expectMsgAllOf(ShowError(BRISCOLA_NOT_VALID), ViewChooseBriscola(briscolaSet, briscolaTime))
@@ -229,7 +228,13 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "send a timeout message after the correct time if the user chosen the wrong Briscola" in {
         implicit val (appController, testProbe) = chooseBriscola
-        sendErrorAndExpectTimeoutExceeded(appController, briscolaTime)(ChosenBriscola("spade"), BRISCOLA_NOT_VALID)
+        sendErrorAndExpectTimeoutExceeded(appController, briscolaTime)(ChosenBriscola(briscola), BRISCOLA_NOT_VALID)
+      }
+
+      "tell the user the Briscola chosen by another user in the game session" in {
+        implicit val (appController, testProbe) = startGame
+        appController ! CorrectBriscola(briscola)
+        testProbe expectMsg ShowChosenBriscola(briscola)
       }
 
       "tell the user that is his turn after receiving a Turn message from connection manager" in {

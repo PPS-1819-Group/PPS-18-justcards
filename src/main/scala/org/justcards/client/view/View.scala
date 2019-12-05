@@ -28,6 +28,7 @@ object View {
   case class ShowHandWinner(player: UserId) extends ViewMessage
   case class ShowMatchWinner(winnerTeam: TeamId, team1Points: Int, team2Points: Int) extends ViewMessage
   case class ShowGameWinner(team: TeamId) extends ViewMessage
+  case class ShowChosenBriscola(seed: String, number: Option[Int] = None)
 
   private[this] val HAND_WON_FINAL = "taken all the cards in the field!"
 
@@ -46,6 +47,9 @@ object View {
   val TIME_IS_UP: String = "Time'up! The game will decide for you"
 
   val LOBBY_CREATED_MESSAGE: LobbyId => String = "Your lobby has been created! ID = " + _.id
+  val BRISCOLA_NO_CARD: String => String = "<< Current Briscola is " concat _ concat " >>"
+  val BRISCOLA_WITH_CARD: Card => String = card =>
+    BRISCOLA_NO_CARD(card) concat " | Briscola card is " concat fromCardToString(card)
   val LOBBY_JOINED_MESSAGE: LobbyId => String = "You joined lobby " + _.id
   val GAME_STARTED: TeamId => String = "The game has started! You're on team " + _.name
   val HAND_LOST: UserId => String = _.name concat "has " concat HAND_WON_FINAL

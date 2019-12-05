@@ -110,8 +110,10 @@ case class Briscola(seed: String) extends AppMessage
 
 /**
  * Message to indicate that the chosen Briscola was correct.
+ * @param seed the Briscola seed
+ * @param number the Briscola number if present, None otherwise
  */
-case class CorrectBriscola(option: String = "") extends AppMessage
+case class CorrectBriscola(seed: String, number: Option[Int] = None) extends AppMessage
 
 /**
  * Message to indicate that is your turn

@@ -122,32 +122,37 @@ class ConsoleView(controller: ActorRef) extends Actor {
       context >>> inGame(team)
   }
 
-  private def inGame(myTeam: TeamId, myCards: List[Card] = List()): Receive = {
+  private def inGame(myTeam: TeamId, myCards: List[Card] = List(), briscola: (String, Option[Int]) = ("", None)): Receive = {
     case ShowGameWinner(teamWinner) =>
       clearAndPrint(if(teamWinner == myTeam) GAME_WON else GAME_LOST(teamWinner))
     case ShowMatchWinner(winnerTeam, team1Points, team2Points) =>
       clearAndPrint(MATCH_ENDS(winnerTeam, (team1Points, team2Points)))
     case ShowHandWinner(player) =>
       clearAndPrint(if(player.name == myUsername) HAND_WON else HAND_LOST(player))
+    case ShowChosenBriscola(seed, number) =>
+      val newBriscola = (seed, number)
+      printBriscola(newBriscola)
+      context >>> inGame(myTeam, myCards, newBriscola)
     case ShowGameInformation(myCards, fieldCards) =>
       val orderedCards = myCards.ordered
-      printGameInformation(orderedCards, fieldCards, isMyTurn = false)
-      context >>> inGame(myTeam, orderedCards)
-    case ShowTurn(myCards, fieldCards, timeout) => askCard(myTeam, myCards.ordered, fieldCards, timeout seconds)
+      printGameInformation(orderedCards, fieldCards, briscola, isMyTurn = false)
+      context >>> inGame(myTeam, orderedCards, briscola)
+    case ShowTurn(myCards, fieldCards, timeout) =>
+      askCard(myTeam, myCards.ordered, fieldCards, briscola)(timeout seconds)
     case ViewChooseBriscola(briscolaSet, timeout) => askBriscola(briscolaSet.toList, timeout seconds)(myTeam, myCards)
     case ShowMenu => context toMenu
   }
 
   private def userDoMove(onUserChoice: String => Unit)(errorToIntercept: AppError)
-                        (myTeam: TeamId, myCards: List[Card]): Receive = {
+                        (myTeam: TeamId, myCards: List[Card], briscola: (String, Option[Int]) = ("", None)): Receive = {
     case NewUserCommand(choice) => onUserChoice(choice)
     case ShowTimeForMoveExceeded =>
       println(TIME_IS_UP)
-      context >>> inGame(myTeam, myCards)
-    case MoveWasCorrect => context >>> inGame(myTeam, myCards)
+      context >>> inGame(myTeam, myCards, briscola)
+    case MoveWasCorrect => context >>> inGame(myTeam, myCards, briscola)
     case ShowError(`errorToIntercept`) =>
       println(errorMessage(errorToIntercept))
-      context >>> inGame(myTeam, myCards)
+      context >>> inGame(myTeam, myCards, briscola)
   }
 
   private def disconnected: Receive = {
@@ -207,9 +212,10 @@ class ConsoleView(controller: ActorRef) extends Actor {
     })(AppError.BRISCOLA_NOT_VALID)(myTeam, myCards)
   }
 
-  private def askCard(myTeam: TeamId, myCards: List[Card], fieldCards: List[Card], timeout: FiniteDuration): Unit = {
+  private def askCard(myTeam: TeamId, myCards: List[Card], fieldCards: List[Card], briscola: (String, Option[Int]))
+                     (timeout: FiniteDuration): Unit = {
     def ask() : Unit = {
-      printGameInformation(myCards, fieldCards, isMyTurn = true)
+      printGameInformation(myCards, fieldCards, briscola, isMyTurn = true)
       askToUser(CHOOSE_CARD(timeout))
     }
 
@@ -217,9 +223,9 @@ class ConsoleView(controller: ActorRef) extends Actor {
     context >>> userDoMove { choice =>
       parseToNumberAnd(choice, myCards.size)(numberChoice => {
         controller ! ChosenCard(myCards(numberChoice - 1))
-        context >>> inGame(myTeam, myCards)
+        context >>> inGame(myTeam, myCards, briscola)
       })(ask())
-    }(AppError.CARD_NOT_VALID)(myTeam, myCards)
+    }(AppError.CARD_NOT_VALID)(myTeam, myCards, briscola)
   }
 
   private def showLobbyCreationOptions(games: List[GameId]): Unit = {
@@ -252,9 +258,22 @@ class ConsoleView(controller: ActorRef) extends Actor {
     println(players map fromUserToString mkString(start = "- ", sep = "\n- ", end = ""))
   }
 
-  private def printGameInformation(myCards: List[Card], fieldCards: List[Card], isMyTurn: Boolean): Unit = {
+  private def printGameInformation(myCards: List[Card], fieldCards: List[Card],
+                                   briscola: (String, Option[Int]), isMyTurn: Boolean): Unit = {
     printFieldCards(fieldCards)
+    printBriscola(briscola)
     printMyCards(myCards, isMyTurn)
+  }
+
+  private def printBriscola(briscola: (String, Option[Int])): Unit = {
+    if(briscola.isDefined) {
+      val message: String = briscola match {
+        case (seed, None) if !seed.isBlank => BRISCOLA_NO_CARD(seed)
+        case (seed, number) if !seed.isBlank => BRISCOLA_WITH_CARD(Card(number.get, seed))
+        case _ => ""
+      }
+      println(message)
+    }
   }
 
   private def printFieldCards(cards: List[Card]): Unit = {
@@ -422,7 +441,7 @@ object TestConsole extends App {
   val fieldCards = List(Card(3, "coppe"))
 
   view ! ShowMenu
-  /*view ! ShowLobbies(Set())
+  view ! ShowLobbies(Set())
   view ! ShowJoinedLobby(LobbyId(1234, "pippo", GameId("beccaccino")), Set(UserId(1, "io")))
   view ! ShowGameStarted(TeamId("team pippe"))
   view ! ShowGameInformation(myCards, fieldCards)
@@ -430,8 +449,17 @@ object TestConsole extends App {
   view ! ShowGameWinner(TeamId("team ciccio"))
   view ! ShowGameWinner(TeamId("team pippe"))
 
-  view ! ShowTurn(myCards, fieldCards, 10)
+  /*view ! ShowTurn(myCards, fieldCards, 10)
   view ! ShowTimeForMoveExceeded*/
 
-  //view ! ViewChooseBriscola(Set("cuori", "picche"), 3)
+  view ! ViewChooseBriscola(Set("cuori", "picche"), 3)
+
+  Thread.sleep(5000)
+
+  view ! MoveWasCorrect
+  view ! ShowChosenBriscola("spade")
+
+  Thread.sleep(5000)
+
+  view ! ShowGameInformation(myCards, fieldCards)
 }
