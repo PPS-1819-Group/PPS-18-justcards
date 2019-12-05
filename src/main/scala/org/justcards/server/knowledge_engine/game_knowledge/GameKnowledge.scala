@@ -71,7 +71,7 @@ trait GameKnowledge {
   def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team]
 
   /**
-   * Determine the points obtained by the teams in a match
+   * Determine the points obtained by the teams in a match.
    *
    * @param firstTeamCards the first team cards
    * @param secondTeamCards the second team cards
@@ -79,6 +79,14 @@ trait GameKnowledge {
    * @return (points of the first team, points of the second team)
    */
   def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points,Points)
+
+  /**
+   * Determine, if specified by the game, the user that has to play the first turn
+   * in the first match of a  the session.
+   * @param playersHandCards the players and their hand cards
+   * @return the user that has has to play the first turn in the first match of a the session
+   */
+  def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo]
 }
 
 object GameKnowledge {

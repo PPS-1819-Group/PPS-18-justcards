@@ -22,9 +22,9 @@ hand((Number,Seed),Cards):-
 starterPlayer([(Number,Seed)|T]):- starterCard(Number,Seed), !.
 starterPlayer([(Number,Seed)|T]):- starterPlayer(T).
 
-% matchStarterPlayer(+PlayersCards,-FirstMatchPlayer)
-matchStarterPlayer([(Player,Cards)|T],Player):- starterPlayer(Cards), !.
-matchStarterPlayer([(Player,Cards)|T],FirstMatchPlayer):- matchStarterPlayer(T,FirstMatchPlayer).
+% sessionStarterPlayer(+PlayersCards,-FirstSessionPlayer)
+sessionStarterPlayer([(Player,Cards)|T],Player):- starterPlayer(Cards), !.
+sessionStarterPlayer([(Player,Cards)|T],FirstSessionPlayer):- sessionStarterPlayer(T,FirstSessionPlayer).
 
 % turn(+(Number,Seed),+Field,+Hand,-NewField)
 turn((Number,Seed),[],Hand,[(Number,Seed)]):- hand((Number,Seed),Hand), !.

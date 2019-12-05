@@ -110,5 +110,29 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
 
     }
 
+    "determine the session starter player if specified in the game" when {
+
+      "there is one user" in {
+        val starter = UserInfo("player",null)
+        gameKnowledge.sessionStarterPlayer(Set((starter,Set(Card(4,denara))))) shouldBe Some(starter)
+      }
+
+      "there are more users" in {
+        val starter = UserInfo("starter",null)
+        val playersHandCards = Set((starter,Set(Card(4,denara))),(UserInfo("player",null),Set(Card(10,denara))))
+        gameKnowledge.sessionStarterPlayer(playersHandCards) shouldBe Some(starter)
+      }
+
+    }
+
+    "not determine the session starter player if specified in the game" when {
+
+      "there are not users with cards satisfying the requirements" in {
+        val playersHandCards = Set((UserInfo("starter",null),Set(Card(4,bastoni))),(UserInfo("player",null),Set(Card(10,denara))))
+        gameKnowledge.sessionStarterPlayer(playersHandCards) shouldBe None
+      }
+
+    }
+
   }
 }
