@@ -87,10 +87,9 @@ class UserTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
         val user = createUser(consumer)
         user ! Logged(TEST_USERNAME)
         user ! LobbyJoined(LobbyId(1), Set())
-        user ! GameStarted(TeamId(TEST_USERNAME))
+        user ! GameStarted(List((UserId(1, TEST_USERNAME),TeamId(TEST_USERNAME))))
         user ! Outer(Briscola(TEST_USERNAME))
         me expectMsg Briscola(TEST_USERNAME)
-
       }
 
     }

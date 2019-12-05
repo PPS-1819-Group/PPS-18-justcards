@@ -50,6 +50,8 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
     cardsFound filter (card => card._1.isDefined && card._2.isDefined) map (card => Card(card._1.get, card._2.get))
   }
 
+  override def seeds: Set[Seed] = Set("denara", "coppe", "spade", "bastoni") //TODO
+
   override def hasToChooseBriscola: BriscolaSetting = {
     val setting = variables().head
     knowledge.find(PrologStruct(briscolaSetting,setting),setting)(_.toInt) match {
@@ -163,7 +165,6 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private implicit def fromIntToString(value: Int): String = value toString
   private implicit def toOption[X](v: X): Option[X] = Option(v)
   private implicit def fromCardsToTerm(traversable: Traversable[Card]): Term = PrologStruct(traversable map(_.toTerm) toArray)
-
 }
 
 object PrologGameKnowledge {

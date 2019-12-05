@@ -119,16 +119,16 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     case OutOfLobby(`myLobby`) => context toLogged
     case GameStarted(team) =>
       context >>> inGame
-      viewActor ! ShowGameStarted(team)
+      viewActor ! ShowGameStarted(team.head._2) //TODO
   }
 
   private def inGame: Receive = {
     case Information(handCards, fieldCards) => viewActor ! ShowGameInformation(handCards, fieldCards)
     case HandWinner(winner) => viewActor ! ShowHandWinner(winner)
-    case MatchWinner(team, team1Points, team2Points) => viewActor ! ShowMatchWinner(team, team1Points, team2Points)
+    case MatchWinner(team, team1Points, team2Points) => viewActor ! ShowMatchWinner(team, team1Points._1, team2Points._1) //TODO
     case GameWinner(team) => viewActor ! ShowGameWinner(team)
     case CorrectBriscola(seed, number) => viewActor ! ShowChosenBriscola(seed, number)
-    case ChooseBriscola(timeout) =>
+    case ChooseBriscola(briscolas, timeout) => //TODO
       val availableBriscola = Set("spade", "denara", "coppe", "bastoni") //To be changed, briscola has to be passed from the server
       context toChooseBriscola(availableBriscola, timeout)
     case Turn(handCards, fieldCards, timeout) => context toMyTurn((handCards, fieldCards),timeout)

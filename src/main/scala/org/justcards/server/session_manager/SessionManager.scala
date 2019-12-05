@@ -30,8 +30,8 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   private def preMatchBehaviour: Receive = {
     case StartMatch(firstPlayer) if allPlayers contains firstPlayer =>
       firstPlayerMatch = firstPlayer
-      broadcastTo(TEAM_1) (GameStarted(TEAM_1))
-      broadcastTo(TEAM_2) (GameStarted(TEAM_2))
+      broadcastTo(TEAM_1) (GameStarted(List())) //TODO
+      broadcastTo(TEAM_2) (GameStarted(List())) //TODO
       val gameBoard = GameBoard(gameKnowledge, teams(TEAM_1) players, teams(TEAM_2) players, firstPlayer)
       for (player <- allPlayers)
         sendGameBoardInformation(gameBoard, player)
@@ -49,7 +49,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
           startMatch(gameBoard,firstPlayer)
         case BriscolaSetting.USER =>
           context become chooseBriscolaPhase(gameBoard, firstPlayer)
-          firstPlayer.userRef ! ChooseBriscola(TIMEOUT_TO_USER)
+          firstPlayer.userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER) //TODO
           timers startSingleTimer(briscolaTimer, Timeout, TIMEOUT seconds)
       }
   }
@@ -108,7 +108,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
       val matchInfo = gameKnowledge.matchWinner(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
       teams = teams + (TEAM_1 -> TeamPoints(teams(TEAM_1).players, teams(TEAM_1).points + matchInfo._2))
       teams = teams + (TEAM_2 -> TeamPoints(teams(TEAM_2).players, teams(TEAM_2).points + matchInfo._3))
-      broadcast(MatchWinner(matchInfo._1, matchInfo._2, matchInfo._3))
+      broadcast(MatchWinner(matchInfo._1, (matchInfo._2, 0), (matchInfo._3, 0))) //TODO
       gameKnowledge.sessionWinner(teams(TEAM_1).points, teams(TEAM_2).points) match {
         case None =>
           context become preMatchBehaviour

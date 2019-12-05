@@ -154,7 +154,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         val (appController, testProbe) = createLobby
         appController ! LobbyCreated(lobby)
         testProbe receiveN 1
-        appController ! GameStarted(team)
+        appController ! GameStarted(List((null, team))) //TODO
         testProbe expectMsg ShowGameStarted(team)
       }
 
@@ -178,7 +178,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         val (appController, testProbe) = startGame
         val team1Points = 1
         val team2Points = 2
-        appController ! MatchWinner(team, team1Points, team2Points)
+        appController ! MatchWinner(team, (team1Points,0), (team2Points,0)) //TODO
         testProbe expectMsg ShowMatchWinner(team, team1Points, team2Points)
       }
 
@@ -190,7 +190,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "ask the user to choose a Briscola when it receives the command from the connectionManager" in {
         val (appController, testProbe) = startGame
-        appController ! ChooseBriscola(briscolaTime)
+        appController ! ChooseBriscola(briscolaSet, briscolaTime)
         testProbe expectMsg ViewChooseBriscola(briscolaSet, briscolaTime)
       }
 
@@ -384,14 +384,14 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
   private def startGame: (ActorRef, TestProbe) = {
     val (appController, testProbe) = createLobby
     appController ! LobbyCreated(lobby)
-    appController ! GameStarted(team)
+    appController ! GameStarted(List((null,team))) //TODO
     testProbe receiveN 2
     (appController, testProbe)
   }
 
   private def chooseBriscola: (ActorRef, TestProbe) = {
     val (appController, testProbe) = startGame
-    appController ! ChooseBriscola(briscolaTime)
+    appController ! ChooseBriscola(briscolaSet, briscolaTime)
     testProbe receiveN 1
     (appController, testProbe)
   }
