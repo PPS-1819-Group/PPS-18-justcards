@@ -125,7 +125,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   private def inGame: Receive = {
     case Information(handCards, fieldCards) => viewActor ! ShowGameInformation(handCards, fieldCards)
     case HandWinner(winner) => viewActor ! ShowHandWinner(winner)
-    case MatchWinner(team, team1Points, team2Points) => viewActor ! ShowMatchWinner(team, team1Points._1, team2Points._1) //TODO
+    case MatchWinner(team, matchPoints, totalPoints) => viewActor ! ShowMatchWinner(team, matchPoints, totalPoints)
     case GameWinner(team) => viewActor ! ShowGameWinner(team)
     case CorrectBriscola(seed, number) => viewActor ! ShowChosenBriscola(seed, number)
     case ChooseBriscola(availableBriscola, timeout) => context toChooseBriscola(availableBriscola, timeout)

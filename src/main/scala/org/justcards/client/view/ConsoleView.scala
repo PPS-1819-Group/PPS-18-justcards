@@ -125,8 +125,10 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def inGame(myTeam: TeamId, myCards: List[Card] = List(), briscola: (String, Option[Int]) = ("", None)): Receive = {
     case ShowGameWinner(teamWinner) =>
       clearAndPrint(if(teamWinner == myTeam) GAME_WON else GAME_LOST(teamWinner))
-    case ShowMatchWinner(winnerTeam, team1Points, team2Points) =>
-      clearAndPrint(MATCH_ENDS(winnerTeam, (team1Points, team2Points)))
+    case ShowMatchWinner(winnerTeam, matchPoints, totalPoints) =>
+      clearAndPrint(MATCH_RESULTS_TITLE)
+      println(MATCH_RESULTS(matchPoints))
+      println(MATCH_ENDS(winnerTeam, totalPoints))
     case ShowHandWinner(player) =>
       clearAndPrint(if(player.name == myUsername) HAND_WON else HAND_LOST(player))
     case ShowChosenBriscola(seed, number) =>
@@ -445,8 +447,8 @@ object TestConsole extends App {
   view ! ShowJoinedLobby(LobbyId(1234, "pippo", GameId("beccaccino")), Set(UserId(1, "io")))
   view ! ShowGameStarted(TeamId("team pippe"))
   view ! ShowGameInformation(myCards, fieldCards)
-  view ! ShowMatchWinner(TeamId("team ciccio"), 12, 45)
-  view ! ShowGameWinner(TeamId("team ciccio"))
+  view ! ShowMatchWinner(TeamId("team ciccio"), (12,3), (45,23))
+  /*view ! ShowGameWinner(TeamId("team ciccio"))
   view ! ShowGameWinner(TeamId("team pippe"))
 
   /*view ! ShowTurn(myCards, fieldCards, 10)
@@ -461,5 +463,5 @@ object TestConsole extends App {
 
   Thread.sleep(5000)
 
-  view ! ShowGameInformation(myCards, fieldCards)
+  view ! ShowGameInformation(myCards, fieldCards)*/
 }

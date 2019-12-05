@@ -176,10 +176,10 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "inform the user about who won the current match" in {
         val (appController, testProbe) = startGame
-        val team1Points = 1
-        val team2Points = 2
-        appController ! MatchWinner(team, (team1Points,0), (team2Points,0)) //TODO
-        testProbe expectMsg ShowMatchWinner(team, team1Points, team2Points)
+        val totalPoints = (1,0)
+        val matchPoints = (2,3)
+        appController ! MatchWinner(team, matchPoints, totalPoints)
+        testProbe expectMsg ShowMatchWinner(team, matchPoints, totalPoints)
       }
 
       "inform the user about who won the game" in {

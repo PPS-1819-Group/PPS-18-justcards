@@ -26,7 +26,7 @@ object View {
   case class ViewChooseBriscola(availableBriscola: Set[String], timeout: Int) extends ViewMessage
   case class ShowTurn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends ViewMessage
   case class ShowHandWinner(player: UserId) extends ViewMessage
-  case class ShowMatchWinner(winnerTeam: TeamId, team1Points: Int, team2Points: Int) extends ViewMessage
+  case class ShowMatchWinner(winnerTeam: TeamId, matchPoints: (Int, Int), totalPoints: (Int, Int)) extends ViewMessage
   case class ShowGameWinner(team: TeamId) extends ViewMessage
   case class ShowChosenBriscola(seed: String, number: Option[Int] = None)
 
@@ -39,6 +39,7 @@ object View {
   val LOBBY_BY_FILTER_TITLE: String = "LOBBY LIST - Choose the filter you want to filter lobbies with"
   val LOBBY_CREATION_TITLE: String = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE: String = "LOBBY LIST - Choose the lobby you want to join"
+  val MATCH_RESULTS_TITLE: String = "MATCH RESULTS"
   val EXIT: String = "exit"
   val DEFAULT_LOBBIES_MESSAGE = "<< Currently there are no available lobbies >>"
   val LOBBY_MESSAGE: String = "If you want to exit from the lobby, write " concat EXIT
@@ -54,6 +55,8 @@ object View {
   val GAME_STARTED: TeamId => String = "The game has started! You're on team " + _.name
   val HAND_LOST: UserId => String = _.name concat "has " concat HAND_WON_FINAL
   val GAME_LOST: TeamId => String = "You've lost! " concat _.name concat " wins the game"
+  val MATCH_RESULTS: ((Int,Int)) => String = results =>
+    "Match ends! Results: " + results._1 + " - " + results._2
   val MATCH_ENDS: (TeamId, (Int,Int)) => String = (winnerTeam, teamPoints) =>
     winnerTeam.name + " wins! " + teamPoints._1 + " - " + teamPoints._2
   val UNKNOWN_ERROR: AppError => String = "Unknown error: " + _
