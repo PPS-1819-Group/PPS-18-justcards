@@ -30,39 +30,42 @@ trait GameBoard {
    * Getter
    * @return last card of deck
    */
-  def getLastCardDeck: Option[Card]
+  def optionLastCardDeck: Option[Card]
 
   /**
    * Getter
    * @return User that must play
    */
-  def getTurnPlayer: Option[UserInfo]
+  def optionTurnPlayer: Option[UserInfo]
 
   /**
    * Getter
    * @return player after given player
    */
-  def getPlayerAfter(player: UserInfo): UserInfo
+  def playerAfter(player: UserInfo): UserInfo
 
   /**
    * Getter
    * @param player player
    * @return cards in the player hand
    */
-  def getHandCardsOf(player: UserInfo): Set[Card]
+  def handCardsOf(player: UserInfo): Set[Card]
 
   /**
    * Getter
    * @return cards in the hand of player have to play
    */
-  def getHandCardsOfTurnPlayer: Option[Set[Card]]
+  def handCardsOfTurnPlayer: Option[Set[Card]] = this optionTurnPlayer match {
+    case Some(player) => Some(this handCardsOf player)
+    case None => None
+  }
 
   /**
    * Getter
    * @param player player
    * @return cards that player won
    */
-  def getTookCardsOf(player: UserInfo): Set[Card]
+  def tookCardsOf(player: UserInfo): Set[Card]
 
   /**
    * Players draw
@@ -132,28 +135,22 @@ object GameBoard {
       GameBoardImpl(field, playerCards, deck, handTurn, turn, nCardsDraw)
     }
 
-    override def getLastCardDeck: Option[Card] = deck lastOption
+    override def optionLastCardDeck: Option[Card] = deck lastOption
 
-    override def getTurnPlayer: Option[UserInfo] = handTurn headOption
+    override def optionTurnPlayer: Option[UserInfo] = handTurn headOption
 
-    override def getPlayerAfter(player: UserInfo): UserInfo = turn.indexOf(player) + 1 match {
+    override def playerAfter(player: UserInfo): UserInfo = turn.indexOf(player) + 1 match {
       case x if x >= turn.size || x < 0 => turn.head
       case x => turn(x)
     }
 
-    override def getHandCardsOf(player: UserInfo): Set[Card] = playerCards(player).hand
+    override def handCardsOf(player: UserInfo): Set[Card] = playerCards(player).hand
 
-    override def getHandCardsOfTurnPlayer: Option[Set[Card]] = getTurnPlayer match {
-      case Some(x) => Some(getHandCardsOf(x))
-      case None => None
-    }
-
-    override def getTookCardsOf(player: UserInfo): Set[Card] = playerCards(player).took
+    override def tookCardsOf(player: UserInfo): Set[Card] = playerCards(player).took
 
     override def draw: Option[GameBoard] = {
-      if (deck isEmpty) {
-        None
-      } else {
+      if (deck isEmpty) None
+      else {
         var tmpDeck: List[Card] = deck
         Some(this(
           fieldCards,
