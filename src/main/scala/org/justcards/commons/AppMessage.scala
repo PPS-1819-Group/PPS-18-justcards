@@ -1,5 +1,7 @@
 package org.justcards.commons
 
+import org.justcards.commons.games_rules.GameRules
+
 /**
   * Trait for messages that will be exchanged between application client and server.
   */
@@ -164,3 +166,7 @@ case class GameWinner(team: TeamId) extends AppMessage
  * @param lobby the lobby to leave
  */
 case class OutOfLobby(lobby: LobbyId) extends AppMessage
+
+case class CreateGame(name: String, rules: GameRules) extends AppMessage
+
+case class GameCreated(game: GameId) extends AppMessage

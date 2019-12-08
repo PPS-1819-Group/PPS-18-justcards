@@ -4,6 +4,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 
 import akka.actor.{Actor, Props}
 import org.justcards.commons._
+import org.justcards.commons.AppError._
 import org.justcards.commons.GameId
 import org.justcards.commons.games_rules.PointsConversion.PointsConversion
 import org.justcards.commons.games_rules.GameRules
@@ -23,8 +24,12 @@ class KnowledgeEngine(private val gameManager: GamesManager,
     case GameKnowledgeRequest(game) =>
       val msg: Any =
         if(gameManager.gameExists(game)) GameKnowledgeResponse(gameKnowledge(game))
-        else ErrorOccurred(AppError.GAME_NOT_EXISTING)
+        else ErrorOccurred(GAME_NOT_EXISTING)
       sender() ! msg
+    case CreateGame(name,rules) => gameManager createGame (name,rules) match {
+      case Some(gameId) => sender() ! GameCreated(gameId)
+      case _ => sender() ! ErrorOccurred(CANNOT_CREATE_GAME)
+    }
   }
 
 }

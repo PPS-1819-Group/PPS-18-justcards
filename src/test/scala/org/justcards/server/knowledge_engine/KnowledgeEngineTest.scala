@@ -3,6 +3,7 @@ package org.justcards.server.knowledge_engine
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import org.justcards.commons._
+import org.justcards.commons.AppError._
 import org.justcards.commons.games_rules.GameRules
 import org.justcards.server.Commons
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
@@ -58,6 +59,22 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
       me expectMsg GameKnowledgeResponse(myGameKnowledge)
     }
 
+    "return a game id if game has been created" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
+      knowledgeEngine ! CreateGame(ALLOWED_NAME, Map())
+      me expectMsg GameCreated(GameId(ALLOWED_NAME))
+    }
+
+    "return an error if game has not been created" in {
+      val me = TestProbe()
+      implicit val myRef = me.ref
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
+      knowledgeEngine ! CreateGame(NOT_ALLOWED_NAME, Map())
+      me expectMsg ErrorOccurred(CANNOT_CREATE_GAME)
+    }
+
   }
 
 }
@@ -72,7 +89,7 @@ object KnowledgeEngineTest {
 
     override def gameExists(game: GameId): Boolean = games contains game
 
-    override def createGame(name: String, rules: GameRules): Option[GameId] = ???
+    override def createGame(name: String, rules: GameRules): Option[GameId] = if (name == ALLOWED_NAME) Some(GameId(name)) else None
   }
 
   def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
@@ -102,5 +119,7 @@ object KnowledgeEngineTest {
   private val BECCACCINO_GAME = GameId("Beccaccino")
   private val BRISCOLA_GAME = GameId("Briscola")
   private val NOT_EXISTING_GAME = GameId("Scopa")
+  private val ALLOWED_NAME = "name"
+  private val NOT_ALLOWED_NAME = ""
 
 }

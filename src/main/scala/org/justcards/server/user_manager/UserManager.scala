@@ -55,8 +55,8 @@ class UserManager(private val sessionCreator: ActorRef, private val knowledgeEng
           sessionCreator ! CreateSession(lobby, gameKnowledge)
         case _ =>
       }
-    case _: Players =>
     case msg: UserManagerMessage => playerManager ! msg
+    case msg: CreateGame => knowledgeEngine.askAndInformUser(msg)(sender())
   }
 
   private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit) : Unit =

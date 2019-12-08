@@ -61,6 +61,8 @@ object ActorWithTcp {
   private[this] implicit val matchWinnerFormat: OFormat[MatchWinner] = Json.format[MatchWinner]
   private[this] implicit val gameWinnerFormat: OFormat[GameWinner] = Json.format[GameWinner]
   private[this] implicit val outOfLobbyFormat: OFormat[OutOfLobby] = Json.format[OutOfLobby]
+  private[this] implicit val createGameFormat: OFormat[CreateGame] = Json.format[CreateGame]
+  private[this] implicit val gameCreatedFormat: OFormat[GameCreated] = Json.format[GameCreated]
   private[this] implicit val errorOccurredFormat: OFormat[ErrorOccurred] = Json.format[ErrorOccurred]
 
   /*
