@@ -1,9 +1,41 @@
 package org.justcards.commons
 
+import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+
 /**
  * Trait for messages that will be exchanged between application client and server.
  */
-sealed trait AppMessage
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(
+  Array(
+    new JsonSubTypes.Type(value = classOf[LogIn], name = "LogIn"),
+    new JsonSubTypes.Type(value = classOf[LogOut], name = "LogOut"),
+    new JsonSubTypes.Type(value = classOf[Logged], name = "Logged"),
+    new JsonSubTypes.Type(value = classOf[RetrieveAvailableGames], name = "RetrieveAvailableGames"),
+    new JsonSubTypes.Type(value = classOf[AvailableGames], name = "AvailableGames"),
+    new JsonSubTypes.Type(value = classOf[CreateLobby], name = "CreateLobby"),
+    new JsonSubTypes.Type(value = classOf[LobbyCreated], name = "LobbyCreated"),
+    new JsonSubTypes.Type(value = classOf[RetrieveAvailableLobbies], name = "RetrieveAvailableLobbies"),
+    new JsonSubTypes.Type(value = classOf[AvailableLobbies], name = "AvailableLobbies"),
+    new JsonSubTypes.Type(value = classOf[JoinLobby], name = "JoinLobby"),
+    new JsonSubTypes.Type(value = classOf[LobbyJoined], name = "LobbyJoined"),
+    new JsonSubTypes.Type(value = classOf[LobbyUpdate], name = "LobbyUpdate"),
+    new JsonSubTypes.Type(value = classOf[GameStarted], name = "GameStarted"),
+    new JsonSubTypes.Type(value = classOf[Information], name = "Information"),
+    new JsonSubTypes.Type(value = classOf[ChooseBriscola], name = "ChooseBriscola"),
+    new JsonSubTypes.Type(value = classOf[CorrectBriscola], name = "CorrectBriscola"),
+    new JsonSubTypes.Type(value = classOf[Briscola], name = "Briscola"),
+    new JsonSubTypes.Type(value = classOf[Turn], name = "Turn"),
+    new JsonSubTypes.Type(value = classOf[Play], name = "Play"),
+    new JsonSubTypes.Type(value = classOf[Played], name = "Played"),
+    new JsonSubTypes.Type(value = classOf[TimeoutExceeded], name = "TimeoutExceeded"),
+    new JsonSubTypes.Type(value = classOf[HandWinner], name = "HandWinner"),
+    new JsonSubTypes.Type(value = classOf[MatchWinner], name = "MatchWinner"),
+    new JsonSubTypes.Type(value = classOf[GameWinner], name = "GameWinner"),
+    new JsonSubTypes.Type(value = classOf[OutOfLobby], name = "OutOfLobby"),
+    new JsonSubTypes.Type(value = classOf[ErrorOccurred], name = "ErrorOccurred"),
+  ))
+sealed trait AppMessage extends JsonSerializable
 
 /**
  * Message to indicate that an error occurred

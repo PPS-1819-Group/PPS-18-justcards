@@ -3,8 +3,9 @@ package org.justcards.client.connection_manager
 import java.util.Objects
 
 import akka.actor.{Actor, ActorRef, Props, Stash}
-import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
+import org.justcards.client.connection_manager.ConnectionManager._
 import org.justcards.commons.AppError.{CANNOT_CONNECT, CONNECTION_LOST, MESSAGE_SENDING_FAILED}
+import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConnectionOptions._
 import org.justcards.commons.{AppError, AppMessage, ErrorOccurred}
 import org.justcards.commons.actor_connection.{ActorWithConnection, Outer}
 
@@ -15,6 +16,15 @@ object ConnectionManager {
   case object TerminateConnection
   case object Connected
   case class DetailedErrorOccurred(error: AppError.Value, message: AppMessage)
+
+  def apply(host: String, port: Int): ConnectionManager = ConnectionManager(host, port, REMOTES)
+
+  def apply(host: String, port: Int, mode: ActorWithConnectionOptions): ConnectionManager =
+    mode match {
+      case TCP => TcpConnectionManager(host, port)
+      case REMOTES => RemoteConnectionManager(host, port)
+    }
+
 }
 
 abstract class AbstractConnectionManager(appController: ActorRef) extends ActorWithConnection with Actor with Stash {
