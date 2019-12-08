@@ -37,7 +37,7 @@ class PrologRuleKnowledge(private val knowledge: Prolog) extends RuleKnowledge {
   override def lastTakeWorthOneMorePoint(value: Boolean): Boolean = value.isInstanceOf[Boolean]
 
   override def cardsHierarchyAndPoints(values: List[(Int, Int)]): Boolean = values forall {v =>
-    knowledge ? PrologStruct(card, v._1, PrologVar() head) && knowledge ? PrologStruct(points,v._2)
+    knowledge ? PrologStruct(card, v._1, PrologVar()) && knowledge ? PrologStruct(points,v._2)
   }
 
   private def ?(conversion: PointsConversion): Boolean = conversion match {

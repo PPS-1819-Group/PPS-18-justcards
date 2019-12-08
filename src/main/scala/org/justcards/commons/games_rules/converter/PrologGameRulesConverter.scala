@@ -55,7 +55,7 @@ class PrologGameRulesConverter extends GameRulesConverter {
         case Some(LAST_TAKE_WORTH_ONE_MORE_POINT) => simpleRule(r._2,lastTakeHasOneMorePoint)(_.toBoolean)()(accept = Some(v => v))
         case Some(CARDS_HIERARCHY_AND_POINTS) => (Term createTerm r._2) toList match {
           case Some(list) =>
-            val seedVar = PrologVar().head
+            val seedVar = PrologVar()
             val dataList = list.map(_.toList).filter(_.isDefined).map(_.get)
             for (i <- list.indices; info = dataList(i))
               yield PrologClause(PrologStruct(name = card, info head,seedVar,i + 1,info(1)),PrologStruct(seed,seedVar))
@@ -89,11 +89,9 @@ class PrologGameRulesConverter extends GameRulesConverter {
   private def createPointsRule(value: String, name: String): List[Term] = (Term createTerm value) toList match {
     case Some(info) => info.head toPointsConversion match {
       case Some(MATCH_POINTS) =>
-        val v = PrologVar().head
+        val v = PrologVar()
         List(PrologStruct(name, v, v))
-      case Some(EXACTLY) =>
-        val v = PrologVar().head
-        List(PrologStruct(name, v, info(1)))
+      case Some(EXACTLY) => List(PrologStruct(name, PrologVar(), info(1)))
       case Some(DIVIDE) =>
         val vars = PrologVar(2)
         val x = vars head

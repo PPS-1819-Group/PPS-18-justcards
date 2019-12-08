@@ -9,8 +9,8 @@ object TuPrologHelpers {
 
   import alice.tuprolog.SolveInfo
 
-  implicit def fromStringToTerm(value: String): Term = Term createTerm value
-  implicit def fromIntToTerm(value: Int): Term = Term createTerm value.toString
+  implicit def fromStringToTerm(value: String): Term = PrologStruct(value)
+  implicit def fromIntToTerm(value: Int): Term = PrologInt(value)
   implicit def fromVarToString(variable: Var): String = variable getName
   implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = PrologStruct(traversable toArray)
 
@@ -74,6 +74,8 @@ object TuPrologHelpers {
     import alice.tuprolog.Number
     import scala.collection.JavaConverters._
 
+    private[this] val stringDelimiter = "'"
+
     def toInt: Option[Int] = if (term.isInstanceOf[Number]) Some(term.toString.toInt) else term.toString.toOptionInt
 
     def toList: Option[List[Term]] = term match {
@@ -89,7 +91,7 @@ object TuPrologHelpers {
     }
 
     def stringValue: String = term toString match {
-      case v if v.startsWith("'") && v.endsWith("'") => v.slice(1,v.length-1)
+      case v if v.startsWith(stringDelimiter) && v.endsWith(stringDelimiter) => v.slice(1,v.length-1)
       case v => v
     }
 
@@ -112,6 +114,7 @@ object TuPrologHelpers {
 
   object PrologStruct {
     def apply(): Struct = new Struct()
+    def apply(value: String): Struct = new Struct(value)
     def apply(name: String, parameters: Term*): Struct = PrologStruct(name, parameters toArray)
     def apply(name: String, parameters: Array[Term]): Struct = new Struct(name, parameters)
     def apply(h: Term, t: Term): Struct = new Struct(h,t)
@@ -130,10 +133,11 @@ object TuPrologHelpers {
   }
 
   object PrologVar {
-    private[this] val variableStart = "VAR"
+    private[this] val variableName = "VAR"
     def apply(name: String): Var = new Var(name)
-    def apply(amount: Int = 1): List[Var] =
-      (for (variableNumber <- 0 until amount) yield PrologVar(variableStart + variableNumber)).toList
+    def apply(): Var = PrologVar(variableName)
+    def apply(amount: Int): List[Var] =
+      (for (variableNumber <- 0 until amount) yield PrologVar(variableName + variableNumber)).toList
   }
 
   object PrologInt {
