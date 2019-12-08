@@ -1,6 +1,6 @@
 package org.justcards.server.knowledge_engine
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.{File, PrintWriter}
 
 import akka.actor.{Actor, Props}
 import org.justcards.commons._
@@ -114,8 +114,8 @@ object GamesManager {
      private def createGameFile(name: String, rules: List[String]): Option[GameId] = {
        try {
          val newGame = new File(GAMES_PATH + name + ".pl")
-         val bw = new BufferedWriter(new FileWriter(newGame))
-         rules foreach bw.write
+         val bw = new PrintWriter(newGame)
+         rules foreach bw.println
          bw.close()
          Some(GameId(name))
        } catch {
