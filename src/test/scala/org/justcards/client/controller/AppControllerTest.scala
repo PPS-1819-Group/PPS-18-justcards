@@ -6,7 +6,7 @@ import scala.concurrent.duration._
 import org.justcards.client.{TestConnectionManager, TestView}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.controller.AppController._
-import org.justcards.client.view.{MenuChoice, OptionConnectionFailed, FilterChoice}
+import org.justcards.client.view.{MenuChoice, OptionConnectionFailed}
 import org.justcards.client.view.View._
 import org.justcards.client.view.FilterChoice._
 import org.justcards.commons.AppError._
@@ -96,8 +96,8 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
       "send a message to the connection manager to get the filtered available lobbies" in {
         val (appController, testProbe) = login()
         appController ! MenuSelection(MenuChoice.LIST_LOBBY_WITH_FILTERS, Map(
-          (BY_OWNER-> username),
-          (BY_GAME -> game.name)
+          BY_OWNER -> username,
+          BY_GAME  -> game.name
         ))
         testProbe expectMsg RetrieveAvailableLobbies(game.name, username)
       }
@@ -154,8 +154,14 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         val (appController, testProbe) = createLobby
         appController ! LobbyCreated(lobby)
         testProbe receiveN 1
-        appController ! GameStarted(team)
-        testProbe expectMsg ShowGameStarted(team)
+        val players = List(
+          (null, team),
+          (null, team2),
+          (null, team),
+          (null, team2),
+        )
+        appController ! GameStarted(players)
+        testProbe expectMsg ShowGameStarted(players)
       }
 
     }
@@ -176,10 +182,10 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "inform the user about who won the current match" in {
         val (appController, testProbe) = startGame
-        val team1Points = 1
-        val team2Points = 2
-        appController ! MatchWinner(team, team1Points, team2Points)
-        testProbe expectMsg ShowMatchWinner(team, team1Points, team2Points)
+        val totalPoints = (1,0)
+        val matchPoints = (2,3)
+        appController ! MatchWinner(team, matchPoints, totalPoints)
+        testProbe expectMsg ShowMatchWinner(team, matchPoints, totalPoints)
       }
 
       "inform the user about who won the game" in {
@@ -190,23 +196,22 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "ask the user to choose a Briscola when it receives the command from the connectionManager" in {
         val (appController, testProbe) = startGame
-        appController ! ChooseBriscola(briscolaTime)
+        appController ! ChooseBriscola(briscolaSet, briscolaTime)
         testProbe expectMsg ViewChooseBriscola(briscolaSet, briscolaTime)
       }
 
       "send a message to the connection manager, when the user chose the Briscola" in {
         val (appController, testProbe) = chooseBriscola
-        val briscola = "spade"
         appController ! ChosenBriscola(briscola)
         testProbe expectMsg Briscola(briscola)
       }
 
       "tell the user that the Briscola was correct" in {
         val (appController, testProbe) = chooseBriscola
-        appController ! ChosenBriscola("spade")
+        appController ! ChosenBriscola(briscola)
         testProbe receiveN 1
-        appController ! CorrectBriscola()
-        testProbe expectMsg MoveWasCorrect
+        appController ! CorrectBriscola(briscola)
+        testProbe expectMsgAllOf(MoveWasCorrect, ShowChosenBriscola(briscola))
       }
 
       "send a timeout message after a default time if the user doesn't choose a Briscola" in {
@@ -216,12 +221,12 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "not send a timeout message to the connection manager if the user chooses a Briscola before the timeout" in {
         implicit val (appController, testProbe) = chooseBriscola
-        expectNoTimeoutExceeded(appController, ChosenBriscola("spade"), briscolaTime)
+        expectNoTimeoutExceeded(appController, ChosenBriscola(briscola), briscolaTime)
       }
 
       "ask again to the user to choose the Briscola if the choice was incorrect" in {
         implicit val (appController, testProbe) = chooseBriscola
-        appController ! ChosenBriscola("spade")
+        appController ! ChosenBriscola(briscola)
         testProbe receiveN 1
         appController ! ErrorOccurred(BRISCOLA_NOT_VALID)
         testProbe expectMsgAllOf(ShowError(BRISCOLA_NOT_VALID), ViewChooseBriscola(briscolaSet, briscolaTime))
@@ -229,7 +234,13 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "send a timeout message after the correct time if the user chosen the wrong Briscola" in {
         implicit val (appController, testProbe) = chooseBriscola
-        sendErrorAndExpectTimeoutExceeded(appController, briscolaTime)(ChosenBriscola("spade"), BRISCOLA_NOT_VALID)
+        sendErrorAndExpectTimeoutExceeded(appController, briscolaTime)(ChosenBriscola(briscola), BRISCOLA_NOT_VALID)
+      }
+
+      "tell the user the Briscola chosen by another user in the game session" in {
+        implicit val (appController, testProbe) = startGame
+        appController ! CorrectBriscola(briscola)
+        testProbe expectMsg ShowChosenBriscola(briscola)
       }
 
       "tell the user that is his turn after receiving a Turn message from connection manager" in {
@@ -379,14 +390,14 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
   private def startGame: (ActorRef, TestProbe) = {
     val (appController, testProbe) = createLobby
     appController ! LobbyCreated(lobby)
-    appController ! GameStarted(team)
+    appController ! GameStarted(List((null,team))) //TODO
     testProbe receiveN 2
     (appController, testProbe)
   }
 
   private def chooseBriscola: (ActorRef, TestProbe) = {
     val (appController, testProbe) = startGame
-    appController ! ChooseBriscola(briscolaTime)
+    appController ! ChooseBriscola(briscolaSet, briscolaTime)
     testProbe receiveN 1
     (appController, testProbe)
   }

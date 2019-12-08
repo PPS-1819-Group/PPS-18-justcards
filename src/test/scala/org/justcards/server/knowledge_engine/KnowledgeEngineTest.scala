@@ -114,6 +114,8 @@ object KnowledgeEngineTest {
     override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
 
     override def sessionStarterPlayer(playersHandCards: Set[(Commons.UserInfo, Set[Card])]): Option[Commons.UserInfo] = ???
+
+    override def seeds: Set[Seed] = ???
   }
 
   private val BECCACCINO_GAME = GameId("Beccaccino")
