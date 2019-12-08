@@ -3,6 +3,7 @@ package org.justcards.server.knowledge_engine
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import org.justcards.commons._
+import org.justcards.commons.games_rules.GameRules
 import org.justcards.server.Commons
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
@@ -70,6 +71,8 @@ object KnowledgeEngineTest {
     override def availableGames: Set[GameId] = games
 
     override def gameExists(game: GameId): Boolean = games contains game
+
+    override def createGame(name: String, rules: GameRules): Option[GameId] = ???
   }
 
   def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
