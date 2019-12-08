@@ -116,7 +116,8 @@ class ConsoleView(controller: ActorRef) extends Actor {
       println() ; clearAndPrint()
       printLobbyState(lobby, members)
       showLobbyOptions()
-    case NewUserCommand(EXIT) => case EXIT => controller ! ExitFromLobby
+    case NewUserCommand(`EXIT`) => controller ! ExitFromLobby
+    case NewUserCommand(_) => askToUser("")
     case ShowGameStarted(players) =>
       val myTeam = players.find(_._1.name == myUsername).get._2
       val mate = players find(tuple => tuple._2 == myTeam && tuple._1.name != myUsername) map(_._1)
@@ -152,6 +153,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
                         (myTeam: TeamId, myCards: List[Card], briscola: (String, Option[Int]) = ("", None)): Receive = {
     case NewUserCommand(choice) => onUserChoice(choice)
     case ShowTimeForMoveExceeded =>
+      println()
       println(TIME_IS_UP)
       context >>> inGame(myTeam, myCards, briscola)
     case MoveWasCorrect => context >>> inGame(myTeam, myCards, briscola)
