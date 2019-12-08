@@ -5,7 +5,7 @@ import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Props, Timers}
 import scala.concurrent.duration._
 import org.justcards.commons._
 import org.justcards.server.Commons._
-import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, PrologGameKnowledge}
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.justcards.server.user_manager.Lobby
 
 
@@ -18,16 +18,16 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   import SessionManager._
   import SessionManagerMessage._
 
-  self ! StartMatch(teams(TEAM_1).players.head)
+  self ! StartMatch(None)
 
   var firstPlayerMatch: UserInfo = _
 
   override def receive: Receive = preMatchBehaviour
 
   private def preMatchBehaviour: Receive = {
-    case StartMatch(firstPlayer) if allPlayers contains firstPlayer =>
-      firstPlayerMatch = firstPlayer
+    case StartMatch(firstPlayer) if firstPlayer.isEmpty || (allPlayers contains firstPlayer.get) =>
       val gameBoard = GameBoard(gameKnowledge, teams(TEAM_1) players, teams(TEAM_2) players, firstPlayer)
+      firstPlayerMatch = gameBoard.optionTurnPlayer get
       val newTeams: List[(UserId, TeamId)] = gameBoard.turn.map(user => (
         UserId(1, user.username),
         TeamId(teams.filterKeys(teams(_).players.contains(user)).head._1 toString)
@@ -37,20 +37,19 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
       gameKnowledge hasToChooseBriscola match {
         case BriscolaSetting.NOT_BRISCOLA =>
-          context toMatch(gameBoard, firstPlayer)
+          context toMatch(gameBoard, firstPlayerMatch)
         case BriscolaSetting.SYSTEM =>
           val briscolaSeed = if (gameBoard.optionLastCardDeck.isDefined) {
             gameBoard.optionLastCardDeck.get.seed
           } else {
-            gameBoard.handCardsOf(firstPlayer).head.seed
+            gameBoard.handCardsOf(firstPlayerMatch).head.seed
           }
           gameKnowledge setBriscola briscolaSeed
           this broadcast CorrectBriscola(briscolaSeed)
-          context toMatch(gameBoard,firstPlayer)
+          context toMatch(gameBoard,firstPlayerMatch)
         case BriscolaSetting.USER =>
-          context become chooseBriscolaPhase(gameBoard, firstPlayer)
-          println("sending choose briscola from session")
-          firstPlayer.userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER) //TODO
+          context become chooseBriscolaPhase(gameBoard, firstPlayerMatch)
+          firstPlayerMatch.userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER) //TODO
           timers startSingleTimer(TimeoutId, Timeout, TIMEOUT seconds)
       }
   }
@@ -78,7 +77,6 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
     case Play(card) if playable(gameBoard, card) && isCorrectPlayer(gameBoard, sender()) =>
       if(sender() != self) sender() ! Played(card)
       else gameBoard.optionTurnPlayer.get.userRef ! Played(card)
-      println("player played " + card)
       timers cancel TimeoutId
       val newGameBoard: GameBoard = gameBoard playerPlays card
       if (newGameBoard.optionTurnPlayer.nonEmpty) context toMatch(newGameBoard, newGameBoard.optionTurnPlayer.get)
@@ -185,7 +183,7 @@ private[this] object SessionManagerMessage {
 
   sealed trait SessionManagerMessage
 
-  case class StartMatch(firstPlayer: UserInfo) extends SessionManagerMessage
+  case class StartMatch(firstPlayer: Option[UserInfo]) extends SessionManagerMessage
   case class endMatchMessage(lastHandWinner: UserInfo) extends SessionManagerMessage
   case object Timeout extends SessionManagerMessage
   case object TimeoutId extends SessionManagerMessage

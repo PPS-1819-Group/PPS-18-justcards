@@ -42,7 +42,7 @@ trait GameBoard {
    * Getter
    * @return player after given player
    */
-  def playerAfter(player: UserInfo): UserInfo
+  def playerAfter(player: UserInfo): Option[UserInfo]
 
   /**
    * Getter
@@ -91,7 +91,7 @@ trait GameBoard {
 
 object GameBoard {
 
-  def apply(gameKnowledge: GameKnowledge, team1: List[UserInfo], team2: List[UserInfo], firstPlayer: UserInfo): GameBoard = {
+  def apply(gameKnowledge: GameKnowledge, team1: List[UserInfo], team2: List[UserInfo], firstPlayer: Option[UserInfo]): GameBoard = {
     import ListWithShift._
     val initialConfiguration = gameKnowledge.initialConfiguration//hand, draw, field
     var deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
@@ -101,21 +101,26 @@ object GameBoard {
         case (null, b) => Seq(b)
         case (a, b) => Seq(a, b)
       }
-    val players = turn.map( a => {
+    val players: Map[UserInfo, PlayerCards] = turn.map( a => {
       val player = (a , PlayerCards(deck take initialConfiguration._1 toSet, Set()))
       deck = deck drop initialConfiguration._1
       player
     }).toMap
-    val handTurn = turn.shiftTo(firstPlayer).get
+    val handTurn: List[UserInfo] = if (firstPlayer isEmpty) {
+      val first = gameKnowledge.sessionStarterPlayer(players.map(x => (x._1, x._2.hand)).toSet)
+      if (first isDefined)
+        (turn shiftTo first.get) get
+      else
+        turn
+    } else (turn shiftTo firstPlayer.get) get
 
     GameBoardImpl(
-      deck take initialConfiguration._3 map(a=>(a,firstPlayer)),
+      deck take initialConfiguration._3 map(a=>(a,handTurn.head)),
       players,
       deck drop initialConfiguration._3,
       handTurn,
       turn,
       initialConfiguration._2)
-
   }
 
 
@@ -139,9 +144,10 @@ object GameBoard {
 
     override def optionTurnPlayer: Option[UserInfo] = handTurn headOption
 
-    override def playerAfter(player: UserInfo): UserInfo = turn.indexOf(player) + 1 match {
-      case x if x >= turn.size || x < 0 => turn.head
-      case x => turn(x)
+    override def playerAfter(player: UserInfo): Option[UserInfo] = turn indexOf player match {
+      case -1 => None
+      case x if x == turn.size - 1 => Some(turn.head)
+      case x => Some(turn(x + 1))
     }
 
     override def handCardsOf(player: UserInfo): Set[Card] = playerCards(player).hand

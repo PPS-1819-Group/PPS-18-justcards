@@ -242,7 +242,7 @@ object SessionManagerTest {
 
       override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = (endInfo._2, endInfo._3)
 
-      override def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo] = ???
+      override def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo] = Some(playersHandCards.head._1)
 
       override def seeds: Set[Seed] = Set("denara", "spade", "bastoni", "coppe")
     }
