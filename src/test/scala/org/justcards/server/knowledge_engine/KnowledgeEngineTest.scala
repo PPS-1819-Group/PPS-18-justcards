@@ -4,8 +4,10 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.commons.AppError._
-import org.justcards.commons.games_rules.GameRules
+import org.justcards.commons.games_rules.{GameRules, PointsConversion}
+import org.justcards.commons.games_rules.converter.GameRulesConverter
 import org.justcards.server.Commons
+import org.justcards.server.Commons.BriscolaSetting
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
@@ -15,6 +17,8 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfter {
 
   import KnowledgeEngineTest._
+  import org.justcards.commons.games_rules.Rule._
+  import org.justcards.commons.games_rules.converter.GameRulesConverter._
 
   private implicit val system = ActorSystem("KnowledgeEngineTest")
   private val gameManager = createGamesManager()
@@ -62,8 +66,22 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
     "return a game id if game has been created" in {
       val me = TestProbe()
       implicit val myRef = me.ref
-      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
-      knowledgeEngine ! CreateGame(ALLOWED_NAME, Map())
+      implicit val rulesConverter = GameRulesConverter()
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge, rulesConverter))
+      val rules: GameRules = Map(
+        PLAY_SAME_SEED.toString -> true,
+        POINTS_TO_WIN_SESSION.toString -> 41,
+        CARDS_DISTRIBUTION.toString -> ((10,0,0)),
+        CHOOSE_BRISCOLA.toString -> BriscolaSetting.USER,
+        POINTS_OBTAINED_IN_A_MATCH.toString -> PointsConversion.DIVIDE.value(3),
+        STARTER_CARD.toString -> Card(4,"denara"),
+        LAST_TAKE_WORTH_ONE_MORE_POINT.toString -> true,
+        CARDS_HIERARCHY_AND_POINTS.toString -> List((3,1),(2,1),(1,3),(10,1),(9,1),(8,1),(7,0),(6,0),(5,0),(4,0)).reverse,
+        WINNER_POINTS.toString -> PointsConversion.MATCH_POINTS,
+        LOSER_POINTS.toString -> PointsConversion.MATCH_POINTS,
+        DRAW_POINTS.toString -> PointsConversion.EXACTLY.value(0)
+      )
+      knowledgeEngine ! CreateGame(ALLOWED_NAME, rules)
       me expectMsg GameCreated(GameId(ALLOWED_NAME))
     }
 
@@ -89,7 +107,7 @@ object KnowledgeEngineTest {
 
     override def gameExists(game: GameId): Boolean = games contains game
 
-    override def createGame(name: String, rules: GameRules): Option[GameId] = if (name == ALLOWED_NAME) Some(GameId(name)) else None
+    override def createGame(name: String, rules: List[String]): Option[GameId] = if (name == ALLOWED_NAME) Some(GameId(name)) else None
   }
 
   def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
