@@ -62,7 +62,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me.expectMsg(ChooseBriscola(gameKnowledge.seeds, SessionManager.TIMEOUT_TO_USER))
       }
 
-      "communicate the briscola to all users after timeout for user decision" in {
+      /*"communicate the briscola to all users after timeout for user decision" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
@@ -72,7 +72,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me.within(SessionManager.TIMEOUT + 1 second) {
           expectBroadcast(CorrectBriscola(SEED))
         }
-      }
+      }*/
 
       "communicate the briscola to all users after user decision" in {
         implicit val me: TestProbe = TestProbe()
@@ -150,7 +150,115 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me.expectMsg(ErrorOccurred(CARD_NOT_VALID))
       }
 
-      "notify the player who win the match" in {
+
+      /*"play a card instead of user after timeout" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        val lobby = createLobby
+        val gameKnowledge = TestGameKnowledge((1,0,0))
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 12
+        me.within(SessionManager.TIMEOUT + 1 second) {
+          me.expectMsgType[Played]
+        }
+      }*/
+
+      "communicate the information and the turn to users after first player play his card" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        val lobby = createLobby
+        val gameKnowledge = TestGameKnowledge((1,0,0))
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 12
+        me send (sessionManager, Play(CARD))
+        me receiveN 1
+        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+      }
+
+      "communicate the information of field to all users after hand" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        val lobby = createLobby
+        val gameKnowledge = TestGameKnowledge((1,0,0))
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 8
+        for (i <- 0 until 4) {
+          me receiveN 4
+          me send(sessionManager, Play(CARD))
+          me receiveN 1
+        }
+        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Information])
+      }
+
+      "notify players who win the hand" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        val lobby = createLobby
+        val handWinner = UserInfo(OWNERNAME, myRef)
+        val gameKnowledge = TestGameKnowledge((1,0,0), firstHandWinner = handWinner)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 8
+        for (i <- 0 until 4) {
+          me receiveN 4
+          me send(sessionManager, TimeoutExceeded())
+          me receiveN 1
+        }
+        me receiveN 4
+        expectBroadcast(HandWinner(handWinner))
+      }
+
+      "communicate the information and the turn to users after first hand" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        val lobby = createLobby
+        val handWinner = UserInfo(OWNERNAME, myRef)
+        val gameKnowledge = TestGameKnowledge((2,0,0), firstHandWinner = handWinner)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 8
+        for (i <- 0 until 4) {
+          me receiveN 4
+          me send(sessionManager, TimeoutExceeded())
+          me receiveN 1
+        }
+        me receiveN 8
+        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+      }
+
+      "allow user to draw card after first hand" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        val lobby = createLobby
+        val handWinner = UserInfo(OWNERNAME, myRef)
+        val gameKnowledge = TestGameKnowledge((1,1,0), firstHandWinner = handWinner)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 8
+        for (i <- 0 until 4) {
+          me receiveN 4
+          me send(sessionManager, TimeoutExceeded())
+          me receiveN 1
+        }
+        me receiveN 8
+        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+      }
+
+      "notify players that match is finished after they played all cards" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        val lobby = createLobby
+        val handWinner = UserInfo(OWNERNAME, myRef)
+        val gameKnowledge = TestGameKnowledge((1,0,0), firstHandWinner = handWinner)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 8
+        for (i <- 0 until 4) {
+          me receiveN 4
+          me send(sessionManager, TimeoutExceeded())
+          me receiveN 1
+        }
+        me receiveN 8
+        expectBroadcast(MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2,TestGameKnowledge.endInfo._3), (TestGameKnowledge.endInfo._2,TestGameKnowledge.endInfo._3)))
+      }
+
+      "notify players who win the match" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
@@ -160,7 +268,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         expectBroadcast(MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2,TestGameKnowledge.endInfo._3), (TestGameKnowledge.endInfo._2,TestGameKnowledge.endInfo._3)))
       }
 
-      "notify the player who win the session" in {
+      "notify players who win the session" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
@@ -170,7 +278,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         expectBroadcast(GameWinner(TestGameKnowledge.endInfo._1))
       }
 
-      "notify the player that game is finished and they have to exit to lobby" in {
+      "notify players that game is finished and they have to exit to lobby" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
@@ -203,8 +311,6 @@ object SessionManagerTest {
 
     val endInfo: (Team.Value, Int, Int) = (TEAM_1, 1, 0)
     val SEED = "bastoni"
-    val CARD = Card(1, SEED)
-
 
     def apply(configuration:(Int, Int, Int) = (0,0,0),
               briscolaSetting: BriscolaSetting.Value = BriscolaSetting.NOT_BRISCOLA,
@@ -224,7 +330,7 @@ object SessionManagerTest {
 
       override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = configuration
 
-      override def deckCards: Set[Card] = Set(Card(1, SEED), Card(1, SEED), Card(1, SEED), Card(1, SEED))
+      override def deckCards: Set[Card] = (for (i <- 1 to 8) yield Card(i, SEED)) toSet
 
       override def hasToChooseBriscola: BriscolaSetting = briscolaSetting
 
@@ -247,3 +353,6 @@ object SessionManagerTest {
   }
 
 }
+
+// primo giocatore sia veramente quello
+// che giochino tutti i giocatori
