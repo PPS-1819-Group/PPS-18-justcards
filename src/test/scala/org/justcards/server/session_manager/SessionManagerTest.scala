@@ -38,37 +38,39 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER)))
-        me.expectMsgAllOf(GameStarted(List()), GameStarted(List()), GameStarted(List()), GameStarted(List())) //TODO
+        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge()))
+        expectBroadcast(GameStarted(List((UserId(1,OWNERNAME),TEAM_1), (UserId(1,OWNERNAME + 1),TEAM_2), (UserId(1,OWNERNAME + 0),TEAM_1), (UserId(1,OWNERNAME + 2),TEAM_2))))
       }
 
       "send to users information of hand cards and field cards" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER)))
+        val gameKnowledge = TestGameKnowledge()
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 4
-        me.expectMsgAllOf(Information(Set(), List()), Information(Set(), List()), Information(Set(), List()), Information(Set(), List()))
+        expectBroadcast(Information(Set(), List()))
       }
 
       "ask to an user the briscola if the game request this" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val gameKnowledge = TestGameKnowledge(BriscolaSetting.USER)
+        val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.USER)
         val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
-        me.expectMsg(ChooseBriscola(gameKnowledge.seeds, SessionManager.TIMEOUT_TO_USER)) //TODO
+        me.expectMsg(ChooseBriscola(gameKnowledge.seeds, SessionManager.TIMEOUT_TO_USER))
       }
 
       "communicate the briscola to all users after timeout for user decision" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER)))
+        val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.USER)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 9
         me.within(SessionManager.TIMEOUT + 1 second) {
-          me.expectMsgAllOf(CorrectBriscola(SEED), CorrectBriscola(SEED), CorrectBriscola(SEED), CorrectBriscola(SEED))
+          expectBroadcast(CorrectBriscola(SEED))
         }
       }
 
@@ -76,17 +78,19 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER)))
+        val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.USER)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 9
         me send (sessionManager, Briscola(SEED))
-        me.expectMsgAllOf(CorrectBriscola(SEED), CorrectBriscola(SEED), CorrectBriscola(SEED), CorrectBriscola(SEED))
+        expectBroadcast(CorrectBriscola(SEED))
       }
 
       "communicate that chosen briscola is not valid" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER, correctBriscola = false)))
+        val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.USER, correctBriscola = false)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 9
         me send (sessionManager, Briscola(SEED))
         me.expectMsg(ErrorOccurred(BRISCOLA_NOT_VALID))
@@ -96,39 +100,41 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.SYSTEM)))
+        val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.SYSTEM)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
-        me.expectMsgAllOf(CorrectBriscola(SEED), CorrectBriscola(SEED), CorrectBriscola(SEED), CorrectBriscola(SEED))
+        expectBroadcast(CorrectBriscola(SEED))
       }
-      /*
+
       "communicate the information and the turn to users after briscola selection" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER)))
+        val gameKnowledge = TestGameKnowledge((1,0,0), BriscolaSetting.USER)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 9
         me send (sessionManager, Briscola(SEED))
         me receiveN 4
-        me.expectMsgAllOf(Turn(Set(), List(),TIMEOUT), Information(Set(), List()), Information(Set(), List()), Information(Set(), List()))
+        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
       }
 
       "communicate the information and the turn to users without briscola selection" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.NOT_BRISCOLA)))
+        val gameKnowledge = TestGameKnowledge((1,0,0))
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
-        me.expectMsgAllOf(Turn(Set(), List(),TIMEOUT), Information(Set(), List()), Information(Set(), List()), Information(Set(), List()))
+        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
       }
 
       "notify the player that the card played is playable" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER)))
-        me receiveN 9
-        me send (sessionManager, Briscola(SEED))
-        me receiveN 8
+        val gameKnowledge = TestGameKnowledge((1,0,0))
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 12
         me send (sessionManager, Play(CARD))
         me.expectMsg(Played(CARD))
       }
@@ -137,51 +143,41 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.USER, playableCard = false)))
-        me receiveN 9
-        me send (sessionManager, Briscola(SEED))
-        me receiveN 8
+        val gameKnowledge = TestGameKnowledge((1,0,0), playableCard = false)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 12
         me send (sessionManager, Play(CARD))
         me.expectMsg(ErrorOccurred(CARD_NOT_VALID))
-      }*/
+      }
 
       "notify the player who win the match" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.NOT_BRISCOLA)))
+        val gameKnowledge = TestGameKnowledge()
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
-        matchExecution()
-        me expectMsgAllOf(MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2,0), (TestGameKnowledge.endInfo._3,0)),
-          MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2,0), (TestGameKnowledge.endInfo._3,0)),
-          MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2,0), (TestGameKnowledge.endInfo._3,0)),
-          MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2,0), (TestGameKnowledge.endInfo._3,0)))
-        //TODO
+        expectBroadcast(MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2,TestGameKnowledge.endInfo._3), (TestGameKnowledge.endInfo._2,TestGameKnowledge.endInfo._3)))
       }
 
       "notify the player who win the session" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.NOT_BRISCOLA)))
-        me receiveN 8
-        matchExecution()
-        me receiveN 4
-        me expectMsgAllOf(GameWinner(TestGameKnowledge.endInfo._1),
-          GameWinner(TestGameKnowledge.endInfo._1),
-          GameWinner(TestGameKnowledge.endInfo._1),
-          GameWinner(TestGameKnowledge.endInfo._1))
+        val gameKnowledge = TestGameKnowledge()
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 12
+        expectBroadcast(GameWinner(TestGameKnowledge.endInfo._1))
       }
 
       "notify the player that game is finished and they have to exit to lobby" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        system.actorOf(SessionManager(lobby, TestGameKnowledge(BriscolaSetting.NOT_BRISCOLA)))
-        me receiveN 8
-        matchExecution()
-        me receiveN 8
-        me expectMsgAllOf(OutOfLobby(lobby), OutOfLobby(lobby), OutOfLobby(lobby), OutOfLobby(lobby))
+        val gameKnowledge = TestGameKnowledge()
+        system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 16
+        expectBroadcast(OutOfLobby(lobby))
       }
     }
   }
@@ -195,9 +191,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
     lobby
   }
 
-  private def matchExecution(): Unit = {
-    //TODO
-  }
+  private def expectBroadcast(msg: AppMessage)(implicit me: TestProbe) = me expectMsgAllOf(msg,msg,msg,msg)
 
 }
 
@@ -207,26 +201,30 @@ object SessionManagerTest {
 
   object TestGameKnowledge {
 
-    val SEED = "bastoni"
     val endInfo: (Team.Value, Int, Int) = (TEAM_1, 1, 0)
+    val SEED = "bastoni"
+    val CARD = Card(1, SEED)
 
-    def apply(briscolaSetting: BriscolaSetting.Value,
+
+    def apply(configuration:(Int, Int, Int) = (0,0,0),
+              briscolaSetting: BriscolaSetting.Value = BriscolaSetting.NOT_BRISCOLA,
               correctBriscola: Boolean = true,
               playableCard: Boolean = true,
               firstHandWinner: UserInfo = null,
               sessionWinner: Boolean = true): GameKnowledge =
-      TestGameKnowledge(briscolaSetting, correctBriscola, playableCard, firstHandWinner, sessionWinner)
+      TestGameKnowledge(configuration, briscolaSetting, correctBriscola, playableCard, firstHandWinner, sessionWinner)
 
-    case class TestGameKnowledge(briscolaSetting: BriscolaSetting.Value,
+    case class TestGameKnowledge(configuration: (Int,Int,Int),
+                                 briscolaSetting: BriscolaSetting.Value,
                                  correctBriscola: Boolean,
                                  playableCard: Boolean,
                                  firstHandWinner: UserInfo,
                                  sessionWinner: Boolean
                                 ) extends GameKnowledge {
 
-      override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = (0,0,0)
+      override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = configuration
 
-      override def deckCards: Set[Card] = Set(Card(1, SEED))
+      override def deckCards: Set[Card] = Set(Card(1, SEED), Card(1, SEED), Card(1, SEED), Card(1, SEED))
 
       override def hasToChooseBriscola: BriscolaSetting = briscolaSetting
 

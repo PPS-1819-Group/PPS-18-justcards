@@ -49,7 +49,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
           context toMatch(gameBoard,firstPlayerMatch)
         case BriscolaSetting.USER =>
           context become chooseBriscolaPhase(gameBoard, firstPlayerMatch)
-          firstPlayerMatch.userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER) //TODO
+          firstPlayerMatch.userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER)
           timers startSingleTimer(TimeoutId, Timeout, TIMEOUT seconds)
       }
   }
@@ -107,11 +107,11 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
         tookCardsTeam = tookCardsTeam + (team -> (tookCardsTeam(team) ++ gameBoard.tookCardsOf(player)))
       }
       val lastHandWinnerTeam = teams.find(_._2.players contains lastHandWinner).get._1
-      gameKnowledge.matchPoints(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam) //TODO
-      val matchInfo = gameKnowledge.matchWinner(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
-      teams = teams + (TEAM_1 -> TeamPoints(teams(TEAM_1).players, teams(TEAM_1).points + matchInfo._2))
-      teams = teams + (TEAM_2 -> TeamPoints(teams(TEAM_2).players, teams(TEAM_2).points + matchInfo._3))
-      broadcast(MatchWinner(matchInfo._1, (0, 0), (matchInfo._2, matchInfo._3))) //TODO
+      val matchPoints = gameKnowledge.matchPoints(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
+      val pointsForSession = gameKnowledge.matchWinner(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
+      teams = teams + (TEAM_1 -> TeamPoints(teams(TEAM_1).players, teams(TEAM_1).points + pointsForSession._2))
+      teams = teams + (TEAM_2 -> TeamPoints(teams(TEAM_2).players, teams(TEAM_2).points + pointsForSession._3))
+      broadcast(MatchWinner(pointsForSession._1, (matchPoints._1, matchPoints._2), (teams(TEAM_1).points, teams(TEAM_2).points)))
       gameKnowledge.sessionWinner(teams(TEAM_1).points, teams(TEAM_2).points) match {
         case None =>
           context become preMatchBehaviour
