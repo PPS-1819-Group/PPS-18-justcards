@@ -169,6 +169,8 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
 object SessionManager {
 
+  case class LogOutAndExitFromGame(user: UserInfo)
+
   val TIMEOUT: Int = 40
   val TIMEOUT_TO_USER: Int = 30
 

@@ -1,11 +1,12 @@
 package org.justcards.server.user_manager
 
-import akka.actor.{ActorContext, ActorRef, Props}
+import akka.actor.{ActorRef, Props}
 import akka.io.Tcp._
 import org.justcards.commons._
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
 import org.justcards.server
 import org.justcards.server.Commons.UserInfo
+import org.justcards.server.session_manager.SessionManager.LogOutAndExitFromGame
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection {
@@ -45,6 +46,10 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   }
 
   private def inGame(username: String, lobby: LobbyId, sessionManager: ActorRef): Receive = {
+    case Outer(LogOut(`username`)) =>
+      sessionManager ! LogOutAndExitFromGame(UserInfo(username, self))
+      userManager ! LogOut(`username`)
+      context stop self
     case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
     case Outer(msg: AppMessage) => sessionManager ! msg
