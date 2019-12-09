@@ -3,6 +3,7 @@ package org.justcards.server.user_manager
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.testkit.TestProbe
 import org.justcards.commons._
+import org.justcards.server.Commons.CreateGame
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.justcards.server.user_manager.Utils._
 

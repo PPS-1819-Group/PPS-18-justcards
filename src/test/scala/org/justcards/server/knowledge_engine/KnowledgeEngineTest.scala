@@ -5,9 +5,8 @@ import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.commons.games_rules.{GameRules, PointsConversion}
-import org.justcards.commons.games_rules.converter.GameRulesConverter
 import org.justcards.server.Commons
-import org.justcards.server.Commons.BriscolaSetting
+import org.justcards.server.Commons.{BriscolaSetting, CreateGame}
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
@@ -19,7 +18,6 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
 
   import KnowledgeEngineTest._
   import org.justcards.commons.games_rules.Rule._
-  import org.justcards.commons.games_rules.converter.GameRulesConverter._
 
   private implicit val system = ActorSystem("KnowledgeEngineTest")
   private val gameManager = createGamesManager()
@@ -67,8 +65,7 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
     "return a game id if game has been created" in {
       val me = TestProbe()
       implicit val myRef = me.ref
-      implicit val rulesConverter = GameRulesConverter()
-      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge, RuleCreator(), rulesConverter))
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge, RuleCreator()))
       val rules: GameRules = Map(
         PLAY_SAME_SEED.toString -> true,
         POINTS_TO_WIN_SESSION.toString -> 41,

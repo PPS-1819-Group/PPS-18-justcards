@@ -6,7 +6,7 @@ import akka.util.Timeout
 
 import scala.concurrent.duration._
 import org.justcards.commons._
-import org.justcards.server.Commons.UserInfo
+import org.justcards.server.Commons.{CreateGame, UserInfo}
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameKnowledgeRequest, GameKnowledgeResponse}
 import org.justcards.server.session_manager.SessionCreator.CreateSession
 

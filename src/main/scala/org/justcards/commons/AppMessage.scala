@@ -1,6 +1,6 @@
 package org.justcards.commons
 
-import org.justcards.commons.games_rules.GameRules
+import org.justcards.commons.games_rules.SerializedGameRules
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 
 /**
@@ -35,6 +35,8 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new JsonSubTypes.Type(value = classOf[GameWinner], name = "GameWinner"),
     new JsonSubTypes.Type(value = classOf[OutOfLobby], name = "OutOfLobby"),
     new JsonSubTypes.Type(value = classOf[ErrorOccurred], name = "ErrorOccurred"),
+    new JsonSubTypes.Type(value = classOf[CreateGameSerialized], name = "CreateGameSerialized"),
+    new JsonSubTypes.Type(value = classOf[GameCreated], name = "GameCreated")
   ))
 sealed trait AppMessage extends JsonSerializable
 
@@ -202,6 +204,6 @@ case class GameWinner(team: TeamId) extends AppMessage
  */
 case class OutOfLobby(lobby: LobbyId) extends AppMessage
 
-case class CreateGame(name: String, rules: GameRules) extends AppMessage
+case class CreateGameSerialized(name: String, rules: SerializedGameRules) extends AppMessage
 
 case class GameCreated(game: GameId) extends AppMessage

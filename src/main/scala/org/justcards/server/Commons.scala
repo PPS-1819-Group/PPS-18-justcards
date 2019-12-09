@@ -1,6 +1,7 @@
 package org.justcards.server
 
 import akka.actor.ActorRef
+import org.justcards.commons.games_rules.GameRules
 import org.justcards.commons.{Card, TeamId, UserId}
 
 object Commons {
@@ -27,4 +28,6 @@ object Commons {
   case class PlayerCards(hand: Set[Card], took: Set[Card])
 
   case class TeamPoints(players: List[UserInfo], points: Int)
+
+  case class CreateGame(name: String, rules: GameRules)
 }

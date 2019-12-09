@@ -6,7 +6,9 @@ import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.commons.games_rules.Rule._
 
 trait GameRulesConverter {
-  def apply(x: Int): String
+  def serialize(rules: Map[String,Any]): Map[String,String]
+  def deserialize(rules: Map[String,String]): Map[String,Any]
+  /*def apply(x: Int): String
   def apply(x: Boolean): String
   def apply(x: (Int,Int,Int)): String
   def apply(x: BriscolaSetting): String
@@ -19,13 +21,13 @@ trait GameRulesConverter {
   def parseToBriscolaSetting(x: String): Option[BriscolaSetting]
   def parseToPointsConversion(x: String): Option[PointsConversion]
   def parseToCard(x: String): Option[Card]
-  def parseToCardsHierarcyAndPoints(x: String): Option[CardsHierarchyAndPoints]
+  def parseToCardsHierarcyAndPoints(x: String): Option[CardsHierarchyAndPoints]*/
 }
 
 object GameRulesConverter {
 
   def apply(): GameRulesConverter = PrologGameRulesConverter()
-
+/*
   implicit def intToString(v: Int)(implicit converter: GameRulesConverter): String = converter(v)
   implicit def boolToString(v: Boolean)(implicit converter: GameRulesConverter): String = converter(v)
   implicit def cardsDistributionToString(v: CardsDistribution)(implicit converter: GameRulesConverter): String = converter(v)
@@ -41,4 +43,5 @@ object GameRulesConverter {
   implicit def parseToPointsConversion(x: String)(implicit converter: GameRulesConverter): Option[PointsConversion] = converter parseToPointsConversion x
   implicit def parseToCard(x: String)(implicit converter: GameRulesConverter): Option[Card] = converter parseToCard x
   implicit def parseToCardsHierarcyAndPoints(x: String)(implicit converter: GameRulesConverter): Option[CardsHierarchyAndPoints] = converter parseToCardsHierarcyAndPoints x
+  */
 }
