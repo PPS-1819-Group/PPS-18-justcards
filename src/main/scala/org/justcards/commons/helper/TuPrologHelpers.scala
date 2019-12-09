@@ -4,6 +4,7 @@ import java.io.FileInputStream
 
 import alice.tuprolog.{Prolog, Struct, Term, Theory, Var}
 import org.justcards.commons.Card
+import org.justcards.commons._
 
 object TuPrologHelpers {
 
@@ -98,15 +99,6 @@ object TuPrologHelpers {
     def toBoolean: Option[Boolean] =
       try {
         Some(term.toString.toBoolean)
-      } catch {
-        case _: Exception => None
-      }
-  }
-
-  private implicit class RichString(value: String) {
-    def toOptionInt: Option[Int] =
-      try {
-        Some(value.toInt)
       } catch {
         case _: Exception => None
       }

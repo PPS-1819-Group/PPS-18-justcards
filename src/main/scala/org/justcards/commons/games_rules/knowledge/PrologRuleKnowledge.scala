@@ -40,10 +40,22 @@ class PrologRuleKnowledge(private val knowledge: Prolog) extends RuleKnowledge {
     knowledge ? PrologStruct(card, v._1, PrologVar()) && knowledge ? PrologStruct(points,v._2)
   }
 
+  override def deckCards: (Set[Card], Set[String]) = {
+    val vars = PrologVar(amount = 2)
+    val number = vars head
+    val seed = vars(1)
+    val cardsFound = (for (solution <- knowledge findAll PrologStruct(card,number,seed))
+      yield (solution.valueOf(number)(_.toInt),solution.valueOf(seed)(_.toString)))
+      .collect { case (Some(cardNumber), Some(cardSeed)) => Card(cardNumber,cardSeed) }
+    (cardsFound, cardsFound map(_.seed))
+  }
+
   private def ?(conversion: PointsConversion): Boolean = conversion match {
     case MATCH_POINTS => true
     case _ => knowledge ? PrologStruct(points,conversion.value)
   }
+
+  private implicit def toOption[X](v: X): Option[X] = Option(v)
 }
 
 object PrologRuleKnowledge {

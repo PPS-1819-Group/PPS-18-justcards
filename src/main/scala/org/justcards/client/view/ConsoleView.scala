@@ -8,6 +8,11 @@ import MenuChoice._
 import FilterChoice._
 import org.justcards.commons._
 import org.justcards.commons.AppError._
+import org.justcards.commons.games_rules.{PointsConversion, Rule}
+import org.justcards.commons.games_rules.PointsConversion._
+import org.justcards.commons.games_rules.Rule._
+import org.justcards.server.Commons.BriscolaSetting
+import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -52,6 +57,131 @@ class ConsoleView(controller: ActorRef) extends Actor {
       showLobbyCreationOptions(gamesList)
       context >>> lobbyCreation(gamesList)
     case ShowLobbies(lobbies) => context toLobbyLookup lobbies
+    case ShowGameCreation(rules, cards, seeds) =>
+      //TODO ask user
+      gameCreation(rules.toList)(cards.map(_.number).max, seeds)
+  }
+
+  private def gameCreation(rules: List[Rule.Value], completedRules: Map[Rule.Value,Any] = Map())(maxCardNumber: Int, seeds: Set[String]): Unit = {
+    def _onRuleCreated(rule: (Rule.Value, Any)): Unit = gameCreation(rules.tail, completedRules + rule)(maxCardNumber, seeds)
+    rules.head match {
+      case CARDS_HIERARCHY_AND_POINTS =>
+        //TODO stampa numeri carte
+        //TODO chiedi valore (a|b|c)
+        context >>> cardsSpecification()(maxCardNumber)(_onRuleCreated)
+      case CARDS_DISTRIBUTION =>
+        //TODO chiedi valore (a|b|c)
+        context >>> cardsDistribution(_onRuleCreated)
+      case POINTS_OBTAINED_IN_A_MATCH =>
+        //TODO chiedi conversione
+        context >>> pointsConversion(POINTS_OBTAINED_IN_A_MATCH)(_onRuleCreated)
+      case WINNER_POINTS =>
+        //TODO chiedi conversione
+        context >>> pointsConversion(WINNER_POINTS)(_onRuleCreated)
+      case LOSER_POINTS =>
+        //TODO chiedi conversione
+        context >>> pointsConversion(LOSER_POINTS)(_onRuleCreated)
+      case DRAW_POINTS =>
+        //TODO chiedi conversione
+        context >>> pointsConversion(DRAW_POINTS)(_onRuleCreated)
+      case PLAY_SAME_SEED =>
+        //TODO chiedi
+        context >>> bool(PLAY_SAME_SEED)(_onRuleCreated)
+      case LAST_TAKE_WORTH_ONE_MORE_POINT =>
+        //TODO chiedi
+        context >>> bool(LAST_TAKE_WORTH_ONE_MORE_POINT)(_onRuleCreated)
+      case STARTER_CARD =>
+        //TODO chiedi
+        context >>> starterCard(seeds, maxCardNumber)(_onRuleCreated)
+      case Rule.CHOOSE_BRISCOLA =>
+        //TODO chiedi
+        context >>> briscolaChoice(_onRuleCreated)
+      case POINTS_TO_WIN_SESSION =>
+        //TODO chiedi
+        context >>> {
+          case NewUserCommand(value) => value toOptionInt match {
+            case Some(v) => _onRuleCreated((POINTS_TO_WIN_SESSION, v))
+            case _ => //TODO richiedi
+          }
+        }
+    }
+  }
+
+  private def briscolaChoice(onComplete: ((Rule.Value, BriscolaSetting)) => Unit): Receive = {
+    case NewUserCommand(choice) => parseToNumberAnd(choice,BriscolaSetting.values.size)(n => onComplete((Rule.CHOOSE_BRISCOLA,BriscolaSetting(n))))({
+      //TODO richiedi
+    })
+  }
+
+  private def starterCard(seeds: Set[String], maxCardNumber: Int)(onComplete: ((Rule.Value, Card)) => Unit): Receive = {
+    case NewUserCommand(value) =>
+    val values = value.split("|")
+    if (values.size == 2) {
+      (values.head.toOptionInt, values(1)) match {
+        case (Some(number),seed) if seeds contains seed => onComplete((STARTER_CARD,Card(number,seed)))
+        case _ => //TODO wrong pars
+      }
+    } else {
+      //TODO wrong pars
+    }
+  }
+
+  private def bool(rule: Rule.Value)(onComplete: ((Rule.Value, Boolean)) => Unit): Receive = {
+    case NewUserCommand(value) if value == "y" || value == "yes" => onComplete((rule,true))
+    case NewUserCommand(value) if value == "n" || value == "no" => onComplete((rule,false))
+    case _:NewUserCommand => //TODO richiedi scelta
+  }
+
+  private def pointsConversion(rule: Rule.Value)(onComplete: ((Rule.Value, PointsConversion)) => Unit): Receive = {
+    case NewUserCommand(choice) => parseToNumberAnd(choice,PointsConversion.values.size)(num => PointsConversion(num) match {
+      case MATCH_POINTS => onComplete((rule, MATCH_POINTS))
+      case option =>
+        //TODO ask user for a value
+        context >>> {
+          case NewUserCommand(value) => value.toOptionInt match {
+            case Some(v) => onComplete((rule,option.value(v)))
+            case _ => //TODO reinserisci valore
+          }
+        }
+    })({
+      //TODO richiedi la scleta
+    })
+  }
+
+  private def cardsDistribution(onComplete: ((Rule.Value,CardsDistribution)) => Unit): Receive = {
+    case NewUserCommand(value) =>
+      val values = value.split("|")
+      if (values.size == 3) {
+        (values.head.toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
+          case (Some(h),Some(d),Some(f)) => onComplete((CARDS_DISTRIBUTION,(h,d,f)))
+          case _ => //TODO wrong pars
+        }
+      } else {
+        //TODO wrong pars
+      }
+  }
+
+  private def cardsSpecification(cardSettings: Map[Int,(Int,Int)] = Map())(remainingCards: Int)
+                                (onComplete: ((Rule.Value,CardsHierarchyAndPoints)) => Unit): Receive = {
+    case NewUserCommand(value) =>
+      val values = value.split("|")
+      if (values.size == 3) {
+        (values.head.toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
+          case (Some(number),Some(_),Some(_)) if cardSettings.contains(number) => //TODO wrong number
+          case (Some(number),Some(points),Some(hierarchy)) =>
+            val newCardsSettings = cardSettings + (number -> (points, hierarchy))
+            if (remainingCards == 1) {
+              val cardsHierarchyAndPoints = cardSettings.map(x => (x._1,x._2._1,x._2._2)).toList.sortBy(_._3).map(x => (x._1,x._2))
+              onComplete((Rule.CARDS_HIERARCHY_AND_POINTS, cardsHierarchyAndPoints))
+            } else {
+              //TODO dire ad utente di inserire prossima carta
+              context >>> cardsSpecification(newCardsSettings)(remainingCards - 1)(onComplete)
+            }
+          case _ => //TODO wrong pars
+        }
+      } else {
+        //TODO wrong pars
+      }
   }
 
   private def lobbyById: Receive = {

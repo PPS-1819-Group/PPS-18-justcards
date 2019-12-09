@@ -10,23 +10,43 @@ class PrologGameRulesConverter extends GameRulesConverter {
 
   import org.justcards.commons.games_rules.Rule._
   import org.justcards.commons.helper.TuPrologHelpers._
-  import org.justcards.commons.helper.TuPrologHelpers.PrologOperation.PrologOperator._
   import org.justcards.commons.helper.PrologExtensions._
   import PrologGameRulesConverter._
 
-  private def intToString(x: Int): String = PrologInt(x)
+  private trait Serializable[X]{
+    def toString(x: X): String
+  }
 
-  private def boolToString(x: Boolean): String = PrologBoolean(x)
+  private implicit object IntToString extends Serializable[Int] {
+    override def toString(x: Int): String = PrologInt(x)
+  }
 
-  private def tripleIntToString(x: (Int, Int, Int)): String = PrologTuple(x._1,x._2,x._3)
+  private implicit object BoolToString extends Serializable[Boolean] {
+    override def toString(x: Boolean): String = PrologBoolean(x)
+  }
 
-  private def briscolaSettingToString(x: BriscolaSetting): String = PrologStruct(x toString)
+  private implicit object CardsDistributionToString extends Serializable[CardsDistribution] {
+    override def toString(x: CardsDistribution): String = PrologTuple(x._1,x._2,x._3)
+  }
 
-  private def cardToString(x: Card): String = x toTerm
+  private implicit object BriscolaSettingToString extends Serializable[BriscolaSetting] {
+    override def toString(x: BriscolaSetting): String = PrologStruct(x toString)
+  }
 
-  private def cardsHierarchyAndPointsToString(x: CardsHierarchyAndPoints): String = fromTraversableToPrologList(x.map(v => PrologTuple(v._1,v._2)))
+  private implicit object CardToString extends Serializable[Card] {
+    override def toString(x: Card): String = x toTerm
+  }
 
-  private def pointsConversionToString(x: PointsConversion): String = PrologTuple(x toString,x value)
+  private implicit object CardsHierarchyAndPointsToString extends Serializable[CardsHierarchyAndPoints] {
+    override def toString(x: CardsHierarchyAndPoints): String = fromTraversableToPrologList(x.map(v => PrologTuple(v._1,v._2)))
+  }
+
+
+  private implicit object PointsConversionToString extends Serializable[PointsConversion] {
+    override def toString(x: PointsConversion): String = PrologTuple(x toString,x value)
+  }
+
+  private implicit def serializeToString[X: Serializable](x: X): String = implicitly[Serializable[X]].toString(x)
 
   private def parseToInt(x: String): Option[Int] = Term createTerm x toInt
 
@@ -72,28 +92,19 @@ class PrologGameRulesConverter extends GameRulesConverter {
   private implicit def termToString(x: Term): String = x toString
   private implicit def structToString(x: Struct): String = x toString
 
-  override def serialize(rules: Map[String, Any]): Map[String, String] = {
-    rules.map{r =>
-      Rule.find(r._1) match {
-        case Some(CARDS_DISTRIBUTION) => r._2 match {
-          case (h:Int, d:Int, f:Int) => Some((r._1,tripleIntToString((h,d,f))))
-          case _ => None
-        }
-        case Some(PLAY_SAME_SEED) if r._2.isInstanceOf[Boolean] => Some((r._1,boolToString(r._2.asInstanceOf[Boolean])))
-        case Some(CHOOSE_BRISCOLA) if r._2.isInstanceOf[BriscolaSetting] => Some((r._1,briscolaSettingToString(r._2.asInstanceOf[BriscolaSetting])))
-        case Some(POINTS_TO_WIN_SESSION) if r._2.isInstanceOf[Int] => Some((r._1,intToString(r._2.asInstanceOf[Int])))
-        case Some(POINTS_OBTAINED_IN_A_MATCH) if r._2.isInstanceOf[PointsConversion] => Some((r._1,pointsConversionToString(r._2.asInstanceOf[PointsConversion])))
-        case Some(WINNER_POINTS) if r._2.isInstanceOf[PointsConversion] => Some((r._1,pointsConversionToString(r._2.asInstanceOf[PointsConversion])))
-        case Some(LOSER_POINTS) if r._2.isInstanceOf[PointsConversion] => Some((r._1,pointsConversionToString(r._2.asInstanceOf[PointsConversion])))
-        case Some(DRAW_POINTS) if r._2.isInstanceOf[PointsConversion] => Some((r._1,pointsConversionToString(r._2.asInstanceOf[PointsConversion])))
-        case Some(STARTER_CARD) if r._2.isInstanceOf[Card] => Some((r._1,cardToString(r._2.asInstanceOf[Card])))
-        case Some(LAST_TAKE_WORTH_ONE_MORE_POINT) if r._2.isInstanceOf[Boolean] => Some((r._1,boolToString(r._2.asInstanceOf[Boolean])))
-        case Some(CARDS_HIERARCHY_AND_POINTS) => r._2 match {
-          case h::t => Some((r._1,cardsHierarchyAndPointsToString(h::t collect { case (number: Int, points: Int) => (number,points) })))
-          case _ => None
-        }
-      }
-    } collect {case Some(v) => v} toMap;
+  override def serialize(rules: Map[Rule.Value, Any]): Map[String, String] = rules collect {
+    case (CARDS_DISTRIBUTION,(h:Int,d:Int,f:Int)) => (CARDS_DISTRIBUTION.toString,serializeToString((h,d,f)))
+    case (PLAY_SAME_SEED,v: Boolean) => (PLAY_SAME_SEED.toString,serializeToString(v))
+    case (CHOOSE_BRISCOLA,v: BriscolaSetting) => (CHOOSE_BRISCOLA.toString,serializeToString(v))
+    case (POINTS_TO_WIN_SESSION,v :Int) => (POINTS_TO_WIN_SESSION.toString,serializeToString(v))
+    case (POINTS_OBTAINED_IN_A_MATCH,v: PointsConversion) => (POINTS_OBTAINED_IN_A_MATCH.toString,serializeToString(v))
+    case (WINNER_POINTS,v: PointsConversion) => (WINNER_POINTS.toString,serializeToString(v))
+    case (LOSER_POINTS,v: PointsConversion) => (LOSER_POINTS.toString,serializeToString(v))
+    case (DRAW_POINTS,v: PointsConversion) => (DRAW_POINTS.toString,serializeToString(v))
+    case (STARTER_CARD,v: Card) => (STARTER_CARD.toString, serializeToString(v))
+    case (LAST_TAKE_WORTH_ONE_MORE_POINT,v: Boolean) => (LAST_TAKE_WORTH_ONE_MORE_POINT.toString, serializeToString(v))
+    case (CARDS_HIERARCHY_AND_POINTS,v: List[Any]) =>
+      (CARDS_HIERARCHY_AND_POINTS.toString, serializeToString(v collect { case (number: Int, points: Int) => (number, points) }))
   }
 
   private def getRule[X](rules: Map[String,String], rule: Rule[X])(convert: String => Option[X]): Option[(String,X)] = {

@@ -49,6 +49,8 @@ object Rule extends Enumeration {
 
   def find[X](x: String): Option[Rule[X]] = Rule.values.find(_.toString == x)
 
+  def deckCards: (Set[Card], Set[String]) = rulesKnowledge deckCards
+
   implicit def valueToRule[X](x: Value): Rule[X] = x.asInstanceOf[RuleVal[X]]
 
   private[this] implicit def optionValueToOptionRule[X](x: Option[Value]): Option[Rule[X]] = x match {

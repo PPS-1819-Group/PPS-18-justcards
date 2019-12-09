@@ -16,6 +16,7 @@ trait RuleKnowledge {
   def starterCard(card: Card): Boolean
   def lastTakeWorthOneMorePoint(value: Boolean): Boolean
   def cardsHierarchyAndPoints(values: List[(Int,Int)]): Boolean
+  def deckCards: (Set[Card], Set[String])
 }
 
 object RuleKnowledge {

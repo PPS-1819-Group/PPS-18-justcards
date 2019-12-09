@@ -2,7 +2,8 @@ package org.justcards.client.view
 
 import akka.actor.{ActorRef, Props}
 import org.justcards.commons.AppError._
-import org.justcards.commons.{AppError, Card, GameId, LobbyId, TeamId, UserId}
+import org.justcards.commons.games_rules.Rule
+import org.justcards.commons.{Card, GameId, LobbyId, TeamId, UserId}
 
 trait View extends (ActorRef => Props)
 
@@ -16,6 +17,7 @@ object View {
   case object ShowMenu extends ViewMessage
   case object MoveWasCorrect extends ViewMessage
   case object ShowTimeForMoveExceeded extends ViewMessage
+  case object ShowGameCreated extends ViewMessage
   case class ShowLobbyCreation(games: Set[GameId]) extends ViewMessage
   case class ShowLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends ViewMessage
   case class ShowCreatedLobby(lobby: LobbyId) extends ViewMessage
@@ -28,7 +30,9 @@ object View {
   case class ShowHandWinner(player: UserId) extends ViewMessage
   case class ShowMatchWinner(winnerTeam: TeamId, matchPoints: (Int, Int), totalPoints: (Int, Int)) extends ViewMessage
   case class ShowGameWinner(team: TeamId) extends ViewMessage
-  case class ShowChosenBriscola(seed: String, number: Option[Int] = None)
+  case class ShowChosenBriscola(seed: String, number: Option[Int] = None) extends ViewMessage
+  case class ShowGameCreation(rules: Set[Rule.Value], cards: Set[Card], seeds: Set[String]) extends ViewMessage
+  case class ShowNotValidRules(rules: Set[Rule.Value]) extends ViewMessage
 
   private[this] val HAND_WON_FINAL = "taken all the cards in the field!"
 
