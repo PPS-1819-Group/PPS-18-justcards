@@ -11,8 +11,12 @@ import org.justcards.commons.games_rules.GameRules
 import org.justcards.commons.games_rules.converter.GameRulesConverter
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
+import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 
-class KnowledgeEngine(private val gameManager: GamesManager, private val gameKnowledge: GameKnowledgeFactory, private implicit val rulesConverter: GameRulesConverter) extends Actor {
+class KnowledgeEngine(private val gameManager: GamesManager,
+                      private val gameKnowledge: GameKnowledgeFactory,
+                      private val rulesCreator: RuleCreator,
+                      private implicit val rulesConverter: GameRulesConverter) extends Actor {
 
   import KnowledgeEngine._
   import org.justcards.commons.games_rules.Rule._
@@ -27,46 +31,54 @@ class KnowledgeEngine(private val gameManager: GamesManager, private val gameKno
         else ErrorOccurred(GAME_NOT_EXISTING)
       sender() ! msg
     case CreateGame(name,rules) =>
-      if (isGameValid(name,rules))
-        gameManager createGame (name, rulesConverter parse rules) match {
+      val validRules = getRulesIfGameIsValid(name,rules)
+      if (validRules.isDefined)
+        gameManager createGame (name, rulesCreator create validRules.get) match {
           case Some(gameId) => sender() ! GameCreated(gameId)
           case _ => sender() ! ErrorOccurred(CANNOT_CREATE_GAME)
         }
       else sender() ! ErrorOccurred(CANNOT_CREATE_GAME)
   }
 
-  private def isGameValid(name: String, rules: GameRules): Boolean = !(gameManager gameExists GameId(name)) &&
-    isRuleValid[CardsDistribution](rules,CARDS_DISTRIBUTION) &&
-    isRuleValid[Boolean](rules,PLAY_SAME_SEED) &&
-    isRuleValid[BriscolaSetting](rules,CHOOSE_BRISCOLA) &&
-    isRuleValid[Int](rules,POINTS_TO_WIN_SESSION) &&
-    isRuleValid[PointsConversion](rules,POINTS_OBTAINED_IN_A_MATCH) &&
-    isRuleValid[PointsConversion](rules,WINNER_POINTS) &&
-    isRuleValid[PointsConversion](rules,LOSER_POINTS) &&
-    isRuleValid[PointsConversion](rules,DRAW_POINTS) &&
-    isRuleValid[Card](rules,STARTER_CARD) &&
-    isRuleValid[Boolean](rules,LAST_TAKE_WORTH_ONE_MORE_POINT) &&
-    isRuleValid[CardsHierarchyAndPoints](rules,CARDS_HIERARCHY_AND_POINTS)
+  private def getRulesIfGameIsValid(name: String, rules: GameRules): Option[Map[String,Any]] = {
+    if (gameManager gameExists GameId(name)) None
+    else {
+      val validRules = Set(
+        getRuleIfValid[CardsDistribution](rules,CARDS_DISTRIBUTION),
+        getRuleIfValid[Boolean](rules,PLAY_SAME_SEED),
+        getRuleIfValid[BriscolaSetting](rules,CHOOSE_BRISCOLA),
+        getRuleIfValid[Int](rules,POINTS_TO_WIN_SESSION),
+        getRuleIfValid[PointsConversion](rules,POINTS_OBTAINED_IN_A_MATCH),
+        getRuleIfValid[PointsConversion](rules,WINNER_POINTS),
+        getRuleIfValid[PointsConversion](rules,LOSER_POINTS),
+        getRuleIfValid[PointsConversion](rules,DRAW_POINTS),
+        getRuleIfValid[Card](rules,STARTER_CARD),
+        getRuleIfValid[Boolean](rules,LAST_TAKE_WORTH_ONE_MORE_POINT),
+        getRuleIfValid[CardsHierarchyAndPoints](rules,CARDS_HIERARCHY_AND_POINTS)
+      ).collect{ case Some(v) => v }.toMap;
+      if (validRules.size == rules.size) Some(validRules) else None
+    }
+  }
 
-  private def isRuleValid[X](rules: GameRules, rule: Rule[X])(implicit convert: String => Option[X]): Boolean = {
+  private def getRuleIfValid[X](rules: GameRules, rule: Rule[X])(implicit convert: String => Option[X]): Option[(String,X)] = {
     rules get rule.toString match {
       case Some(value) =>
         val concreteValue: Option[X] = convert(value)
-        if (concreteValue.isDefined) rule.isAllowed(concreteValue get) else false
-      case _ => false
+        if (concreteValue.isDefined && rule.isAllowed(concreteValue get)) Some((rule.toString,concreteValue get)) else None
+      case _ => None
     }
   }
 
 }
 
 object KnowledgeEngine {
-  def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory, rulesConverter: GameRulesConverter): Props =
-    Props(classOf[KnowledgeEngine], gameManager, gameKnowledge, rulesConverter)
+  def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory, rulesCreator: RuleCreator, rulesConverter: GameRulesConverter): Props =
+    Props(classOf[KnowledgeEngine], gameManager, gameKnowledge, rulesCreator, rulesConverter)
 
   def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory): Props =
-    KnowledgeEngine(gameManager, gameKnowledge, GameRulesConverter())
+    KnowledgeEngine(gameManager, gameKnowledge, RuleCreator(), GameRulesConverter())
 
-  def apply(gameManager: GamesManager): Props = KnowledgeEngine(gameManager, GameKnowledge(), GameRulesConverter())
+  def apply(gameManager: GamesManager): Props = KnowledgeEngine(gameManager, GameKnowledge(), RuleCreator(), GameRulesConverter())
 
   case class GameExistenceRequest(gameId: GameId)
   case class GameExistenceResponse(existence: Boolean)

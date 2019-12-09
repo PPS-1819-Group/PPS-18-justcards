@@ -12,6 +12,7 @@ import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
+import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfterAll with BeforeAndAfter {
@@ -67,7 +68,7 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
       val me = TestProbe()
       implicit val myRef = me.ref
       implicit val rulesConverter = GameRulesConverter()
-      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge, rulesConverter))
+      val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge, RuleCreator(), rulesConverter))
       val rules: GameRules = Map(
         PLAY_SAME_SEED.toString -> true,
         POINTS_TO_WIN_SESSION.toString -> 41,

@@ -1,6 +1,6 @@
 package org.justcards.commons.games_rules.converter
-import alice.tuprolog.{Prolog, Struct, Term}
-import org.justcards.commons.games_rules.{GameRules, PointsConversion, Rule}
+import alice.tuprolog.{Struct, Term}
+import org.justcards.commons.games_rules.PointsConversion
 import org.justcards.commons.games_rules.PointsConversion._
 import org.justcards.commons.Card
 import org.justcards.server.Commons.BriscolaSetting
@@ -13,64 +13,6 @@ class PrologGameRulesConverter extends GameRulesConverter {
   import org.justcards.commons.helper.TuPrologHelpers.PrologOperation.PrologOperator._
   import org.justcards.commons.helper.PrologExtensions._
   import PrologGameRulesConverter._
-
-  private val startHand = "startHand"
-  private val draw = "draw"
-  private val playSameSeed = "playSameSeed"
-  private val chooseBriscola = "chooseBriscola"
-  private val pointsToWinSession = "pointsToWinSession"
-  private val winnerPoints = "winnerPoints"
-  private val loserPoints = "loserPoints"
-  private val drawPoints = "drawPoints"
-  private val points = "points"
-  private val starterCard = "starterCard"
-  private val lastTakeHasOneMorePoint = "lastTakeHasOneMorePoint"
-  private val card = "card"
-  private val seed = "seed"
-  private val newLinePattern = "\\n"
-
-  override def parse(rules: GameRules): List[String] = {
-    val theories: List[Term] = (rules flatMap { r =>
-      Rule.find(r._1) match {
-        case Some(CARDS_DISTRIBUTION) => (Term createTerm r._2) toList match {
-          case Some(info) if info.size >= 3 => (info.head.toInt, info(1).toInt, info(2).toInt) match {
-            case (Some(h), Some(d), Some(_)) => List(
-              PrologStruct(startHand, PrologInt(h)),
-              PrologStruct(draw, PrologInt(d))
-            )
-            case _ => List()
-          }
-          case _ => List()
-        }
-        case Some(PLAY_SAME_SEED) => simpleRule(r._2,playSameSeed)(_.toBoolean)()(Some(v => v))
-        case Some(POINTS_TO_WIN_SESSION) => simpleRule(r._2,pointsToWinSession)(_.toInt)(Some(v => Seq(PrologInt(v))))()
-        case Some(CHOOSE_BRISCOLA) => (Term createTerm r._2) toBriscolaSetting match {
-          case Some(USER) => List(PrologStruct(chooseBriscola, PrologInt(1)))
-          case Some(SYSTEM) => List(PrologStruct(chooseBriscola, PrologInt(0)))
-          case Some(NOT_BRISCOLA) => List(PrologStruct(chooseBriscola, PrologInt(-1)))
-          case _ => List()
-        }
-        case Some(POINTS_OBTAINED_IN_A_MATCH) => createPointsRule(r._2,points)
-        case Some(STARTER_CARD) => simpleRule(r._2,starterCard)(_.toCard)(Some(c => Seq(c number, c seed)))()
-        case Some(LAST_TAKE_WORTH_ONE_MORE_POINT) => simpleRule(r._2,lastTakeHasOneMorePoint)(_.toBoolean)()(accept = Some(v => v))
-        case Some(CARDS_HIERARCHY_AND_POINTS) => (Term createTerm r._2) toList match {
-          case Some(list) =>
-            val seedVar = PrologVar()
-            val dataList = list.map(_.toList).filter(_.isDefined).map(_.get)
-            for (i <- list.indices; info = dataList(i))
-              yield PrologClause(PrologStruct(name = card, info head,seedVar,i + 1,info(1)),PrologStruct(seed,seedVar))
-          case _ => List()
-        }
-        case Some(WINNER_POINTS) => createPointsRule(r._2,winnerPoints)
-        case Some(LOSER_POINTS) => createPointsRule(r._2,loserPoints)
-        case Some(DRAW_POINTS) => createPointsRule(r._2,drawPoints)
-        case _ => List()
-      }
-    }).toList
-    val prolog = new Prolog()
-    prolog.+(theories: _*)
-    prolog.getTheory.toString.split(newLinePattern).filter(!_.isBlank).toList
-  }
 
   override def apply(x: Int): String = PrologInt(x)
 

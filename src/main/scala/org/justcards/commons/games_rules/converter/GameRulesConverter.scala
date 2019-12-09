@@ -1,13 +1,11 @@
 package org.justcards.commons.games_rules.converter
 
 import org.justcards.commons.Card
-import org.justcards.commons.games_rules.GameRules
 import org.justcards.commons.games_rules.PointsConversion.PointsConversion
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.commons.games_rules.Rule._
 
 trait GameRulesConverter {
-  def parse(rules: GameRules): List[String]
   def apply(x: Int): String
   def apply(x: Boolean): String
   def apply(x: (Int,Int,Int)): String
