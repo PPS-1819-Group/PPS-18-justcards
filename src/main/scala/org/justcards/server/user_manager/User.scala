@@ -6,7 +6,8 @@ import org.justcards.commons._
 import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConnectionOptions._
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithRemotes, ActorWithTcp, Outer}
 import org.justcards.commons.games_rules.converter.GameRulesConverter
-import org.justcards.server.Commons.{CreateGame, UserInfo}
+import org.justcards.server.Commons.UserInfo
+import org.justcards.server.knowledge_engine.KnowledgeEngine.CreateGameRequest
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection with ActorLogging {
@@ -29,6 +30,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(LogOut(`username`)) =>
       userManager ! LogOut(username)
       context stop self
+    case Outer(CreateGame(name,rules)) => userManager ! CreateGameRequest(name,rulesConverter.deserialize(rules))
     case message: LobbyJoined => toLobby(message, username)
     case message: LobbyCreated => toLobby(message, username)
   }
@@ -59,7 +61,6 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   private def commonBehaviour: Receive = {
     case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
-    case Outer(CreateGameSerialized(name,rules)) => userManager ! CreateGame(name,rulesConverter.deserialize(rules))
     case Outer(msg) => userManager ! msg
     case msg: ErrorOccurred => userRef ==> msg
     case message: AppMessage =>

@@ -6,10 +6,10 @@ import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.commons.games_rules.{GameRules, PointsConversion}
 import org.justcards.server.Commons
-import org.justcards.server.Commons.{BriscolaSetting, CreateGame}
+import org.justcards.server.Commons.BriscolaSetting
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
-import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
+import org.justcards.server.knowledge_engine.KnowledgeEngine.{CreateGameRequest, GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -79,7 +79,7 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
         LOSER_POINTS.toString -> PointsConversion.MATCH_POINTS,
         DRAW_POINTS.toString -> PointsConversion.EXACTLY.value(0)
       )
-      knowledgeEngine ! CreateGame(ALLOWED_NAME, rules)
+      knowledgeEngine ! CreateGameRequest(ALLOWED_NAME, rules)
       me expectMsg GameCreated(GameId(ALLOWED_NAME))
     }
 
@@ -87,7 +87,7 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
       val me = TestProbe()
       implicit val myRef = me.ref
       val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
-      knowledgeEngine ! CreateGame(NOT_ALLOWED_NAME, Map())
+      knowledgeEngine ! CreateGameRequest(NOT_ALLOWED_NAME, Map())
       me expectMsg ErrorOccurred(CANNOT_CREATE_GAME)
     }
 

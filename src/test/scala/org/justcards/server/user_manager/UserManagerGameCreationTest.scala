@@ -3,7 +3,7 @@ package org.justcards.server.user_manager
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.testkit.TestProbe
 import org.justcards.commons._
-import org.justcards.server.Commons.CreateGame
+import org.justcards.server.knowledge_engine.KnowledgeEngine.CreateGameRequest
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.justcards.server.user_manager.Utils._
 
@@ -12,7 +12,7 @@ class UserManagerGameCreationTest extends WordSpecLike with Matchers with Before
 
   private val username = "username"
   private val gameName = "mygame"
-  private val createGame = CreateGame(gameName,Map())
+  private val createGame = CreateGameRequest(gameName,Map())
 
   override def afterAll: Unit = {
     system terminate()
@@ -53,7 +53,7 @@ object PermissiveKnowledgeEngine {
   def apply(createGameResponse: AppMessage) = Props(classOf[PermissiveKnowledgeEngineImpl],createGameResponse)
   class PermissiveKnowledgeEngineImpl(createGameResponse: AppMessage) extends Actor {
     override def receive: Receive = {
-      case CreateGame(name,_) => sender() ! createGameResponse
+      case CreateGameRequest(name,_) => sender() ! createGameResponse
     }
   }
 }

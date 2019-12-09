@@ -9,7 +9,6 @@ import org.justcards.commons.GameId
 import org.justcards.commons.games_rules.PointsConversion.PointsConversion
 import org.justcards.commons.games_rules.GameRules
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
-import org.justcards.server.Commons.CreateGame
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 
@@ -28,7 +27,7 @@ class KnowledgeEngine(private val gameManager: GamesManager,
         if(gameManager.gameExists(game)) GameKnowledgeResponse(gameKnowledge(game))
         else ErrorOccurred(GAME_NOT_EXISTING)
       sender() ! msg
-    case CreateGame(name,rules) =>
+    case CreateGameRequest(name,rules) =>
       if (areGameSettingsValid(name,rules)) {
         gameManager createGame (name, rulesCreator create rules) match {
           case Some(gameId) => sender() ! GameCreated(gameId)
@@ -96,6 +95,7 @@ object KnowledgeEngine {
   case class GameExistenceResponse(existence: Boolean)
   case class GameKnowledgeRequest(game: GameId)
   case class GameKnowledgeResponse(gameKnowledgeInstance: GameKnowledge)
+  case class CreateGameRequest(name: String, rules: GameRules)
 }
 
 trait GamesManager {
