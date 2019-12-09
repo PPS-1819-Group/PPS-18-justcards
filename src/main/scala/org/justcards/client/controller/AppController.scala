@@ -85,8 +85,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
           connectionManagerActor ! JoinLobby(LobbyId(lobbyId.get))
           context >>> waitForLobbyJoined
         }
-      case CREATE_GAME =>
-        context toGameCreation
+      case CREATE_GAME => context toGameCreation
       case _ => viewActor ! ShowError(SELECTION_NOT_AVAILABLE)
     }
   }
@@ -101,7 +100,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       viewActor ! ShowError(GAME_MISSING_RULES)
     case AppControllerCreateGame(name,rules) =>
       val wrongRules = nonValidRules(rules)
-      if (wrongRules.isEmpty) {
+      if (wrongRules isEmpty) {
         connectionManagerActor ! CreateGame(name, rulesConverter.serialize(rules))
         context >>> {
           case GameCreated(_) =>

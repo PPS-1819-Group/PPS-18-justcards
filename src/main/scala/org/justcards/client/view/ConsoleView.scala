@@ -62,8 +62,13 @@ class ConsoleView(controller: ActorRef) extends Actor {
       gameCreation(rules.toList)(cards.map(_.number).max, seeds)
   }
 
-  private def gameCreation(rules: List[Rule.Value], completedRules: Map[Rule.Value,Any] = Map())(maxCardNumber: Int, seeds: Set[String]): Unit = {
-    def _onRuleCreated(rule: (Rule.Value, Any)): Unit = gameCreation(rules.tail, completedRules + rule)(maxCardNumber, seeds)
+  private def gameCreation(rules: List[Rule.Value], completedRules: Map[Rule.Value,Any] = Map())
+                          (maxCardNumber: Int, seeds: Set[String]): Unit = {
+    def _onRuleCreated(rule: (Rule.Value, Any)): Unit =
+      gameCreation(rules.tail, completedRules + rule)(maxCardNumber, seeds)
+    if(rules isEmpty) {
+      //TODO invia messaggio di creazione del gioco
+    } else
     rules.head match {
       case CARDS_HIERARCHY_AND_POINTS =>
         //TODO stampa numeri carte
@@ -95,7 +100,11 @@ class ConsoleView(controller: ActorRef) extends Actor {
         context >>> starterCard(seeds, maxCardNumber)(_onRuleCreated)
       case Rule.CHOOSE_BRISCOLA =>
         //TODO chiedi
-        context >>> briscolaChoice(_onRuleCreated)
+        context >>> {
+          case NewUserCommand(choice) => parseToNumberAnd(choice,BriscolaSetting.values.size){
+            n => _onRuleCreated((Rule.CHOOSE_BRISCOLA,BriscolaSetting(n)))
+          }{ /*TODO richiedi*/ }
+        }
       case POINTS_TO_WIN_SESSION =>
         //TODO chiedi
         context >>> {
@@ -104,18 +113,13 @@ class ConsoleView(controller: ActorRef) extends Actor {
             case _ => //TODO richiedi
           }
         }
+      case _ =>
     }
-  }
-
-  private def briscolaChoice(onComplete: ((Rule.Value, BriscolaSetting)) => Unit): Receive = {
-    case NewUserCommand(choice) => parseToNumberAnd(choice,BriscolaSetting.values.size)(n => onComplete((Rule.CHOOSE_BRISCOLA,BriscolaSetting(n))))({
-      //TODO richiedi
-    })
   }
 
   private def starterCard(seeds: Set[String], maxCardNumber: Int)(onComplete: ((Rule.Value, Card)) => Unit): Receive = {
     case NewUserCommand(value) =>
-    val values = value.split("|")
+    val values = value.split("\\|")
     if (values.size == 2) {
       (values.head.toOptionInt, values(1)) match {
         case (Some(number),seed) if seeds contains seed => onComplete((STARTER_CARD,Card(number,seed)))
@@ -150,7 +154,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
 
   private def cardsDistribution(onComplete: ((Rule.Value,CardsDistribution)) => Unit): Receive = {
     case NewUserCommand(value) =>
-      val values = value.split("|")
+      val values = value.split("\\|")
       if (values.size == 3) {
         (values.head.toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
           case (Some(h),Some(d),Some(f)) => onComplete((CARDS_DISTRIBUTION,(h,d,f)))
@@ -164,7 +168,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def cardsSpecification(cardSettings: Map[Int,(Int,Int)] = Map())(remainingCards: Int)
                                 (onComplete: ((Rule.Value,CardsHierarchyAndPoints)) => Unit): Receive = {
     case NewUserCommand(value) =>
-      val values = value.split("|")
+      val values = value.split("\\|")
       if (values.size == 3) {
         (values.head.toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
           case (Some(number),Some(_),Some(_)) if cardSettings.contains(number) => //TODO wrong number

@@ -294,6 +294,34 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
     }
 
+    "a user wants to create a game" should {
+
+      "allow a user to create a game" in {
+        val (appController, testProbe) = login()
+        appController ! MenuSelection(MenuChoice.CREATE_GAME)
+        testProbe.expectMsgType[ShowGameCreation]
+      }
+
+      "tell the user that he can't create a game if the name is empty" in {
+        val (appController, testProbe) = startCreatingGame
+        appController ! AppControllerCreateGame("", Map())
+        testProbe expectMsg ShowError(GAME_EMPTY_NAME)
+      }
+
+      "tell the user that he can't create a game without specifying all the rules" in {
+        val (appController, testProbe) = startCreatingGame
+        appController ! AppControllerCreateGame(game.name, Map())
+        testProbe expectMsg ShowError(GAME_MISSING_RULES)
+      }
+
+      /*"tell the user that he can't create a game if there are not correct rules" in {
+        val (appController, testProbe) = startCreatingGame
+        appController ! AppControllerCreateGame(game.name, Map())
+        testProbe expectMsg ShowError(GAME_MISSING_RULES)
+      }*/
+
+    }
+
     "a connection error occurs" should {
 
       "inform the user that the system is not available and the application won't work" in {
@@ -405,6 +433,13 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
   private def myTurn: (ActorRef, TestProbe) = {
     val (appController, testProbe) = startGame
     appController ! Turn(handCards, fieldCards, turnTime)
+    testProbe receiveN 1
+    (appController, testProbe)
+  }
+
+  private def startCreatingGame: (ActorRef, TestProbe) = {
+    val (appController, testProbe) = login()
+    appController ! MenuSelection(MenuChoice.CREATE_GAME)
     testProbe receiveN 1
     (appController, testProbe)
   }
