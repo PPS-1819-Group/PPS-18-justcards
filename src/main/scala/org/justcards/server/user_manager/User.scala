@@ -1,14 +1,14 @@
 package org.justcards.server.user_manager
 
-import akka.actor.{ActorContext, ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import akka.io.Tcp._
 import org.justcards.commons._
-import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
-import org.justcards.server
+import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConnectionOptions._
+import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithRemotes, ActorWithTcp, Outer}
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
-abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection {
+abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection with ActorLogging {
 
   import org.justcards.commons.AppError._
 
@@ -62,7 +62,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   }
 
   protected def errorBehaviour(username: String): Receive = {
-    case msg => server.log("User -> " + username + " | unhandled message | " + msg)
+    case msg => log.debug("User -> " + username + " | unhandled message | " + msg)
   }
 
   private def completeBehaviour(behaviour: Receive, username: String = ""): Receive =
@@ -83,7 +83,12 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
 
 object User {
 
-  def apply(userRef: ActorRef, userManager: ActorRef): Props = Props(classOf[UserActorWithTcp], userRef, userManager)
+  def apply(userRef: ActorRef, userManager: ActorRef): Props = User(userRef, userManager, REMOTES)
+
+  def apply(userRef: ActorRef, userManager: ActorRef, mode: ActorWithConnectionOptions): Props = mode match {
+    case TCP => Props(classOf[UserActorWithTcp], userRef, userManager)
+    case REMOTES =>  Props(classOf[UserActorWithRemotes], userRef, userManager)
+  }
 
   private[this] class UserActorWithTcp(private val userRef: ActorRef, private val userManager: ActorRef)
     extends BasicUserActor(userRef, userManager) with ActorWithTcp {
@@ -96,9 +101,25 @@ object User {
     override def errorBehaviour(username: String): Receive = {
       case CommandFailed(w: Write) =>
         // O/S buffer was full
-        server.log(COMMAND_FAILED + extractMessage(w.data))
+        log.debug(COMMAND_FAILED + extractMessage(w.data))
       case _: ConnectionClosed =>
-        server.log(CONNECTION_CLOSED)
+        log.debug(CONNECTION_CLOSED)
+        if (!username.isEmpty) self ! Outer(LogOut(username))
+        else context stop self
+    }
+
+  }
+
+  private[this] class UserActorWithRemotes(private val userRef: ActorRef, private val userManager: ActorRef)
+    extends BasicUserActor(userRef, userManager) with ActorWithRemotes {
+
+    private[this] val CONNECTION_CLOSED = "Connection with user has been closed"
+
+    context.watch(userRef)
+
+    override def errorBehaviour(username: String): Receive = {
+      case Terminated(`userRef`) =>
+        log.debug(CONNECTION_CLOSED)
         if (!username.isEmpty) self ! Outer(LogOut(username))
         else context stop self
     }
