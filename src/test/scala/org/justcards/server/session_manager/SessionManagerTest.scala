@@ -9,7 +9,6 @@ import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.justcards.server.user_manager.Lobby
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
 import scala.concurrent.duration._
 
 class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
@@ -62,7 +61,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me.expectMsg(ChooseBriscola(gameKnowledge.seeds, SessionManager.TIMEOUT_TO_USER))
       }
 
-      /*"communicate the briscola to all users after timeout for user decision" in {
+      "communicate the briscola to all users after timeout for user decision" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
@@ -72,7 +71,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me.within(SessionManager.TIMEOUT + 1 second) {
           expectBroadcast(CorrectBriscola(SEED))
         }
-      }*/
+      }
 
       "communicate the briscola to all users after user decision" in {
         implicit val me: TestProbe = TestProbe()
@@ -139,6 +138,26 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me.expectMsg(Played(CARD))
       }
 
+      "don't allow to another player play instead of turn player" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        implicit val me2: TestProbe = TestProbe()
+        implicit val myRef2: ActorRef = me.ref
+        val owner = UserInfo(OWNERNAME + 0, myRef)
+        var lobby = Lobby(LOBBYID, owner, GAMEID)
+        (for (i <- 1 to 2;
+              username = OWNERNAME + i)
+          yield UserInfo(username, myRef)) foreach {
+          userInfo => lobby = lobby + userInfo
+        }
+        lobby = lobby + UserInfo(OWNERNAME + 3, myRef2)
+        val gameKnowledge = TestGameKnowledge((1,0,0), firstPlayerTurn = owner)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 12
+        me2 send (sessionManager, Play(CARD))
+        me2.expectMsgType[ErrorOccurred]
+      }
+
       "notify the player that the card played is not playable" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
@@ -151,7 +170,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
       }
 
 
-      /*"play a card instead of user after timeout" in {
+      "play a card instead of user after timeout" in {
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
@@ -161,7 +180,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me.within(SessionManager.TIMEOUT + 1 second) {
           me.expectMsgType[Played]
         }
-      }*/
+      }
 
       "communicate the information and the turn to users after first player play his card" in {
         implicit val me: TestProbe = TestProbe()
@@ -173,6 +192,48 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me send (sessionManager, Play(CARD))
         me receiveN 1
         me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+      }
+
+      "communicate the information and the turn to the right user after first player play his card" in {
+        implicit val me: TestProbe = TestProbe()
+        implicit val myRef: ActorRef = me.ref
+        implicit val me2: TestProbe = TestProbe()
+        implicit val myRef2: ActorRef = me2.ref
+        val owner = UserInfo(OWNERNAME, myRef2)
+        var lobby = Lobby(LOBBYID, owner, GAMEID)
+        (for (i <- 0 until 3;
+               username = OWNERNAME + i)
+          yield UserInfo(username, myRef)) foreach {
+          userInfo => lobby = lobby + userInfo
+        }
+        val gameKnowledge = TestGameKnowledge((1,0,0), firstPlayerTurn = owner)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        me receiveN 9
+        me2 receiveN 2
+        me2.expectMsgType[Turn]
+      }
+
+      "allow all users to do their turn" in {
+        implicit val meList: List[(TestProbe, ActorRef)] = (for (i <- 1 to 4; me = TestProbe()) yield (me,me.ref)) toList
+        val owner = UserInfo(OWNERNAME + 0, meList.head._2)
+        var lobby = Lobby(LOBBYID, owner, GAMEID)
+        (for (i <- 1 to 3;
+              username = OWNERNAME + i)
+          yield UserInfo(username, meList(i)._2)) foreach {
+          userInfo => lobby = lobby + userInfo
+        }
+        val gameKnowledge = TestGameKnowledge((1,0,0), firstPlayerTurn = owner)
+        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        for (me <- meList)
+          me._1 receiveN 2
+        val msg0 = turnMessage(0, sessionManager)
+        val msg2 = turnMessage(2, sessionManager)
+        val msg1 = turnMessage(1, sessionManager)
+        val msg3 = turnMessage(3, sessionManager)
+        (msg0.isInstanceOf[Turn],
+          msg1.isInstanceOf[Turn],
+          msg2.isInstanceOf[Turn],
+          msg3.isInstanceOf[Turn]) shouldBe (true, true, true, true)
       }
 
       "communicate the information of field to all users after hand" in {
@@ -299,6 +360,15 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
     lobby
   }
 
+  private def turnMessage(indexTurn: Int, sessionManager: ActorRef) (implicit meList: List[(TestProbe, ActorRef)]): AnyRef = {
+    val msg = (meList(indexTurn)._1 receiveN 1).head
+    for (i <- 0 to 3)
+      if (i!=indexTurn) meList(i)._1 receiveN 1
+    meList(indexTurn)._1 send(sessionManager, TimeoutExceeded())
+    meList(indexTurn)._1 receiveN 1
+    msg
+  }
+
   private def expectBroadcast(msg: AppMessage)(implicit me: TestProbe) = me expectMsgAllOf(msg,msg,msg,msg)
 
 }
@@ -314,14 +384,16 @@ object SessionManagerTest {
 
     def apply(configuration:(Int, Int, Int) = (0,0,0),
               briscolaSetting: BriscolaSetting.Value = BriscolaSetting.NOT_BRISCOLA,
+              firstPlayerTurn: UserInfo = null,
               correctBriscola: Boolean = true,
               playableCard: Boolean = true,
               firstHandWinner: UserInfo = null,
               sessionWinner: Boolean = true): GameKnowledge =
-      TestGameKnowledge(configuration, briscolaSetting, correctBriscola, playableCard, firstHandWinner, sessionWinner)
+      TestGameKnowledge(configuration, briscolaSetting, firstPlayerTurn, correctBriscola, playableCard, firstHandWinner, sessionWinner)
 
     case class TestGameKnowledge(configuration: (Int,Int,Int),
                                  briscolaSetting: BriscolaSetting.Value,
+                                 firstPlayerTurn: UserInfo,
                                  correctBriscola: Boolean,
                                  playableCard: Boolean,
                                  firstHandWinner: UserInfo,
@@ -346,7 +418,7 @@ object SessionManagerTest {
 
       override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = (endInfo._2, endInfo._3)
 
-      override def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo] = Some(playersHandCards.head._1)
+      override def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo] = if (firstPlayerTurn != null) Some(firstPlayerTurn) else Some(playersHandCards.head._1)
 
       override def seeds: Set[Seed] = Set("denara", "spade", "bastoni", "coppe")
     }
@@ -354,5 +426,4 @@ object SessionManagerTest {
 
 }
 
-// primo giocatore sia veramente quello
 // che giochino tutti i giocatori
