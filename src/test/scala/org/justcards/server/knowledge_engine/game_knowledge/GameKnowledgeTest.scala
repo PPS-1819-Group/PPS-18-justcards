@@ -26,6 +26,10 @@ class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAl
       gameKnowledge.deckCards shouldBe cards
     }
 
+    "return the available seeds" in {
+      gameKnowledge.seeds shouldBe seeds
+    }
+
     "return how the Briscola has to be chosen" in {
       gameKnowledge.hasToChooseBriscola shouldBe BriscolaSetting.USER
     }

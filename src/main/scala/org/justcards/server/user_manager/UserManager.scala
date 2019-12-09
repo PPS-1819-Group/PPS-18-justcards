@@ -7,7 +7,7 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import org.justcards.commons._
 import org.justcards.server.Commons.UserInfo
-import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameKnowledgeRequest, GameKnowledgeResponse}
+import org.justcards.server.knowledge_engine.KnowledgeEngine.{CreateGameRequest, GameKnowledgeRequest, GameKnowledgeResponse}
 import org.justcards.server.session_manager.SessionCreator.CreateSession
 
 import scala.util.Success
@@ -55,8 +55,8 @@ class UserManager(private val sessionCreator: ActorRef, private val knowledgeEng
           sessionCreator ! CreateSession(lobby, gameKnowledge)
         case _ =>
       }
-    case _: Players =>
     case msg: UserManagerMessage => playerManager ! msg
+    case msg: CreateGameRequest => knowledgeEngine.askAndInformUser(msg)(sender())
   }
 
   private def checkLogInAnd(user: ActorRef)(onComplete: String => Unit) : Unit =

@@ -5,12 +5,16 @@ import akka.io.Tcp._
 import org.justcards.commons._
 import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConnectionOptions._
 import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithRemotes, ActorWithTcp, Outer}
+import org.justcards.commons.games_rules.converter.GameRulesConverter
 import org.justcards.server.Commons.UserInfo
+import org.justcards.server.knowledge_engine.KnowledgeEngine.CreateGameRequest
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection with ActorLogging {
 
   import org.justcards.commons.AppError._
+
+  private val rulesConverter = GameRulesConverter()
 
   override def receive: Receive = parse orElse completeBehaviour(notLogged)
 
@@ -26,6 +30,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(LogOut(`username`)) =>
       userManager ! LogOut(username)
       context stop self
+    case Outer(CreateGame(name,rules)) => userManager ! CreateGameRequest(name,rulesConverter.deserialize(rules))
     case message: LobbyJoined => toLobby(message, username)
     case message: LobbyCreated => toLobby(message, username)
   }
@@ -58,7 +63,11 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
     case Outer(msg) => userManager ! msg
     case msg: ErrorOccurred => userRef ==> msg
-    case message: AppMessage => userRef ==> message
+    case message: AppMessage =>
+      println("received app message from inside the server")
+      println(message)
+      userRef ==> message
+    case m => println(m)
   }
 
   protected def errorBehaviour(username: String): Receive = {

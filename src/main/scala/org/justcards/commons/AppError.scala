@@ -20,6 +20,11 @@ object AppError extends Enumeration {
   val BRISCOLA_NOT_VALID: Value = Value("#12")
   val CARD_NOT_VALID: Value = Value("#13")
 
+  val CANNOT_CREATE_GAME: Value = Value("#14")
+  val GAME_EMPTY_NAME: Value = Value("#15")
+  val GAME_RULES_NOT_VALID: Value = Value("#16")
+  val GAME_MISSING_RULES: Value = Value("#17")
+
   val SELECTION_NOT_AVAILABLE: Value = Value("#99")
 
   implicit def fromAppErrorToString(error: AppError.Value):String = error.toString

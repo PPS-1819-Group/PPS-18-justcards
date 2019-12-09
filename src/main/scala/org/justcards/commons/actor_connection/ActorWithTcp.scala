@@ -39,7 +39,7 @@ object ActorWithTcp {
                                 (implicit serializator: Serialization): Option[AppMessage] = {
     val data = serializator.deserialize(bytes, id, manifest)
     if(data isSuccess) Some(data.get.asInstanceOf[AppMessage]) else None
-}
+  }
 
   private case class TcpMessage(bytes: Array[Byte], id: Int, manifest: String)
   private[this] implicit val tcpFormat: OFormat[TcpMessage] = Json.format[TcpMessage]
