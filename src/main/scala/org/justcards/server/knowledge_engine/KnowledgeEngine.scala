@@ -19,6 +19,8 @@ class KnowledgeEngine(private val gameManager: GamesManager,
   import KnowledgeEngine._
   import org.justcards.commons.games_rules.Rule._
 
+  private val mandatoryRules = Rule.mandatoryRules
+
   override def receive: Receive = {
     case GameExistenceRequest(game) => sender() ! GameExistenceResponse(gameManager.gameExists(game))
     case RetrieveAvailableGames(_) => sender() ! AvailableGames(gameManager.availableGames)
@@ -31,7 +33,7 @@ class KnowledgeEngine(private val gameManager: GamesManager,
       sender() ! ErrorOccurred(GAME_EMPTY_NAME)
     case CreateGameRequest(name,_) if gameManager gameExists GameId(name) =>
       sender() ! ErrorOccurred(GAME_ALREADY_EXISTS)
-    case CreateGameRequest(_,rules) if rules.size != Rule.values.size =>
+    case CreateGameRequest(_,rules) if !(mandatoryRules subsetOf rules.keySet) =>
       sender() ! ErrorOccurred(GAME_MISSING_RULES)
     case CreateGameRequest(name,rules) =>
       val wrongRules = nonValidRules(rules)
