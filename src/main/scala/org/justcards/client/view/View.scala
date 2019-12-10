@@ -2,7 +2,8 @@ package org.justcards.client.view
 
 import akka.actor.{ActorRef, Props}
 import org.justcards.commons.AppError._
-import org.justcards.commons.{AppError, Card, GameId, LobbyId, TeamId, UserId}
+import org.justcards.commons.games_rules.Rule
+import org.justcards.commons.{Card, GameId, LobbyId, TeamId, UserId}
 
 trait View extends (ActorRef => Props)
 
@@ -16,18 +17,22 @@ object View {
   case object ShowMenu extends ViewMessage
   case object MoveWasCorrect extends ViewMessage
   case object ShowTimeForMoveExceeded extends ViewMessage
+  case object ShowGameCreated extends ViewMessage
   case class ShowLobbyCreation(games: Set[GameId]) extends ViewMessage
   case class ShowLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends ViewMessage
   case class ShowCreatedLobby(lobby: LobbyId) extends ViewMessage
   case class ShowJoinedLobby(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
   case class ShowLobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends ViewMessage
-  case class ShowGameStarted(team: TeamId) extends ViewMessage
+  case class ShowGameStarted(players: List[(UserId, TeamId)]) extends ViewMessage
   case class ShowGameInformation(handCards: Set[Card], fieldCards: List[Card]) extends ViewMessage
   case class ViewChooseBriscola(availableBriscola: Set[String], timeout: Int) extends ViewMessage
   case class ShowTurn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends ViewMessage
   case class ShowHandWinner(player: UserId) extends ViewMessage
-  case class ShowMatchWinner(winnerTeam: TeamId, team1Points: Int, team2Points: Int) extends ViewMessage
+  case class ShowMatchWinner(winnerTeam: TeamId, matchPoints: (Int, Int), totalPoints: (Int, Int)) extends ViewMessage
   case class ShowGameWinner(team: TeamId) extends ViewMessage
+  case class ShowChosenBriscola(seed: String, number: Option[Int] = None) extends ViewMessage
+  case class ShowGameCreation(rules: Set[Rule.Value], cards: Set[Card], seeds: Set[String]) extends ViewMessage
+  case class ShowNotValidRules(rules: Set[Rule.Value]) extends ViewMessage
 
   private[this] val HAND_WON_FINAL = "taken all the cards in the field!"
 
@@ -38,6 +43,7 @@ object View {
   val LOBBY_BY_FILTER_TITLE: String = "LOBBY LIST - Choose the filter you want to filter lobbies with"
   val LOBBY_CREATION_TITLE: String = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE: String = "LOBBY LIST - Choose the lobby you want to join"
+  val MATCH_RESULTS_TITLE: String = "MATCH RESULTS"
   val EXIT: String = "exit"
   val DEFAULT_LOBBIES_MESSAGE = "<< Currently there are no available lobbies >>"
   val LOBBY_MESSAGE: String = "If you want to exit from the lobby, write " concat EXIT
@@ -46,10 +52,19 @@ object View {
   val TIME_IS_UP: String = "Time'up! The game will decide for you"
 
   val LOBBY_CREATED_MESSAGE: LobbyId => String = "Your lobby has been created! ID = " + _.id
+  val BRISCOLA_NO_CARD: String => String = "<< Current Briscola is " concat _ concat " >>"
+  val BRISCOLA_WITH_CARD: Card => String = card =>
+    BRISCOLA_NO_CARD(card) concat " | Briscola card is " concat fromCardToString(card)
   val LOBBY_JOINED_MESSAGE: LobbyId => String = "You joined lobby " + _.id
-  val GAME_STARTED: TeamId => String = "The game has started! You're on team " + _.name
-  val HAND_LOST: UserId => String = _.name concat "has " concat HAND_WON_FINAL
+  val GAME_STARTED: (TeamId, Option[UserId]) => String = (team, mate) => {
+   val msg = "The game has started! You're on team " + team.name
+   if(mate isDefined) msg concat " and your teammate is " + mate.get.name
+   else msg
+  }
+  val HAND_LOST: UserId => String = _.name concat " has " concat HAND_WON_FINAL
   val GAME_LOST: TeamId => String = "You've lost! " concat _.name concat " wins the game"
+  val MATCH_RESULTS: ((Int,Int)) => String = results =>
+    "Match ends! Results: " + results._1 + " - " + results._2
   val MATCH_ENDS: (TeamId, (Int,Int)) => String = (winnerTeam, teamPoints) =>
     winnerTeam.name + " wins! " + teamPoints._1 + " - " + teamPoints._2
   val UNKNOWN_ERROR: AppError => String = "Unknown error: " + _

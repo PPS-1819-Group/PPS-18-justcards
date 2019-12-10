@@ -1,16 +1,25 @@
 package org.justcards.server.knowledge_engine
 
-import java.io.File
+import java.io.{File, PrintWriter}
 
 import akka.actor.{Actor, Props}
 import org.justcards.commons._
+import org.justcards.commons.AppError._
 import org.justcards.commons.GameId
-import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory, PrologGameKnowledge}
+import org.justcards.commons.games_rules.PointsConversion.PointsConversion
+import org.justcards.commons.games_rules.{GameRules, Rule}
+import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
+import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 
 class KnowledgeEngine(private val gameManager: GamesManager,
-                      private val gameKnowledge: GameKnowledgeFactory) extends Actor {
+                      private val gameKnowledge: GameKnowledgeFactory,
+                      private val rulesCreator: RuleCreator) extends Actor {
 
   import KnowledgeEngine._
+  import org.justcards.commons.games_rules.Rule._
+
+  private val mandatoryRules = Rule.mandatoryRules
 
   override def receive: Receive = {
     case GameExistenceRequest(game) => sender() ! GameExistenceResponse(gameManager.gameExists(game))
@@ -18,28 +27,62 @@ class KnowledgeEngine(private val gameManager: GamesManager,
     case GameKnowledgeRequest(game) =>
       val msg: Any =
         if(gameManager.gameExists(game)) GameKnowledgeResponse(gameKnowledge(game))
-        else ErrorOccurred(AppError.GAME_NOT_EXISTING)
+        else ErrorOccurred(GAME_NOT_EXISTING)
       sender() ! msg
+    case CreateGameRequest(name,_) if name isBlank =>
+      sender() ! ErrorOccurred(GAME_EMPTY_NAME)
+    case CreateGameRequest(name,_) if gameManager gameExists GameId(name) =>
+      sender() ! ErrorOccurred(GAME_ALREADY_EXISTS)
+    case CreateGameRequest(_,rules) if !(mandatoryRules subsetOf rules.keySet) =>
+      sender() ! ErrorOccurred(GAME_MISSING_RULES)
+    case CreateGameRequest(name,rules) =>
+      val wrongRules = nonValidRules(rules)
+      if (wrongRules.isEmpty)
+        gameManager createGame (name, rulesCreator create rules) match {
+          case Some(gameId) => sender() ! GameCreated(gameId)
+          case _ => sender() ! ErrorOccurred(CANNOT_CREATE_GAME)
+        }
+      else sender() ! ErrorOccurred(GAME_RULES_NOT_VALID)
   }
+
+  private def nonValidRules(rules: GameRules): Set[Rule.Value] = rules filterNot {
+    case (CARDS_DISTRIBUTION,(h:Int,d:Int,f:Int)) => CARDS_DISTRIBUTION isAllowed (h,d,f)
+    case (PLAY_SAME_SEED,v: Boolean) => PLAY_SAME_SEED isAllowed v
+    case (CHOOSE_BRISCOLA,v: BriscolaSetting) => CHOOSE_BRISCOLA isAllowed v
+    case (POINTS_TO_WIN_SESSION,v :Int) => POINTS_TO_WIN_SESSION isAllowed v
+    case (POINTS_OBTAINED_IN_A_MATCH,v: PointsConversion) => POINTS_OBTAINED_IN_A_MATCH isAllowed v
+    case (WINNER_POINTS,v: PointsConversion) => WINNER_POINTS isAllowed v
+    case (LOSER_POINTS,v: PointsConversion) => LOSER_POINTS isAllowed v
+    case (DRAW_POINTS,v: PointsConversion) => DRAW_POINTS isAllowed v
+    case (STARTER_CARD,v: Card) => STARTER_CARD isAllowed v
+    case (LAST_TAKE_WORTH_ONE_MORE_POINT,v: Boolean) => LAST_TAKE_WORTH_ONE_MORE_POINT isAllowed v
+    case (CARDS_HIERARCHY_AND_POINTS,v: List[Any]) =>
+      CARDS_HIERARCHY_AND_POINTS isAllowed (v collect { case (number: Int, points: Int) => (number, points) })
+    case _ => false
+  } keySet
 
 }
 
 object KnowledgeEngine {
-  def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory): Props =
-    Props(classOf[KnowledgeEngine], gameManager, gameKnowledge)
+  def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory, rulesCreator: RuleCreator): Props =
+    Props(classOf[KnowledgeEngine], gameManager, gameKnowledge, rulesCreator)
 
-  def apply(gameManager: GamesManager): Props =
-    Props(classOf[KnowledgeEngine], gameManager, GameKnowledge())
+  def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory): Props =
+    KnowledgeEngine(gameManager, gameKnowledge, RuleCreator())
+
+  def apply(gameManager: GamesManager): Props = KnowledgeEngine(gameManager, GameKnowledge(), RuleCreator())
 
   case class GameExistenceRequest(gameId: GameId)
   case class GameExistenceResponse(existence: Boolean)
   case class GameKnowledgeRequest(game: GameId)
   case class GameKnowledgeResponse(gameKnowledgeInstance: GameKnowledge)
+  case class CreateGameRequest(name: String, rules: GameRules)
 }
 
 trait GamesManager {
   def availableGames: Set[GameId]
   def gameExists(game: GameId): Boolean
+  def createGame(name: String, rules: List[String]): Option[GameId]
 }
 
 object GamesManager {
@@ -55,6 +98,17 @@ object GamesManager {
 
     override def gameExists(game: GameId): Boolean = games contains game
 
+    override def createGame(name: String, rules: List[String]): Option[GameId] =
+      try {
+        val newGame = new File(GAMES_PATH + name + ".pl")
+        val bw = new PrintWriter(newGame)
+        rules foreach bw.println
+        bw.close()
+        Some(GameId(name))
+      } catch {
+        case _: Exception => None
+      }
+
     private def readGames(): Set[GameId] = {
       val gameDirectory = new File(GAMES_PATH)
       gameDirectory.listFiles.toSet
@@ -66,5 +120,5 @@ object GamesManager {
         })
         .map(GameId)
     }
-  }
+   }
 }

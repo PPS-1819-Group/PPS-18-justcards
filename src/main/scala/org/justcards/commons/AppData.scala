@@ -1,7 +1,9 @@
 package org.justcards.commons
 
-case class GameId (name: String)
-case class UserId (id: Long, name: String)
-case class LobbyId (id: Long, owner: String = "", game: GameId = GameId(""))
-case class Card(number: Int, seed: String)
-case class TeamId(name: String)
+trait JsonSerializable
+
+case class GameId (name: String) extends JsonSerializable
+case class UserId (id: Long, name: String) extends JsonSerializable
+case class LobbyId (id: Long, owner: String = "", game: GameId = GameId("")) extends JsonSerializable
+case class Card(number: Int, seed: String) extends JsonSerializable
+case class TeamId(name: String) extends JsonSerializable

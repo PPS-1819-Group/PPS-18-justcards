@@ -52,4 +52,8 @@ package object view {
     def ordered: List[Card] = cards.toList sortBy(_.number) sortBy(_.seed)
   }
 
+  implicit class RichBriscola(briscola: (String, Option[Int])){
+    def isDefined: Boolean = !briscola._1.isBlank
+  }
+
 }

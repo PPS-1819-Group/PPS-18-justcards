@@ -32,7 +32,7 @@ object TcpConnectionManager {
     }
 
     override protected def connectionErrorHandling(server: ActorRef): Receive = {
-      case CommandFailed(message: Write) => error(MESSAGE_SENDING_FAILED,extractMessage(message.data))
+      case CommandFailed(message: Write) => error(MESSAGE_SENDING_FAILED,extractMessage(message.data).get)
       case _: ConnectionClosed | Closed => error(CONNECTION_LOST)
     }
 

@@ -15,6 +15,11 @@ import org.justcards.client.view.View._
 import org.justcards.client.view.MenuChoice._
 import org.justcards.client.view.FilterChoice._
 import org.justcards.client.view.OptionConnectionFailed._
+import org.justcards.commons.games_rules.PointsConversion.PointsConversion
+import org.justcards.commons.games_rules.Rule
+import org.justcards.commons.games_rules.Rule._
+import org.justcards.commons.games_rules.converter.GameRulesConverter
+import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
 object AppController {
 
@@ -29,6 +34,7 @@ object AppController {
   case class AppControllerJoinLobby(lobby: LobbyId)
   case class ReconnectOption(option: OptionConnectionFailed)
   case class GoBackToMenu(allowed: Boolean)
+  case class AppControllerCreateGame(name: String, rules: Map[Rule.Value,Any])
   case object ExitFromLobby
   case object CanGoBackToMenu
 }
@@ -40,6 +46,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
 
   private val connectionManagerActor = context actorOf connectionManager(self)
   private val viewActor = context actorOf view(self)
+  private val rulesConverter = GameRulesConverter()
   connectionManagerActor ! InitializeConnection
 
   override def receive: Receive = waitToBeConnected orElse default
@@ -78,9 +85,53 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
           connectionManagerActor ! JoinLobby(LobbyId(lobbyId.get))
           context >>> waitForLobbyJoined
         }
+      case CREATE_GAME =>
+        context toGameCreation
       case _ => viewActor ! ShowError(SELECTION_NOT_AVAILABLE)
     }
   }
+
+  private def gameCreation: Receive = {
+    case CanGoBackToMenu =>
+      sender() ! GoBackToMenu(true)
+      context >>> logged
+    case AppControllerCreateGame(name,_) if name.isBlank =>
+      viewActor ! ShowError(GAME_EMPTY_NAME)
+    case AppControllerCreateGame(_,rules) if rules.size != Rule.values.size =>
+      viewActor ! ShowError(GAME_MISSING_RULES)
+    case AppControllerCreateGame(name,rules) =>
+      val wrongRules = nonValidRules(rules)
+      if (wrongRules.isEmpty) {
+        connectionManagerActor ! CreateGame(name, rulesConverter.serialize(rules))
+        context >>> {
+          case GameCreated(_) =>
+            viewActor ! ShowGameCreated
+            context toLogged
+          case ErrorOccurred(error) if error == CANNOT_CREATE_GAME.toString =>
+            viewActor ! ShowError(CANNOT_CREATE_GAME)
+            context toGameCreation
+        }
+      } else {
+        viewActor ! ShowError(GAME_RULES_NOT_VALID)
+        viewActor ! ShowNotValidRules(wrongRules)
+      }
+  }
+
+  private def nonValidRules(rules: Map[Rule.Value, Any]): Set[Rule.Value] = rules filterNot {
+    case (CARDS_DISTRIBUTION,(h:Int,d:Int,f:Int)) => CARDS_DISTRIBUTION isAllowed (h,d,f)
+    case (PLAY_SAME_SEED,v: Boolean) => PLAY_SAME_SEED isAllowed v
+    case (CHOOSE_BRISCOLA,v: BriscolaSetting) => CHOOSE_BRISCOLA isAllowed v
+    case (POINTS_TO_WIN_SESSION,v :Int) => POINTS_TO_WIN_SESSION isAllowed v
+    case (POINTS_OBTAINED_IN_A_MATCH,v: PointsConversion) => POINTS_OBTAINED_IN_A_MATCH isAllowed v
+    case (WINNER_POINTS,v: PointsConversion) => WINNER_POINTS isAllowed v
+    case (LOSER_POINTS,v: PointsConversion) => LOSER_POINTS isAllowed v
+    case (DRAW_POINTS,v: PointsConversion) => DRAW_POINTS isAllowed v
+    case (STARTER_CARD,v: Card) => STARTER_CARD isAllowed v
+    case (LAST_TAKE_WORTH_ONE_MORE_POINT,v: Boolean) => LAST_TAKE_WORTH_ONE_MORE_POINT isAllowed v
+    case (CARDS_HIERARCHY_AND_POINTS,v: List[Any]) =>
+      CARDS_HIERARCHY_AND_POINTS isAllowed (v collect { case (number: Int, points: Int) => (number, points) })
+    case _ => println("unexpected"); false
+  } keySet
 
   private def lobbyCreation: Receive = {
     case CanGoBackToMenu =>
@@ -117,19 +168,18 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     case LobbyUpdate(lobby, members) => viewActor ! ShowLobbyUpdate(lobby,members)
     case ExitFromLobby => connectionManagerActor ! OutOfLobby(myLobby)
     case OutOfLobby(`myLobby`) => context toLogged
-    case GameStarted(team) =>
+    case GameStarted(players) =>
       context >>> inGame
-      viewActor ! ShowGameStarted(team.head._2) //TODO
+      viewActor ! ShowGameStarted(players)
   }
 
   private def inGame: Receive = {
     case Information(handCards, fieldCards) => viewActor ! ShowGameInformation(handCards, fieldCards)
     case HandWinner(winner) => viewActor ! ShowHandWinner(winner)
-    case MatchWinner(team, team1Points, team2Points) => viewActor ! ShowMatchWinner(team, team1Points._1, team2Points._1) //TODO
+    case MatchWinner(team, matchPoints, totalPoints) => viewActor ! ShowMatchWinner(team, matchPoints, totalPoints)
     case GameWinner(team) => viewActor ! ShowGameWinner(team)
-    case ChooseBriscola(briscolas, timeout) => //TODO
-      val availableBriscola = Set("spade", "denara", "coppe", "bastoni") //To be changed, briscola has to be passed from the server
-      context toChooseBriscola(availableBriscola, timeout)
+    case CorrectBriscola(seed, number) => viewActor ! ShowChosenBriscola(seed, number)
+    case ChooseBriscola(availableBriscola, timeout) => context toChooseBriscola(availableBriscola, timeout)
     case Turn(handCards, fieldCards, timeout) => context toMyTurn((handCards, fieldCards),timeout)
     case OutOfLobby(_) => context toLogged
   }
@@ -147,19 +197,20 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     }
 
   private def waitForBriscolaResponse(availableBriscola: Set[String], remainingTime: Long): Receive =
-    waitForChoiceCorrectness[CorrectBriscola](BRISCOLA_NOT_VALID){
-      context toChooseBriscola(availableBriscola,remainingTime)
-    }
+    waitForChoiceCorrectness[CorrectBriscola](BRISCOLA_NOT_VALID){ briscola =>
+      viewActor ! MoveWasCorrect
+      viewActor ! ShowChosenBriscola(briscola.seed, briscola.number)
+    }(context toChooseBriscola(availableBriscola,remainingTime))
 
   private def waitForMove(cards: (Set[Card], List[Card]), remainingTime: Long): Receive =
-    waitForChoiceCorrectness[Played](CARD_NOT_VALID){
-      context toMyTurn(cards,remainingTime)
-    }
-
-  private def waitForChoiceCorrectness[A: ClassTag](error: AppError)(onError: => Unit): Receive = {
-    case _: A =>
-      if(timers isTimerActive TimerTimeoutId) timers cancel TimerTimeoutId
+    waitForChoiceCorrectness[Played](CARD_NOT_VALID){ _ =>
       viewActor ! MoveWasCorrect
+    }(context toMyTurn(cards,remainingTime))
+
+  private def waitForChoiceCorrectness[A: ClassTag](error: AppError)(onSuccess: A => Unit)(onError: => Unit): Receive = {
+    case msg: A =>
+      if(timers isTimerActive TimerTimeoutId) timers cancel TimerTimeoutId
+      onSuccess(msg)
       context >>> inGame
     case ErrorOccurred(message) if message == error.toString =>
       viewActor ! ShowError(error)
@@ -243,6 +294,13 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       viewActor ! ShowTurn(cards._1, cards._2, timeout.toInt)
       timers startSingleTimer(TimerTimeoutId, Timeout, timeout seconds)
       nextBehaviour
+    }
+
+    def toGameCreation: Receive = {
+      val (cards,seeds) = Rule.deckCards
+      viewActor ! ShowGameCreation(Rule.values, cards, seeds)
+      context >>> gameCreation
+      gameCreation
     }
   }
 

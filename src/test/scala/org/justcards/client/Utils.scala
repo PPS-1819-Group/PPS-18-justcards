@@ -16,7 +16,9 @@ object Utils {
   val lobby: LobbyId = LobbyId(1,"owner", game)
   val user: UserId = UserId(1,username)
   val team: TeamId = TeamId("test-team")
+  val team2: TeamId = TeamId("test-team2")
   val card: Card = Card(1, "spade")
+  val briscola: String = "spade"
   val briscolaSet: Set[String] = Set("spade", "denara", "bastoni", "coppe")
   val handCards: Set[Card] = Set(Card(1, "spade"), Card(2, "spade"), Card(3, "spade"), Card(5, "coppe"))
   val fieldCards: List[Card] = List(Card(1, "denara"), Card(10, "bastoni"), Card(6, "coppe"))

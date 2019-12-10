@@ -1,16 +1,20 @@
 package org.justcards.server.user_manager
 
-import akka.actor.{ActorContext, ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import akka.io.Tcp._
 import org.justcards.commons._
-import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithTcp, Outer}
-import org.justcards.server
+import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConnectionOptions._
+import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithRemotes, ActorWithTcp, Outer}
+import org.justcards.commons.games_rules.converter.GameRulesConverter
 import org.justcards.server.Commons.UserInfo
+import org.justcards.server.knowledge_engine.KnowledgeEngine.CreateGameRequest
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
-abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection {
+abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection with ActorLogging {
 
   import org.justcards.commons.AppError._
+
+  private val rulesConverter = GameRulesConverter()
 
   override def receive: Receive = parse orElse completeBehaviour(notLogged)
 
@@ -26,6 +30,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(LogOut(`username`)) =>
       userManager ! LogOut(username)
       context stop self
+    case Outer(CreateGame(name,rules)) => userManager ! CreateGameRequest(name,rulesConverter.deserialize(rules))
     case message: LobbyJoined => toLobby(message, username)
     case message: LobbyCreated => toLobby(message, username)
   }
@@ -58,11 +63,15 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
     case Outer(msg) => userManager ! msg
     case msg: ErrorOccurred => userRef ==> msg
-    case message: AppMessage => userRef ==> message
+    case message: AppMessage =>
+      println("received app message from inside the server")
+      println(message)
+      userRef ==> message
+    case m => println(m)
   }
 
   protected def errorBehaviour(username: String): Receive = {
-    case msg => server.log("User -> " + username + " | unhandled message | " + msg)
+    case msg => log.debug("User -> " + username + " | unhandled message | " + msg)
   }
 
   private def completeBehaviour(behaviour: Receive, username: String = ""): Receive =
@@ -83,7 +92,12 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
 
 object User {
 
-  def apply(userRef: ActorRef, userManager: ActorRef): Props = Props(classOf[UserActorWithTcp], userRef, userManager)
+  def apply(userRef: ActorRef, userManager: ActorRef): Props = User(userRef, userManager, REMOTES)
+
+  def apply(userRef: ActorRef, userManager: ActorRef, mode: ActorWithConnectionOptions): Props = mode match {
+    case TCP => Props(classOf[UserActorWithTcp], userRef, userManager)
+    case REMOTES =>  Props(classOf[UserActorWithRemotes], userRef, userManager)
+  }
 
   private[this] class UserActorWithTcp(private val userRef: ActorRef, private val userManager: ActorRef)
     extends BasicUserActor(userRef, userManager) with ActorWithTcp {
@@ -96,9 +110,25 @@ object User {
     override def errorBehaviour(username: String): Receive = {
       case CommandFailed(w: Write) =>
         // O/S buffer was full
-        server.log(COMMAND_FAILED + extractMessage(w.data))
+        log.debug(COMMAND_FAILED + extractMessage(w.data))
       case _: ConnectionClosed =>
-        server.log(CONNECTION_CLOSED)
+        log.debug(CONNECTION_CLOSED)
+        if (!username.isEmpty) self ! Outer(LogOut(username))
+        else context stop self
+    }
+
+  }
+
+  private[this] class UserActorWithRemotes(private val userRef: ActorRef, private val userManager: ActorRef)
+    extends BasicUserActor(userRef, userManager) with ActorWithRemotes {
+
+    private[this] val CONNECTION_CLOSED = "Connection with user has been closed"
+
+    context.watch(userRef)
+
+    override def errorBehaviour(username: String): Receive = {
+      case Terminated(`userRef`) =>
+        log.debug(CONNECTION_CLOSED)
         if (!username.isEmpty) self ! Outer(LogOut(username))
         else context stop self
     }
