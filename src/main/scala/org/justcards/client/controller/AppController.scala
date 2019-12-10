@@ -107,9 +107,12 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
           case GameCreated(_) =>
             viewActor ! ShowGameCreated
             context toLogged
-          case ErrorOccurred(error) if error == CANNOT_CREATE_GAME.toString =>
-            viewActor ! ShowError(CANNOT_CREATE_GAME)
-            context toGameCreation
+          case ErrorOccurred(message) if message.isGameError =>
+            val error = AppError.values.find(_.toString == message)
+            if(error isDefined){
+              viewActor ! ShowError(error.get)
+              context toGameCreation(correctRules)
+            }
         }
       } else {
         viewActor ! ShowError(GAME_RULES_NOT_VALID)

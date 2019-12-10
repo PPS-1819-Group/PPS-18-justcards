@@ -88,6 +88,7 @@ object View {
   val ERROR_GAME_EMPTY_NAME: String = START_ERROR concat "The name of the game can't be empty!"
   val ERROR_GAME_MISSING_RULES: String = START_ERROR concat "Some rules are missing! The game can't be created"
   val ERROR_GAME_WRONG_RULES: String = START_ERROR concat "Some rules are wrong! Change them"
+  val ERROR_GAME_ALREADY_EXISTS: String = START_ERROR concat "The game already exists! Choose another name"
 
   val ERROR_WRONG_CARD: String = "You can't play this card"
   val ERROR_WRONG_BRISCOLA: String = "This Briscola doesn't exist"
@@ -114,6 +115,7 @@ object View {
     case GAME_EMPTY_NAME => ERROR_GAME_EMPTY_NAME
     case GAME_MISSING_RULES => ERROR_GAME_MISSING_RULES
     case GAME_RULES_NOT_VALID => ERROR_GAME_WRONG_RULES
+    case GAME_ALREADY_EXISTS =>
     case _ => UNKNOWN_ERROR(error)
   }
 }

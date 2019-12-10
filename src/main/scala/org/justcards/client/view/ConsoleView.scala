@@ -183,6 +183,9 @@ class ConsoleView(controller: ActorRef) extends Actor {
   private def waitGameCreation(cardRestrictions: (Int, Int), seeds: Set[String]): Receive = {
     case ShowGameCreated => println(GAME_CREATED_MESSAGE)
     case ShowMenu => context toMenu
+    case ShowError(error) if error == GAME_ALREADY_EXISTS =>
+      println(errorMessage(error))
+      askGameName(Map(), cardRestrictions, seeds)
     case ShowNotValidRules(rules) =>
       println(ERROR_RULES)
       gameCreation(rules.toList)(cardRestrictions, seeds)
@@ -193,12 +196,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
     def _onRuleCreated(rule: (Rule.Value, Any)): Unit =
       gameCreation(rules.tail, completedRules + rule)(cardRestrictions, seeds)
     if(rules isEmpty) {
-      askToUser(ASK_NAME)
-      context >>> {
-        case NewUserCommand(name) =>
-          controller ! AppControllerCreateGame(name, completedRules)
-          context >>> waitGameCreation(cardRestrictions, seeds)
-      }
+      askGameName(completedRules, cardRestrictions, seeds)
     } else {
       println(LINE_DELIMETER)
       rules.head match {
@@ -416,6 +414,15 @@ class ConsoleView(controller: ActorRef) extends Actor {
     for (choice <- BriscolaSetting.values)
       println(choice.id + 1 + ")" + printBriscolaSettings(choice))
     askToUser("")
+  }
+
+  private def askGameName(completedRules: Map[Rule.Value, Any], cardRestrictions: (Int, Int), seeds: Set[String]): Unit = {
+    askToUser(ASK_NAME)
+    context >>> {
+      case NewUserCommand(name) =>
+        controller ! AppControllerCreateGame(name, completedRules)
+        context >>> waitGameCreation(cardRestrictions, seeds)
+    }
   }
 
   private def showLobbyCreationOptions(games: List[GameId]): Unit = {
