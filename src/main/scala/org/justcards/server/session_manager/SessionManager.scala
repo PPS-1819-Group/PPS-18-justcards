@@ -12,7 +12,7 @@ import org.justcards.server.user_manager.Lobby
 /**
  * Actor that manages a game session
  */
-class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value,TeamPoints], lobby: LobbyId, players: Map[String, UserInfo]) extends Actor with Timers with ActorLogging{
+class SessionManager(gameKnowledge: GameKnowledge, var teams: Map[Team.Value,TeamPoints], lobby: LobbyId, var players: Map[String, UserInfo]) extends Actor with Timers with ActorLogging{
   import Team._
   import org.justcards.commons.AppError._
   import SessionManager._
@@ -22,7 +22,11 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
   var firstPlayerMatch: UserInfo = _
 
-  override def receive: Receive = preMatchBehaviour
+  override def receive: Receive = preMatchBehaviour orElse defaultBehaviour
+
+  private def defaultBehaviour: Receive = {
+    case LogOutAndExitFromGame(user) if user.userRef == sender => addFakeUser(user)
+  }
 
   private def preMatchBehaviour: Receive = {
     case StartMatch(firstPlayer) if firstPlayer.isEmpty || (allPlayers contains firstPlayer.get) =>
@@ -48,7 +52,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
           this broadcast CorrectBriscola(briscolaSeed)
           context toMatch(gameBoard,firstPlayerMatch)
         case BriscolaSetting.USER =>
-          context become chooseBriscolaPhase(gameBoard, firstPlayerMatch)
+          context >>> chooseBriscolaPhase(gameBoard, firstPlayerMatch)
           firstPlayerMatch.userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER)
           timers startSingleTimer(TimeoutId, Timeout, TIMEOUT seconds)
       }
@@ -71,10 +75,13 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
       this broadcast CorrectBriscola(briscolaSeed)
       gameKnowledge setBriscola briscolaSeed
       context toMatch(gameBoard, firstPlayer)
+    case LogOutAndExitFromGame(user) if sender() == firstPlayer.userRef =>
+      addFakeUser(user)
+      self ! TimeoutExceeded()
   }
 
   private def inMatch(gameBoard: GameBoard): Receive = {
-    case Play(card) if playable(gameBoard, card) && isCorrectPlayer(gameBoard, sender()) =>
+    case Play(card) if playable(gameBoard, card) && isCorrectPlayer(gameBoard, sender) =>
       if(sender() != self) sender() ! Played(card)
       else gameBoard.optionTurnPlayer.get.toUserInfo.userRef ! Played(card)
       timers cancel TimeoutId
@@ -86,6 +93,9 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
     case Timeout | TimeoutExceeded(_) =>
       val playableCards: Set[Card] = for (card <- gameBoard.handCardsOfTurnPlayer.get if playable(gameBoard, card)) yield card
       self ! Play(playableCards.head)
+    case LogOutAndExitFromGame(user) if user.userRef == sender && isCorrectPlayer(gameBoard, sender) =>
+      addFakeUser(user)
+      self ! TimeoutExceeded()
   }
 
   private def handleEndHand(gameBoard: GameBoard): Unit = {
@@ -114,7 +124,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
       broadcast(MatchWinner(pointsForSession._1, (matchPoints._1, matchPoints._2), (teams(TEAM_1).points, teams(TEAM_2).points)))
       gameKnowledge.sessionWinner(teams(TEAM_1).points, teams(TEAM_2).points) match {
         case None =>
-          context become preMatchBehaviour
+          context >>> preMatchBehaviour
           self ! StartMatch((gameBoard playerAfter firstPlayerMatch).map(_.toUserInfo))
         case Some(winner) =>
           this broadcast GameWinner(winner)
@@ -124,9 +134,14 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
   }
 
+
+  private def addFakeUser(user: UserInfo): Unit =
+    players = players.updated(user.username, UserInfo(user.username, context.system.actorOf(FakeUser())))
+
+
   private def turn(gameBoard: GameBoard, turnPlayer: UserInfo): Unit = {
     if (gameBoard.handCardsOfTurnPlayer.get.isEmpty) {
-      context become endMatch(gameBoard)
+      context >>> endMatch(gameBoard)
       self ! EndMatchMessage(gameBoard.optionTurnPlayer.get.toUserInfo)
     } else {
       sendGameBoardInformation(gameBoard, allPlayers filter (_!=turnPlayer))
@@ -154,9 +169,11 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
   private implicit class RichContext(context: ActorContext){
 
+    def >>>(behaviour: Receive): Unit = context become behaviour.orElse(defaultBehaviour)
+
     def toMatch(gameBoard: GameBoard, firstPlayer: UserInfo): Receive = {
       val receive = inMatch(gameBoard)
-      context become receive
+      context >>> receive
       turn(gameBoard, firstPlayer)
       receive
     }
@@ -181,7 +198,8 @@ object SessionManager {
   def apply(lobby: Lobby, gameKnowledge: GameKnowledge): Props = {
     import Lobby._
     val members = lobby.members.toList.splitAt(lobby.members.size/2)
-    Props(classOf[SessionManager], gameKnowledge,
+    Props(classOf[SessionManager],
+      gameKnowledge,
       Map((Team.TEAM_1, TeamPoints(members._1.map(_.username), 0)), (Team.TEAM_2, TeamPoints(members._2.map(_.username), 0))),
       lobbyToLobbyId(lobby),
       lobby.members.map(elem => (elem.username, elem)).toMap)
