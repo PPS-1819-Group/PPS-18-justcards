@@ -24,6 +24,7 @@ object AppError extends Enumeration {
   val GAME_EMPTY_NAME: Value = Value("#15")
   val GAME_RULES_NOT_VALID: Value = Value("#16")
   val GAME_MISSING_RULES: Value = Value("#17")
+  val GAME_ALREADY_EXISTS: Value = Value("#18")
 
   val SELECTION_NOT_AVAILABLE: Value = Value("#99")
 

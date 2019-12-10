@@ -107,16 +107,16 @@ class PrologGameRulesConverter extends GameRulesConverter {
       (CARDS_HIERARCHY_AND_POINTS.toString, serializeToString(v collect { case (number: Int, points: Int) => (number, points) }))
   }
 
-  private def getRule[X](rules: Map[String,String], rule: Rule[X])(convert: String => Option[X]): Option[(String,X)] = {
+  private def getRule[X](rules: Map[String,String], rule: Rule[X])(convert: String => Option[X]): Option[(Rule.Value,X)] = {
     rules get rule.toString match {
       case Some(value) =>
         val concreteValue: Option[X] = convert(value)
-        if (concreteValue.isDefined) Some((rule.toString,concreteValue get)) else None
+        if (concreteValue.isDefined) Some((rule,concreteValue get)) else None
       case _ => None
     }
   }
 
-  override def deserialize(rules: Map[String, String]): Map[String, Any] = {
+  override def deserialize(rules: Map[String, String]): Map[Rule.Value, Any] = {
     Set(
       getRule(rules,CARDS_DISTRIBUTION)(parseToCardsDistribution),
       getRule(rules,PLAY_SAME_SEED)(parseToBoolean),

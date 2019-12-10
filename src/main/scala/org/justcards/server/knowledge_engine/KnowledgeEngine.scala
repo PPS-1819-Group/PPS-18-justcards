@@ -7,7 +7,7 @@ import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.commons.GameId
 import org.justcards.commons.games_rules.PointsConversion.PointsConversion
-import org.justcards.commons.games_rules.GameRules
+import org.justcards.commons.games_rules.{GameRules, Rule}
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
@@ -19,6 +19,8 @@ class KnowledgeEngine(private val gameManager: GamesManager,
   import KnowledgeEngine._
   import org.justcards.commons.games_rules.Rule._
 
+  private val mandatoryRules = Rule.mandatoryRules
+
   override def receive: Receive = {
     case GameExistenceRequest(game) => sender() ! GameExistenceResponse(gameManager.gameExists(game))
     case RetrieveAvailableGames(_) => sender() ! AvailableGames(gameManager.availableGames)
@@ -27,58 +29,37 @@ class KnowledgeEngine(private val gameManager: GamesManager,
         if(gameManager.gameExists(game)) GameKnowledgeResponse(gameKnowledge(game))
         else ErrorOccurred(GAME_NOT_EXISTING)
       sender() ! msg
+    case CreateGameRequest(name,_) if name isBlank =>
+      sender() ! ErrorOccurred(GAME_EMPTY_NAME)
+    case CreateGameRequest(name,_) if gameManager gameExists GameId(name) =>
+      sender() ! ErrorOccurred(GAME_ALREADY_EXISTS)
+    case CreateGameRequest(_,rules) if !(mandatoryRules subsetOf rules.keySet) =>
+      sender() ! ErrorOccurred(GAME_MISSING_RULES)
     case CreateGameRequest(name,rules) =>
-      if (areGameSettingsValid(name,rules)) {
+      val wrongRules = nonValidRules(rules)
+      if (wrongRules.isEmpty)
         gameManager createGame (name, rulesCreator create rules) match {
           case Some(gameId) => sender() ! GameCreated(gameId)
           case _ => sender() ! ErrorOccurred(CANNOT_CREATE_GAME)
         }
-      } else sender() ! ErrorOccurred(CANNOT_CREATE_GAME)
+      else sender() ! ErrorOccurred(GAME_RULES_NOT_VALID)
   }
 
-  private def areGameSettingsValid(name: String, rules: GameRules): Boolean =
-    !(gameManager gameExists GameId(name)) &&
-    List(
-        rules get CARDS_DISTRIBUTION.toString match {
-          case Some((h: Int, d: Int, f: Int)) => CARDS_DISTRIBUTION isAllowed (h,d,f)
-          case _ => false
-        },
-        rules get PLAY_SAME_SEED.toString match {
-          case Some(value: Boolean) => PLAY_SAME_SEED isAllowed value
-          case _ => false
-        },
-        rules get POINTS_TO_WIN_SESSION.toString match {
-          case Some(v: Int) => POINTS_TO_WIN_SESSION isAllowed v
-          case _ => false
-        },
-        rules get CHOOSE_BRISCOLA.toString match {
-          case Some(v: BriscolaSetting) => CHOOSE_BRISCOLA isAllowed v
-          case _ => false
-        },
-        isAllowedPointsRule(rules, POINTS_OBTAINED_IN_A_MATCH),
-        rules get STARTER_CARD.toString match {
-          case Some(v: Card) => STARTER_CARD isAllowed v
-          case _ => false
-        },
-        isAllowedBooleanRule(rules, LAST_TAKE_WORTH_ONE_MORE_POINT),
-        rules get CARDS_HIERARCHY_AND_POINTS.toString match {
-          case Some(h :: t) => CARDS_HIERARCHY_AND_POINTS isAllowed (h :: t collect { case (number: Int, points: Int) => (number, points) })
-          case _ => false
-        },
-        isAllowedPointsRule(rules, WINNER_POINTS),
-        isAllowedPointsRule(rules, LOSER_POINTS),
-        isAllowedPointsRule(rules, DRAW_POINTS)
-      ).count(v=>v) == rules.size
-
-  private def isAllowedBooleanRule(rules: GameRules, rule: Rule[Boolean]): Boolean = rules get rule.toString match {
-    case Some(v: Boolean) => rule isAllowed v
+  private def nonValidRules(rules: GameRules): Set[Rule.Value] = rules filterNot {
+    case (CARDS_DISTRIBUTION,(h:Int,d:Int,f:Int)) => CARDS_DISTRIBUTION isAllowed (h,d,f)
+    case (PLAY_SAME_SEED,v: Boolean) => PLAY_SAME_SEED isAllowed v
+    case (CHOOSE_BRISCOLA,v: BriscolaSetting) => CHOOSE_BRISCOLA isAllowed v
+    case (POINTS_TO_WIN_SESSION,v :Int) => POINTS_TO_WIN_SESSION isAllowed v
+    case (POINTS_OBTAINED_IN_A_MATCH,v: PointsConversion) => POINTS_OBTAINED_IN_A_MATCH isAllowed v
+    case (WINNER_POINTS,v: PointsConversion) => WINNER_POINTS isAllowed v
+    case (LOSER_POINTS,v: PointsConversion) => LOSER_POINTS isAllowed v
+    case (DRAW_POINTS,v: PointsConversion) => DRAW_POINTS isAllowed v
+    case (STARTER_CARD,v: Card) => STARTER_CARD isAllowed v
+    case (LAST_TAKE_WORTH_ONE_MORE_POINT,v: Boolean) => LAST_TAKE_WORTH_ONE_MORE_POINT isAllowed v
+    case (CARDS_HIERARCHY_AND_POINTS,v: List[Any]) =>
+      CARDS_HIERARCHY_AND_POINTS isAllowed (v collect { case (number: Int, points: Int) => (number, points) })
     case _ => false
-  }
-
-  private def isAllowedPointsRule(rules: GameRules, rule: Rule[PointsConversion]): Boolean = rules get rule.toString match {
-    case Some(v: PointsConversion) => rule isAllowed v
-    case _ => false
-  }
+  } keySet
 
 }
 

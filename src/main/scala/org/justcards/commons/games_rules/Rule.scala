@@ -31,17 +31,17 @@ object Rule extends Enumeration {
   type CardsDistribution = (Int,Int,Int)
   type CardsHierarchyAndPoints = List[(Int,Int)]
 
-  val CARDS_DISTRIBUTION = RuleVal[CardsDistribution](v => rulesKnowledge.cardsDistribution(v._1,v._2,v._3))
-  val PLAY_SAME_SEED = RuleVal[Boolean](rulesKnowledge playSameSeed)
-  val CHOOSE_BRISCOLA = RuleVal[BriscolaSetting](rulesKnowledge chooseBriscola)
-  val POINTS_TO_WIN_SESSION = RuleVal[Int](rulesKnowledge pointsToWinSession)
-  val POINTS_OBTAINED_IN_A_MATCH = RuleVal[PointsConversion](rulesKnowledge pointsObtainedInAMatch)
-  val WINNER_POINTS = RuleVal[PointsConversion](rulesKnowledge winnerPoints)
-  val LOSER_POINTS = RuleVal[PointsConversion](rulesKnowledge loserPoints)
-  val DRAW_POINTS = RuleVal[PointsConversion](rulesKnowledge drawPoints)
-  val STARTER_CARD = RuleVal[Card](rulesKnowledge starterCard)
-  val LAST_TAKE_WORTH_ONE_MORE_POINT = RuleVal[Boolean](rulesKnowledge lastTakeWorthOneMorePoint)
-  val CARDS_HIERARCHY_AND_POINTS = RuleVal[CardsHierarchyAndPoints](rulesKnowledge cardsHierarchyAndPoints)
+  val CARDS_DISTRIBUTION: Rule[CardsDistribution] = RuleVal(v => rulesKnowledge.cardsDistribution(v._1,v._2,v._3))
+  val PLAY_SAME_SEED: Rule[Boolean] = RuleVal(rulesKnowledge playSameSeed)
+  val CHOOSE_BRISCOLA: Rule[BriscolaSetting] = RuleVal(rulesKnowledge chooseBriscola)
+  val POINTS_TO_WIN_SESSION: Rule[Int] = RuleVal(rulesKnowledge pointsToWinSession)
+  val POINTS_OBTAINED_IN_A_MATCH: Rule[PointsConversion] = RuleVal(rulesKnowledge pointsObtainedInAMatch)
+  val WINNER_POINTS: Rule[PointsConversion] = RuleVal(rulesKnowledge winnerPoints)
+  val LOSER_POINTS: Rule[PointsConversion] = RuleVal(rulesKnowledge loserPoints)
+  val DRAW_POINTS: Rule[PointsConversion] = RuleVal(rulesKnowledge drawPoints)
+  val STARTER_CARD: Rule[Card] = RuleVal(rulesKnowledge starterCard)
+  val LAST_TAKE_WORTH_ONE_MORE_POINT: Rule[Boolean] = RuleVal(rulesKnowledge lastTakeWorthOneMorePoint)
+  val CARDS_HIERARCHY_AND_POINTS: Rule[CardsHierarchyAndPoints] = RuleVal(rulesKnowledge cardsHierarchyAndPoints)
 
   sealed case class RuleVal[-X](private val allow: X => Boolean) extends Val(nextId, nextId toString) {
     def isAllowed(x: X): Boolean = allow(x)
@@ -50,6 +50,8 @@ object Rule extends Enumeration {
   def find[X](x: String): Option[Rule[X]] = Rule.values.find(_.toString == x)
 
   def deckCards: (Set[Card], Set[String]) = rulesKnowledge deckCards
+
+  def mandatoryRules: Set[Rule.Value] = Rule.values - STARTER_CARD
 
   implicit def valueToRule[X](x: Value): Rule[X] = x.asInstanceOf[RuleVal[X]]
 
