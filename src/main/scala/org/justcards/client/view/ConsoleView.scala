@@ -12,7 +12,7 @@ import org.justcards.commons.games_rules.{PointsConversion, Rule}
 import org.justcards.commons.games_rules.PointsConversion._
 import org.justcards.commons.games_rules.Rule._
 import org.justcards.server.Commons.BriscolaSetting
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.server.Commons.BriscolaSetting._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -58,134 +58,8 @@ class ConsoleView(controller: ActorRef) extends Actor {
       context >>> lobbyCreation(gamesList)
     case ShowLobbies(lobbies) => context toLobbyLookup lobbies
     case ShowGameCreation(rules, cards, seeds) =>
-      //TODO ask user
-      gameCreation(rules.toList)(cards.map(_.number).max, seeds)
-  }
-
-  private def gameCreation(rules: List[Rule.Value], completedRules: Map[Rule.Value,Any] = Map())
-                          (maxCardNumber: Int, seeds: Set[String]): Unit = {
-    def _onRuleCreated(rule: (Rule.Value, Any)): Unit =
-      gameCreation(rules.tail, completedRules + rule)(maxCardNumber, seeds)
-    if(rules isEmpty) {
-      //TODO invia messaggio di creazione del gioco
-    } else
-    rules.head match {
-      case CARDS_HIERARCHY_AND_POINTS =>
-        //TODO stampa numeri carte
-        //TODO chiedi valore (a|b|c)
-        context >>> cardsSpecification()(maxCardNumber)(_onRuleCreated)
-      case CARDS_DISTRIBUTION =>
-        //TODO chiedi valore (a|b|c)
-        context >>> cardsDistribution(_onRuleCreated)
-      case POINTS_OBTAINED_IN_A_MATCH =>
-        //TODO chiedi conversione
-        context >>> pointsConversion(POINTS_OBTAINED_IN_A_MATCH)(_onRuleCreated)
-      case WINNER_POINTS =>
-        //TODO chiedi conversione
-        context >>> pointsConversion(WINNER_POINTS)(_onRuleCreated)
-      case LOSER_POINTS =>
-        //TODO chiedi conversione
-        context >>> pointsConversion(LOSER_POINTS)(_onRuleCreated)
-      case DRAW_POINTS =>
-        //TODO chiedi conversione
-        context >>> pointsConversion(DRAW_POINTS)(_onRuleCreated)
-      case PLAY_SAME_SEED =>
-        //TODO chiedi
-        context >>> bool(PLAY_SAME_SEED)(_onRuleCreated)
-      case LAST_TAKE_WORTH_ONE_MORE_POINT =>
-        //TODO chiedi
-        context >>> bool(LAST_TAKE_WORTH_ONE_MORE_POINT)(_onRuleCreated)
-      case STARTER_CARD =>
-        //TODO chiedi
-        context >>> starterCard(seeds, maxCardNumber)(_onRuleCreated)
-      case Rule.CHOOSE_BRISCOLA =>
-        //TODO chiedi
-        context >>> {
-          case NewUserCommand(choice) => parseToNumberAnd(choice,BriscolaSetting.values.size){
-            n => _onRuleCreated((Rule.CHOOSE_BRISCOLA,BriscolaSetting(n)))
-          }{ /*TODO richiedi*/ }
-        }
-      case POINTS_TO_WIN_SESSION =>
-        //TODO chiedi
-        context >>> {
-          case NewUserCommand(value) => value toOptionInt match {
-            case Some(v) => _onRuleCreated((POINTS_TO_WIN_SESSION, v))
-            case _ => //TODO richiedi
-          }
-        }
-      case _ =>
-    }
-  }
-
-  private def starterCard(seeds: Set[String], maxCardNumber: Int)(onComplete: ((Rule.Value, Card)) => Unit): Receive = {
-    case NewUserCommand(value) =>
-    val values = value.split("\\|")
-    if (values.size == 2) {
-      (values.head.toOptionInt, values(1)) match {
-        case (Some(number),seed) if seeds contains seed => onComplete((STARTER_CARD,Card(number,seed)))
-        case _ => //TODO wrong pars
-      }
-    } else {
-      //TODO wrong pars
-    }
-  }
-
-  private def bool(rule: Rule.Value)(onComplete: ((Rule.Value, Boolean)) => Unit): Receive = {
-    case NewUserCommand(value) if value == "y" || value == "yes" => onComplete((rule,true))
-    case NewUserCommand(value) if value == "n" || value == "no" => onComplete((rule,false))
-    case _:NewUserCommand => //TODO richiedi scelta
-  }
-
-  private def pointsConversion(rule: Rule.Value)(onComplete: ((Rule.Value, PointsConversion)) => Unit): Receive = {
-    case NewUserCommand(choice) => parseToNumberAnd(choice,PointsConversion.values.size)(num => PointsConversion(num) match {
-      case MATCH_POINTS => onComplete((rule, MATCH_POINTS))
-      case option =>
-        //TODO ask user for a value
-        context >>> {
-          case NewUserCommand(value) => value.toOptionInt match {
-            case Some(v) => onComplete((rule,option.value(v)))
-            case _ => //TODO reinserisci valore
-          }
-        }
-    })({
-      //TODO richiedi la scleta
-    })
-  }
-
-  private def cardsDistribution(onComplete: ((Rule.Value,CardsDistribution)) => Unit): Receive = {
-    case NewUserCommand(value) =>
-      val values = value.split("\\|")
-      if (values.size == 3) {
-        (values.head.toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
-          case (Some(h),Some(d),Some(f)) => onComplete((CARDS_DISTRIBUTION,(h,d,f)))
-          case _ => //TODO wrong pars
-        }
-      } else {
-        //TODO wrong pars
-      }
-  }
-
-  private def cardsSpecification(cardSettings: Map[Int,(Int,Int)] = Map())(remainingCards: Int)
-                                (onComplete: ((Rule.Value,CardsHierarchyAndPoints)) => Unit): Receive = {
-    case NewUserCommand(value) =>
-      val values = value.split("\\|")
-      if (values.size == 3) {
-        (values.head.toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
-          case (Some(number),Some(_),Some(_)) if cardSettings.contains(number) => //TODO wrong number
-          case (Some(number),Some(points),Some(hierarchy)) =>
-            val newCardsSettings = cardSettings + (number -> (points, hierarchy))
-            if (remainingCards == 1) {
-              val cardsHierarchyAndPoints = cardSettings.map(x => (x._1,x._2._1,x._2._2)).toList.sortBy(_._3).map(x => (x._1,x._2))
-              onComplete((Rule.CARDS_HIERARCHY_AND_POINTS, cardsHierarchyAndPoints))
-            } else {
-              //TODO dire ad utente di inserire prossima carta
-              context >>> cardsSpecification(newCardsSettings)(remainingCards - 1)(onComplete)
-            }
-          case _ => //TODO wrong pars
-        }
-      } else {
-        //TODO wrong pars
-      }
+      val numberCards = cards.map(_.number)
+      gameCreation(rules.toList)((numberCards.min, numberCards.max), seeds)
   }
 
   private def lobbyById: Receive = {
@@ -207,7 +81,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
       else {
         val limit = FilterChoice.values.count(!_.toString.isEmpty)
         parseToNumberAnd(choice, limit) { numberChoice =>
-          askToUser(FILTER_CHOICE)
+          askToUser(VALUE_CHOICE)
           val filterChoice = FilterChoice(numberChoice)
           context >>> {
             case NewUserCommand(filter) =>
@@ -306,6 +180,157 @@ class ConsoleView(controller: ActorRef) extends Actor {
       } (showReconnectOptions())
   }
 
+  private def waitGameCreation(cardRestrictions: (Int, Int), seeds: Set[String]): Receive = {
+    case ShowGameCreated => println(GAME_CREATED_MESSAGE)
+    case ShowMenu => context toMenu
+    case ShowNotValidRules(rules) =>
+      println(ERROR_RULES)
+      gameCreation(rules.toList)(cardRestrictions, seeds)
+  }
+
+  private def gameCreation(rules: List[Rule.Value], completedRules: Map[Rule.Value,Any] = Map())
+                          (cardRestrictions: (Int, Int), seeds: Set[String]): Unit = {
+    def _onRuleCreated(rule: (Rule.Value, Any)): Unit =
+      gameCreation(rules.tail, completedRules + rule)(cardRestrictions, seeds)
+    if(rules isEmpty) {
+      askToUser(ASK_NAME)
+      context >>> {
+        case NewUserCommand(name) =>
+          controller ! AppControllerCreateGame(name, completedRules)
+          context >>> waitGameCreation(cardRestrictions, seeds)
+      }
+    } else {
+      println(LINE_DELIMETER)
+      rules.head match {
+        case CARDS_DISTRIBUTION =>
+          askToUser(CARD_DISTRIBUTION_MESSAGE)
+          context >>> cardsDistribution(_onRuleCreated)
+        case PLAY_SAME_SEED =>
+          askToUser(PLAY_SAME_SEED_MESSAGE)
+          context >>> yesOrNoResponse(PLAY_SAME_SEED)(_onRuleCreated)
+        case Rule.CHOOSE_BRISCOLA =>
+          askBriscolaSettings()
+          context >>> {
+            case NewUserCommand(choice) => parseToNumberAnd(choice, BriscolaSetting.maxId){
+              n => _onRuleCreated((Rule.CHOOSE_BRISCOLA,BriscolaSetting(n - 1)))
+            }(askToUser(""))
+          }
+        case POINTS_TO_WIN_SESSION =>
+          askToUser(POINTS_LIMIT_MESSAGE)
+          context >>> {
+            case NewUserCommand(value) => value toOptionInt match {
+              case Some(v) => _onRuleCreated((POINTS_TO_WIN_SESSION, v))
+              case _ => askToUser(WRONG_VALUE)
+            }
+          }
+        case POINTS_OBTAINED_IN_A_MATCH =>
+          val pointsList = (PointsConversion.values - EXACTLY).toList
+          askPointConversion(POINTS_OBTAINED_MESSAGE, pointsList)
+          context >>> pointsConversion(
+            POINTS_OBTAINED_IN_A_MATCH,
+            pointsList
+          )(_onRuleCreated)(askPointConversion(POINTS_OBTAINED_MESSAGE))
+        case WINNER_POINTS =>
+          askPointConversion(WINNER_POINTS_MESSAGE)
+          context >>> pointsConversion(WINNER_POINTS)(_onRuleCreated)(askPointConversion(WINNER_POINTS_MESSAGE))
+        case LOSER_POINTS =>
+          askPointConversion(LOSER_POINTS_MESSAGE)
+          context >>> pointsConversion(LOSER_POINTS)(_onRuleCreated)(askPointConversion(LOSER_POINTS_MESSAGE))
+        case DRAW_POINTS =>
+          askPointConversion(DRAW_POINTS_MESSAGE)
+          context >>> pointsConversion(DRAW_POINTS)(_onRuleCreated)(askPointConversion(DRAW_POINTS_MESSAGE))
+        case STARTER_CARD =>
+          askToUser(STARTER_CARD_BOOLEAN_MESSAGE)
+          context >>> yesOrNoResponse(STARTER_CARD)(wantsStarterCard => {
+            if(wantsStarterCard._2){
+              askStarterCard(cardRestrictions, seeds)
+              context >>> starterCard(seeds, cardRestrictions)(_onRuleCreated)
+            } else gameCreation(rules.tail, completedRules)(cardRestrictions, seeds)
+          })
+        case LAST_TAKE_WORTH_ONE_MORE_POINT =>
+          askToUser(LAST_TAKE_MESSAGE)
+          context >>> yesOrNoResponse(LAST_TAKE_WORTH_ONE_MORE_POINT)(_onRuleCreated)
+        case CARDS_HIERARCHY_AND_POINTS =>
+          askCardsHierarchyAndPoints(cardRestrictions)
+          context >>> cardsSpecification()(cardRestrictions, cardRestrictions._2)(_onRuleCreated)
+        case _ => gameCreation(rules.tail, completedRules)(cardRestrictions, seeds)
+      }
+    }
+  }
+
+  private def cardsSpecification(cardSettings: Map[Int,(Int,Int)] = Map())(cardRestrictions: (Int,Int), remainingCards: Int)
+                                (onComplete: ((Rule.Value,CardsHierarchyAndPoints)) => Unit): Receive = {
+    case NewUserCommand(value) =>
+      val values = value.split("\\|")
+      if (values.size == 3)
+        (values(0).toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
+          case (Some(number),_,_) if cardSettings.contains(number) =>
+            askToUser(CARD_ALREADY_PRESENT)
+          case (Some(number),_,_) if number < cardRestrictions._1 || number > cardRestrictions._2 =>
+            askToUser(WRONG_CARD)
+          case (Some(number),Some(points),Some(hierarchy)) =>
+            val newCardsSettings = cardSettings + (number -> (points, hierarchy))
+            if (remainingCards == 1) {
+              val cardsHierarchyAndPoints = cardSettings.map(x => (x._1,x._2._1,x._2._2)).toList.sortBy(_._3).map(x => (x._1,x._2))
+              println(CARDS_ADDED)
+              onComplete((Rule.CARDS_HIERARCHY_AND_POINTS, cardsHierarchyAndPoints))
+            } else {
+              askToUser(NEXT_CARD)
+              context >>> cardsSpecification(newCardsSettings)(cardRestrictions, remainingCards - 1)(onComplete)
+            }
+          case _ => askToUser(WRONG_PATTERN)
+        }
+      else askToUser(WRONG_PATTERN)
+  }
+
+  private def pointsConversion(rule: Rule.Value, points: List[PointsConversion.Value] = PointsConversion.values.toList)
+                              (onComplete: ((Rule.Value, PointsConversion)) => Unit)(onError: => Unit): Receive = {
+    case NewUserCommand(choice) => parseToNumberAnd(choice, points.size)(num =>
+      points(num - 1) match {
+        case MATCH_POINTS => onComplete((rule, MATCH_POINTS))
+        case option =>
+          askToUser(VALUE_CHOICE)
+          context >>> {
+            case NewUserCommand(value) => value.toOptionInt match {
+              case Some(v) => onComplete((rule,option.value(v)))
+              case _ => askToUser(WRONG_VALUE)
+            }
+          }
+      }
+    )(onError)
+  }
+
+  private def cardsDistribution(onComplete: ((Rule.Value,CardsDistribution)) => Unit): Receive = {
+    case NewUserCommand(value) =>
+      val values = value.split("\\|")
+      if (values.size == 3) {
+        (values(0).toOptionInt, values(1).toOptionInt, values(2).toOptionInt) match {
+          case (Some(h),Some(d),Some(f)) => onComplete((CARDS_DISTRIBUTION,(h,d,f)))
+          case _ => askToUser(WRONG_PATTERN)
+        }
+      } else askToUser(WRONG_PATTERN)
+  }
+
+  private def yesOrNoResponse(rule: Rule.Value)(onComplete: ((Rule.Value, Boolean)) => Unit): Receive = {
+    case NewUserCommand(value) if value == "y" || value == "yes" => println("yesss"); onComplete((rule,true))
+    case NewUserCommand(value) if value == "n" || value == "no" => println("noooooo"); onComplete((rule,false))
+    case NewUserCommand(_) => println("wrong"); askToUser(WRONG_BOOLEAN)
+  }
+
+  private def starterCard(seeds: Set[String], cardsRestrictions: (Int,Int))(onComplete: ((Rule.Value, Card)) => Unit): Receive = {
+    case NewUserCommand(value) =>
+      val values = value.split("\\|")
+      if (values.size == 2) {
+        (values(0).toOptionInt, values(1)) match {
+          case (None, _) => askToUser(WRONG_CARD)
+          case (Some(number), _) if number < cardsRestrictions._1 || number > cardsRestrictions._2 =>
+            askToUser(WRONG_CARD)
+          case (_, seed) if !(seeds contains seed) => askToUser(WRONG_CARD)
+          case (Some(number),seed) => onComplete((STARTER_CARD,Card(number,seed)))
+        }
+      } else askToUser(WRONG_PATTERN)
+  }
+
   private def errorManagement: Receive = {
     case ShowError(error) =>
       println(errorMessage(error))
@@ -367,6 +392,30 @@ class ConsoleView(controller: ActorRef) extends Actor {
         context >>> inGame(myTeam, myCards, briscola)
       })(ask())
     }(AppError.CARD_NOT_VALID)(myTeam, myCards, briscola)
+  }
+
+  private def askCardsHierarchyAndPoints(cards: (Int, Int)): Unit = {
+    println(CARD_NUMBER_RANGE + ((cards._1 to cards._2) mkString " | "))
+    askToUser(CARD_INSERT_MESSAGE)
+  }
+
+  private def askPointConversion(msg: String, list: List[PointsConversion.Value] = PointsConversion.values.toList): Unit = {
+    println(msg)
+    printNumberAndOption(list)(printPoints)
+    askToUser("")
+  }
+
+  private def askStarterCard(cards: (Int, Int), seeds: Set[String]): Unit = {
+    println(CARD_NUMBER_RANGE + ((cards._1 to cards._2) mkString " | "))
+    println(SEEDS + (seeds mkString " | "))
+    askToUser(STARTER_CARD_MESSAGE)
+  }
+
+  private def askBriscolaSettings(): Unit = {
+    println(BRISCOLA_SETTINGS_MESSAGE)
+    for (choice <- BriscolaSetting.values)
+      println(choice.id + 1 + ")" + printBriscolaSettings(choice))
+    askToUser("")
   }
 
   private def showLobbyCreationOptions(games: List[GameId]): Unit = {
@@ -440,9 +489,9 @@ class ConsoleView(controller: ActorRef) extends Actor {
   }
 
   private def goodbye(): Unit = {
-    println(NEW_LINE)
+    println(LINE_DELIMETER)
     println(GOODBYE)
-    println(NEW_LINE)
+    println(LINE_DELIMETER)
   }
 
   private def askToUser(question: String): Unit = {
@@ -508,11 +557,13 @@ object ConsoleView {
   private val BACK = "back"
   private val NUMBER_CHOICE = "Insert number of your choice or \"" concat BACK concat "\" to return to the menu:"
   private val ID_CHOICE = "Insert the lobby ID you want to join:"
-  private val FILTER_CHOICE = "Insert value:"
+  private val VALUE_CHOICE = "Insert value:"
   private val WRONG_VALUE = "Error: unacceptable value"
+  private val WRONG_BOOLEAN = "Error: only yes/y or no/n are allowed"
+  private val BOOLEAN_CHOICE = "(yes/y, no/n)"
   private val EMPTY_RESPONSE = "Empty answer isn't allowed"
-  private val NEW_LINE = "---------------------------"
-  private val FIELD_CARD_MESSAGE = "Cards on the field: => "
+  private val LINE_DELIMETER = "---------------------------"
+  private val FIELD_CARD_MESSAGE = "Cards on the field: -> "
   private val HAND_CARD_MESSAGE = "Cards on your hand: "
   private val CHOOSE_NICKNAME = "Choose your nickname:"
   private val CHOOSE_BRISCOLA = "Choose the briscola you want"
@@ -520,12 +571,58 @@ object ConsoleView {
   private val CHOOSE_BRISCOLA_TIMEOUT = (time: FiniteDuration) => CHOOSE_BRISCOLA + ", you have " + time + ":"
   private val CHOOSE_CARD = (time: FiniteDuration) => "Insert the number of the card you want to play, you have " + time + ":"
   private val GOODBYE = "Bye"
+  /* --------------------------------------------------- */
+  /* game creation messages */
+  private val CARD_NUMBER_RANGE = "Card number range -> "
+  private val SEEDS = "Available seeds -> "
+  private val CARD_ALREADY_PRESENT = "This card is already present, insert a new one!"
+  private val WRONG_PATTERN = "You've not followed the pattern (x|y|z), try again"
+  private val WRONG_CARD = "This card doesn't exist, try again"
+  private val NEXT_CARD = "Next card"
+  private val CARDS_ADDED = "All cards added!"
+  private val CARD_INSERT_MESSAGE = "Insert for each card in the previous range its number, its value" +
+    " and its position in the hierarchy in the form of \n number|value|hierarchy"
+  private val CARD_DISTRIBUTION_MESSAGE = "Insert how many cards each player has to have when the game starts," +
+    " how many cards you can draw after each hand turn and how many cards will be on the field in the form of \n" +
+    "handCards|drawCards|fieldCards"
+  private val POINTS_OBTAINED_MESSAGE =
+    "Insert the number corresponding to how you want to gain points after a match:"
+  private val WINNER_POINTS_MESSAGE =
+    "Insert the number corresponding to how many points the match winner will get:"
+  private val LOSER_POINTS_MESSAGE =
+    "Insert the number corresponding to how many points the match loser will get:"
+  private val DRAW_POINTS_MESSAGE =
+    "Insert the number corresponding to how many points you'll get after a match in case of a draw:"
+  private val PLAY_SAME_SEED_MESSAGE = "Do the players have to play a card with the same seed of the" +
+    " one played by the first player in the current hand? " concat BOOLEAN_CHOICE
+  private val LAST_TAKE_MESSAGE = "Does the last take of a match have to value one extra point? " concat BOOLEAN_CHOICE
+  private val STARTER_CARD_BOOLEAN_MESSAGE =
+    "Do you want that a player with a specific card starts the game?" concat BOOLEAN_CHOICE
+  private val STARTER_CARD_MESSAGE = "Insert the card that defines who is the first player in the form of \number|seed"
+  private val BRISCOLA_SETTINGS_MESSAGE =
+    "Insert the number corresponding to how the Briscola will be chosen during a game session"
+  private val POINTS_LIMIT_MESSAGE = "Insert the points limit to reach in order to win a session:"
+  private val ASK_NAME = "Insert the name of the game"
+  private val GAME_CREATED_MESSAGE = "Your game has been successfully created!!!"
+  private val ERROR_RULES = "Some of the rules you've created are wrong, change them!"
+
+  def printPoints(points: PointsConversion.Value): String = points match {
+    case EXACTLY => "The amount of points that you indicate"
+    case DIVIDE => "The amount of points obtained in the match divided by a value that you indicate"
+    case MATCH_POINTS => "The amount of points obtained in the match"
+  }
+
+  def printBriscolaSettings(setting: BriscolaSetting): String = setting match {
+    case USER => "The first user of each matches will decide Briscola"
+    case SYSTEM => "The system will decide the Briscola"
+    case NOT_BRISCOLA => "Briscola is not present"
+  }
 
   //my messages
   private case class NewUserCommand(command: String)
 
   private def clearAndPrint(message: String = ""): Unit = {
-    println(NEW_LINE)
+    println(LINE_DELIMETER)
     if(!message.isEmpty) println(message)
   }
 
@@ -561,11 +658,9 @@ object ConsoleView {
   @scala.annotation.tailrec
   private def ask(question: String): String = {
     import scala.io.StdIn._
-    println(question)
+    if(!question.isBlank) println(question)
     readLine(View.INPUT_SYMBOL) match {
-      case a if a.isBlank || a.isEmpty =>
-        println(EMPTY_RESPONSE)
-        ask(question)
+      case a if a.isBlank || a.isEmpty => ask(EMPTY_RESPONSE)
       case a => a
     }
   }
@@ -592,10 +687,8 @@ object TestConsole extends App {
 
 
   view ! ShowUsernameChoice
-  Thread.sleep(4000)
-
   view ! ShowMenu
-  view ! ShowLobbies(Set())
+  /*view ! ShowLobbies(Set())
   view ! ShowJoinedLobby(LobbyId(1234, "pippo", GameId("beccaccino")), Set(UserId(1, "io")))
   view ! ShowGameStarted(List(
     (UserId(1, "chiara"), TeamId("team pippe")),
@@ -603,13 +696,13 @@ object TestConsole extends App {
     (UserId(1, "me"), TeamId("team pippe")),
     (UserId(1, "giovanna"), TeamId("team ciccio"))
   ))
-  /*view ! ShowGameInformation(myCards, fieldCards)
+  view ! ShowGameInformation(myCards, fieldCards)
   view ! ShowMatchWinner(TeamId("team ciccio"), (12,3), (45,23))
   view ! ShowGameWinner(TeamId("team ciccio"))
   view ! ShowGameWinner(TeamId("team pippe"))
 
-  /*view ! ShowTurn(myCards, fieldCards, 10)
-  view ! ShowTimeForMoveExceeded*/
+  view ! ShowTurn(myCards, fieldCards, 10)
+  view ! ShowTimeForMoveExceeded
 
   view ! ViewChooseBriscola(Set("cuori", "picche"), 3)
 
@@ -621,4 +714,8 @@ object TestConsole extends App {
   Thread.sleep(5000)
 
   view ! ShowGameInformation(myCards, fieldCards)*/
+
+
+  val (cards,seeds) = Rule.deckCards
+  view ! ShowGameCreation(Rule.values, cards, seeds)
 }

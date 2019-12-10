@@ -2,6 +2,7 @@ package org.justcards.client.controller
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
+
 import scala.concurrent.duration._
 import org.justcards.client.{TestConnectionManager, TestView}
 import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
@@ -11,10 +12,16 @@ import org.justcards.client.view.View._
 import org.justcards.client.view.FilterChoice._
 import org.justcards.commons.AppError._
 import org.justcards.commons._
+import org.justcards.commons.games_rules.PointsConversion.PointsConversion
+import org.justcards.commons.games_rules.{PointsConversion, Rule}
+import org.justcards.commons.games_rules.Rule._
+import org.justcards.server.Commons.BriscolaSetting
+import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
+  import AppControllerTest._
   private implicit val system: ActorSystem = ActorSystem("AppControllerTest")
 
   override def afterAll: Unit = {
@@ -314,11 +321,36 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
         testProbe expectMsg ShowError(GAME_MISSING_RULES)
       }
 
-      /*"tell the user that he can't create a game if there are not correct rules" in {
+      "tell the user that he can't create a game if there are not correct rules" in {
         val (appController, testProbe) = startCreatingGame
-        appController ! AppControllerCreateGame(game.name, Map())
-        testProbe expectMsg ShowError(GAME_MISSING_RULES)
-      }*/
+        appController ! AppControllerCreateGame(game.name, WRONG_RULES)
+        testProbe expectMsgAllOf(
+          ShowError(GAME_RULES_NOT_VALID),
+          ShowNotValidRules(Set(CARDS_DISTRIBUTION))
+        )
+      }
+
+      "send the rules to the connection manager if they are correct" in {
+        val (appController, testProbe) = startCreatingGame
+        appController ! AppControllerCreateGame(game.name, CORRECT_RULES)
+        testProbe.expectMsgType[CreateGame]
+      }
+
+      "send the rules to the connection manager when the user corrects the wrong rules" in {
+        val (appController, testProbe) = startCreatingGame
+        appController ! AppControllerCreateGame(game.name, WRONG_RULES)
+        testProbe receiveN 2
+        appController ! AppControllerCreateGame(game.name, Map(CORRECT_RULE))
+        testProbe.expectMsgType[CreateGame]
+      }
+
+      "tell the user that the game was successfully created" in {
+        val (appController, testProbe) = startCreatingGame
+        appController ! AppControllerCreateGame(game.name, CORRECT_RULES)
+        testProbe receiveN 1
+        appController ! GameCreated(game)
+        testProbe expectMsg ShowGameCreated
+      }
 
     }
 
@@ -471,4 +503,37 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
     expectTimeoutExceeded(FiniteDuration(timeLimit._1/2, timeLimit._2))
   }
 
+}
+
+object AppControllerTest {
+
+  private val WRONG_RULES: Map[Rule.Value, Any] = Map(
+    Rule.CHOOSE_BRISCOLA -> BriscolaSetting.SYSTEM,
+    POINTS_TO_WIN_SESSION -> 1,
+    PLAY_SAME_SEED -> true,
+    POINTS_OBTAINED_IN_A_MATCH -> PointsConversion.MATCH_POINTS,
+    WINNER_POINTS -> PointsConversion.MATCH_POINTS,
+    LOSER_POINTS -> PointsConversion.MATCH_POINTS,
+    DRAW_POINTS -> PointsConversion.MATCH_POINTS,
+    STARTER_CARD -> Card(1, "spade"),
+    LAST_TAKE_WORTH_ONE_MORE_POINT -> false,
+    CARDS_HIERARCHY_AND_POINTS -> List((1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0),(9,0),(10,0)),
+    CARDS_DISTRIBUTION ->  1
+  )
+
+  private val CORRECT_RULES: Map[Rule.Value, Any] = Map(
+    Rule.CHOOSE_BRISCOLA -> BriscolaSetting.SYSTEM,
+    POINTS_TO_WIN_SESSION -> 1,
+    PLAY_SAME_SEED -> true,
+    POINTS_OBTAINED_IN_A_MATCH -> PointsConversion.MATCH_POINTS,
+    WINNER_POINTS -> PointsConversion.MATCH_POINTS,
+    LOSER_POINTS -> PointsConversion.MATCH_POINTS,
+    DRAW_POINTS -> PointsConversion.MATCH_POINTS,
+    STARTER_CARD -> Card(1, "spade"),
+    LAST_TAKE_WORTH_ONE_MORE_POINT -> false,
+    CARDS_HIERARCHY_AND_POINTS -> List((1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0),(9,0),(10,0)),
+    CARDS_DISTRIBUTION ->  (10,0,0)
+  )
+
+  private val CORRECT_RULE = CARDS_DISTRIBUTION ->  (10,0,0)
 }
