@@ -53,7 +53,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   private def inGame(username: String, lobby: LobbyId, sessionManager: ActorRef): Receive = {
     case Outer(LogOut(`username`)) =>
       sessionManager ! LogOutAndExitFromGame(UserInfo(username, self))
-      userManager ! LogOut(`username`)
+      userManager ! LogOut(username)
       context stop self
     case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
