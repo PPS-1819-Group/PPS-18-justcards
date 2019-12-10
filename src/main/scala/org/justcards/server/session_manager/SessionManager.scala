@@ -20,20 +20,20 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
   self ! StartMatch(None)
 
-  var firstPlayerMatch: String = _
+  var firstPlayerMatch: UserInfo = _
 
   override def receive: Receive = preMatchBehaviour
 
   private def preMatchBehaviour: Receive = {
-    case StartMatch(firstPlayer) if firstPlayer.isEmpty || (players contains firstPlayer.get) =>
-      val gameBoard = GameBoard(gameKnowledge, teams(TEAM_1) players, teams(TEAM_2) players, firstPlayer.map(players(_)))
-      firstPlayerMatch = gameBoard.optionTurnPlayer get
+    case StartMatch(firstPlayer) if firstPlayer.isEmpty || (allPlayers contains firstPlayer.get) =>
+      val gameBoard = GameBoard(gameKnowledge, teams(TEAM_1) players, teams(TEAM_2) players, firstPlayer)
+      firstPlayerMatch = (gameBoard.optionTurnPlayer get) toUserInfo
       val newTeams: List[(UserId, TeamId)] = gameBoard.turn.map(user => (
         UserId(1, user),
-        TeamId(teams.filterKeys(teams(_).players.contains(players(user))).head._1 toString)
+        TeamId(teams.filterKeys(teams(_).players.contains(user.toUserInfo)).head._1 toString)
       ))
       this broadcast GameStarted(newTeams)
-      sendGameBoardInformation(gameBoard, players.keySet.toList)
+      sendGameBoardInformation(gameBoard, allPlayers)
 
       gameKnowledge hasToChooseBriscola match {
         case BriscolaSetting.NOT_BRISCOLA =>
@@ -49,19 +49,19 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
           context toMatch(gameBoard,firstPlayerMatch)
         case BriscolaSetting.USER =>
           context become chooseBriscolaPhase(gameBoard, firstPlayerMatch)
-          players(firstPlayerMatch).userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER)
+          firstPlayerMatch.userRef ! ChooseBriscola(gameKnowledge.seeds, TIMEOUT_TO_USER)
           timers startSingleTimer(TimeoutId, Timeout, TIMEOUT seconds)
       }
   }
 
-  private def chooseBriscolaPhase(gameBoard: GameBoard, firstPlayer: String): Receive = {
-    case Briscola(seed) if sender() == players(firstPlayer).userRef =>
+  private def chooseBriscolaPhase(gameBoard: GameBoard, firstPlayer: UserInfo): Receive = {
+    case Briscola(seed) if sender() == firstPlayer.userRef =>
       if (gameKnowledge setBriscola seed) {
         timers cancel TimeoutId
         this broadcast CorrectBriscola(seed)
         context toMatch(gameBoard, firstPlayer)
       } else {
-        players(firstPlayer).userRef ! ErrorOccurred(BRISCOLA_NOT_VALID)
+        firstPlayer.userRef ! ErrorOccurred(BRISCOLA_NOT_VALID)
       }
     case Timeout | TimeoutExceeded(_) =>
       val briscolaSeed = if (gameBoard.handCardsOf(firstPlayer).nonEmpty)
@@ -76,10 +76,10 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   private def inMatch(gameBoard: GameBoard): Receive = {
     case Play(card) if playable(gameBoard, card) && isCorrectPlayer(gameBoard, sender()) =>
       if(sender() != self) sender() ! Played(card)
-      else players(gameBoard.optionTurnPlayer.get).userRef ! Played(card)
+      else gameBoard.optionTurnPlayer.get.toUserInfo.userRef ! Played(card)
       timers cancel TimeoutId
       val newGameBoard: GameBoard = gameBoard playerPlays card
-      if (newGameBoard.optionTurnPlayer.nonEmpty) context toMatch(newGameBoard, newGameBoard.optionTurnPlayer.get)
+      if (newGameBoard.optionTurnPlayer.nonEmpty) context toMatch(newGameBoard, newGameBoard.optionTurnPlayer.get.toUserInfo)
       else handleEndHand(newGameBoard)
     case Play(_) =>
       sender() ! ErrorOccurred(CARD_NOT_VALID)
@@ -89,24 +89,24 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   }
 
   private def handleEndHand(gameBoard: GameBoard): Unit = {
-    sendGameBoardInformation(gameBoard, players.keySet.toList)
-    val playerWinner = gameKnowledge.handWinner(gameBoard.fieldCards.map(elem => (elem._1, players(elem._2))))
+    sendGameBoardInformation(gameBoard, allPlayers)
+    val playerWinner = gameKnowledge.handWinner(gameBoard.fieldCards.map(elem => (elem._1, elem._2.toUserInfo)))
     this broadcast HandWinner(playerWinner)
     var newGameBoard = gameBoard handWinner playerWinner
     newGameBoard = newGameBoard.draw match {
       case None => newGameBoard
       case Some(x) => x
     }
-    context toMatch(newGameBoard, newGameBoard.optionTurnPlayer.get)
+    context toMatch(newGameBoard, newGameBoard.optionTurnPlayer.get.toUserInfo)
   }
 
   private def endMatch(gameBoard: GameBoard): Receive = {
-    case endMatchMessage(lastHandWinner: String) =>
+    case endMatchMessage(lastHandWinner: UserInfo) =>
       var tookCardsTeam: Map[Team.Value, Set[Card]] = teams.keySet.map((_, Set[Card]())).toMap
       for (team <- Team.values; player <- teams(team).players) {
         tookCardsTeam = tookCardsTeam + (team -> (tookCardsTeam(team) ++ gameBoard.tookCardsOf(player)))
       }
-      val lastHandWinnerTeam = teams.find(_._2.players contains players(lastHandWinner)).get._1
+      val lastHandWinnerTeam = teams.find(_._2.players contains lastHandWinner).get._1
       val matchPoints = gameKnowledge.matchPoints(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
       val pointsForSession = gameKnowledge.matchWinner(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
       teams = teams + (TEAM_1 -> TeamPoints(teams(TEAM_1).players, teams(TEAM_1).points + pointsForSession._2))
@@ -115,7 +115,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
       gameKnowledge.sessionWinner(teams(TEAM_1).points, teams(TEAM_2).points) match {
         case None =>
           context become preMatchBehaviour
-          self ! StartMatch((gameBoard playerAfter firstPlayerMatch).map(players(_)))
+          self ! StartMatch((gameBoard playerAfter firstPlayerMatch).map(_.toUserInfo))
         case Some(winner) =>
           this broadcast GameWinner(winner)
           this broadcast OutOfLobby(lobby)
@@ -124,26 +124,26 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
   }
 
-  private def turn(gameBoard: GameBoard, turnPlayer: String): Unit = {
+  private def turn(gameBoard: GameBoard, turnPlayer: UserInfo): Unit = {
     if (gameBoard.handCardsOfTurnPlayer.get.isEmpty) {
       context become endMatch(gameBoard)
-      self ! endMatchMessage(gameBoard.optionTurnPlayer.get)
+      self ! endMatchMessage(gameBoard.optionTurnPlayer.get.toUserInfo)
     } else {
-      sendGameBoardInformation(gameBoard, players.keySet filter (_!=turnPlayer) toList)
-      players(turnPlayer).userRef ! Turn(gameBoard handCardsOf turnPlayer, gameBoard.fieldCards.map(_._1), TIMEOUT_TO_USER)
+      sendGameBoardInformation(gameBoard, allPlayers filter (_!=turnPlayer))
+      turnPlayer.userRef ! Turn(gameBoard handCardsOf turnPlayer, gameBoard.fieldCards.map(_._1), TIMEOUT_TO_USER)
       timers startSingleTimer(TimeoutId, Timeout, TIMEOUT seconds)
     }
   }
 
   private def isCorrectPlayer(gameBoard: GameBoard, sender: ActorRef): Boolean =
-    sender == players(gameBoard.optionTurnPlayer.get).userRef || sender == self
+    sender == gameBoard.optionTurnPlayer.get.toUserInfo.userRef || sender == self
 
   private def playable(gameBoard: GameBoard, card: Card): Boolean =
       gameKnowledge.play(card, gameBoard.fieldCards.map(_._1), gameBoard.handCardsOfTurnPlayer.get).isDefined
 
-  private def sendGameBoardInformation(gameBoard: GameBoard, receivers: List[String]): Unit =
+  private def sendGameBoardInformation(gameBoard: GameBoard, receivers: List[UserInfo]): Unit =
     for (player <- receivers)
-      players(player).userRef ! Information(gameBoard handCardsOf player, gameBoard.fieldCards.map(_._1))
+      player.userRef ! Information(gameBoard handCardsOf player, gameBoard.fieldCards.map(_._1))
 
   private def broadcast(appMessage: AppMessage): Unit = {
     for (player <- allPlayers)
@@ -154,12 +154,16 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
 
   private implicit class RichContext(context: ActorContext){
 
-    def toMatch(gameBoard: GameBoard, firstPlayer: String): Receive = {
+    def toMatch(gameBoard: GameBoard, firstPlayer: UserInfo): Receive = {
       val receive = inMatch(gameBoard)
       context become receive
       turn(gameBoard, firstPlayer)
       receive
     }
+  }
+
+  private implicit class RichString(player: String){
+    def toUserInfo: UserInfo = players(player)
   }
 
   implicit def userInfoToString(userInfo: UserInfo): String = userInfo.username
@@ -189,8 +193,8 @@ private[this] object SessionManagerMessage {
 
   sealed trait SessionManagerMessage
 
-  case class StartMatch(firstPlayer: Option[String]) extends SessionManagerMessage
-  case class endMatchMessage(lastHandWinner: String) extends SessionManagerMessage
+  case class StartMatch(firstPlayer: Option[UserInfo]) extends SessionManagerMessage
+  case class endMatchMessage(lastHandWinner: UserInfo) extends SessionManagerMessage
   case object Timeout extends SessionManagerMessage
   case object TimeoutId extends SessionManagerMessage
 
