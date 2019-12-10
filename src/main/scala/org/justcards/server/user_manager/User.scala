@@ -8,6 +8,7 @@ import org.justcards.commons.actor_connection.{ActorWithConnection, ActorWithRem
 import org.justcards.commons.games_rules.converter.GameRulesConverter
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.knowledge_engine.KnowledgeEngine.CreateGameRequest
+import org.justcards.server.session_manager.SessionManager.LogOutAndExitFromGame
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection with ActorLogging {
@@ -50,6 +51,10 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
   }
 
   private def inGame(username: String, lobby: LobbyId, sessionManager: ActorRef): Receive = {
+    case Outer(LogOut(`username`)) =>
+      sessionManager ! LogOutAndExitFromGame(UserInfo(username, self))
+      userManager ! LogOut(`username`)
+      context stop self
     case Outer(_: LogIn) => userRef ==> ErrorOccurred(USER_ALREADY_LOGGED)
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
     case Outer(msg: AppMessage) => sessionManager ! msg

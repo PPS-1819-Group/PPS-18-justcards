@@ -12,19 +12,19 @@ trait GameBoard {
    * Getter
    * @return cards on field
    */
-  def fieldCards: List[(Card, UserInfo)]
+  def fieldCards: List[(Card, String)]
 
   /**
    * Getter
    * @return cards of all player
    */
-  def playerCards: Map[UserInfo, PlayerCards]
+  def playerCards: Map[String, PlayerCards]
 
   /**
    * Getter
    * @return turn order of all player
    */
-  def turn: List[UserInfo]
+  def turn: List[String]
 
   /**
    * Getter
@@ -36,20 +36,20 @@ trait GameBoard {
    * Getter
    * @return User that must play
    */
-  def optionTurnPlayer: Option[UserInfo]
+  def optionTurnPlayer: Option[String]
 
   /**
    * Getter
    * @return player after given player
    */
-  def playerAfter(player: UserInfo): UserInfo
+  def playerAfter(player: String): Option[String]
 
   /**
    * Getter
    * @param player player
    * @return cards in the player hand
    */
-  def handCardsOf(player: UserInfo): Set[Card]
+  def handCardsOf(player: String): Set[Card]
 
   /**
    * Getter
@@ -65,7 +65,7 @@ trait GameBoard {
    * @param player player
    * @return cards that player won
    */
-  def tookCardsOf(player: UserInfo): Set[Card]
+  def tookCardsOf(player: String): Set[Card]
 
   /**
    * Players draw
@@ -85,68 +85,74 @@ trait GameBoard {
    * @param player turn winner
    * @return GameBoard with empty field and reset turn
    */
-  def handWinner(player: UserInfo): GameBoard
+  def handWinner(player: String): GameBoard
 
 }
 
 object GameBoard {
 
-  def apply(gameKnowledge: GameKnowledge, team1: List[UserInfo], team2: List[UserInfo], firstPlayer: UserInfo): GameBoard = {
+  def apply(gameKnowledge: GameKnowledge, team1: List[String], team2: List[String], firstPlayer: Option[UserInfo]): GameBoard = {
     import ListWithShift._
     val initialConfiguration = gameKnowledge.initialConfiguration//hand, draw, field
     var deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
-    val turn: List[UserInfo] = team1.zipAll(team2, null, null)
+    val turn: List[String] = team1.zipAll(team2, null, null)
       .flatMap {
         case (a, null) => Seq(a)
         case (null, b) => Seq(b)
         case (a, b) => Seq(a, b)
       }
-    val players = turn.map( a => {
+    val players: Map[String, PlayerCards] = turn.map( a => {
       val player = (a , PlayerCards(deck take initialConfiguration._1 toSet, Set()))
       deck = deck drop initialConfiguration._1
       player
     }).toMap
-    val handTurn = turn.shiftTo(firstPlayer).get
+    val handTurn: List[String] = if (firstPlayer isEmpty) {
+      val first = gameKnowledge.sessionStarterPlayer(players.map(x => (UserInfo(x._1, null), x._2.hand)).toSet)
+      if (first isDefined)
+        (turn shiftTo first.get.username) get
+      else
+        turn
+    } else (turn shiftTo firstPlayer.get.username) get
 
     GameBoardImpl(
-      deck take initialConfiguration._3 map(a=>(a,firstPlayer)),
+      deck take initialConfiguration._3 map(a=>(a,handTurn.head)),
       players,
       deck drop initialConfiguration._3,
       handTurn,
       turn,
       initialConfiguration._2)
-
   }
 
 
 
-  private[this] case class GameBoardImpl(fieldCards: List[(Card, UserInfo)],
-                                         playerCards: Map[UserInfo, PlayerCards],
+  private[this] case class GameBoardImpl(fieldCards: List[(Card, String)],
+                                         playerCards: Map[String, PlayerCards],
                                          deck: List[Card],
-                                         handTurn: List[UserInfo],
-                                         turn: List[UserInfo],
+                                         handTurn: List[String],
+                                         turn: List[String],
                                          nCardsDraw: Int) extends GameBoard {
     import ListWithShift._
 
-    private def apply(field: List[(Card,UserInfo)],
-              playerCards: Map[UserInfo, PlayerCards],
+    private def apply(field: List[(Card,String)],
+              playerCards: Map[String, PlayerCards],
               deck: List[Card],
-              handTurn: List[UserInfo]): GameBoard = {
+              handTurn: List[String]): GameBoard = {
       GameBoardImpl(field, playerCards, deck, handTurn, turn, nCardsDraw)
     }
 
     override def optionLastCardDeck: Option[Card] = deck lastOption
 
-    override def optionTurnPlayer: Option[UserInfo] = handTurn headOption
+    override def optionTurnPlayer: Option[String] = handTurn headOption
 
-    override def playerAfter(player: UserInfo): UserInfo = turn.indexOf(player) + 1 match {
-      case x if x >= turn.size || x < 0 => turn.head
-      case x => turn(x)
+    override def playerAfter(player: String): Option[String] = turn indexOf player match {
+      case -1 => None
+      case x if x == turn.size - 1 => Some(turn.head)
+      case x => Some(turn(x + 1))
     }
 
-    override def handCardsOf(player: UserInfo): Set[Card] = playerCards(player).hand
+    override def handCardsOf(player: String): Set[Card] = playerCards(player).hand
 
-    override def tookCardsOf(player: UserInfo): Set[Card] = playerCards(player).took
+    override def tookCardsOf(player: String): Set[Card] = playerCards(player).took
 
     override def draw: Option[GameBoard] = {
       if (deck isEmpty) None
@@ -177,7 +183,7 @@ object GameBoard {
         handTurn tail
       )
 
-    override def handWinner(winner: UserInfo): GameBoard =
+    override def handWinner(winner: String): GameBoard =
       this(
         List(),
         playerCards.map{
