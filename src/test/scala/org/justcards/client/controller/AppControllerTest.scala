@@ -450,7 +450,7 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
   private def startGame: (ActorRef, TestProbe) = {
     val (appController, testProbe) = createLobby
     appController ! LobbyCreated(lobby)
-    appController ! GameStarted(List((null,team))) //TODO
+    appController ! GameStarted(List((null,team)))
     testProbe receiveN 2
     (appController, testProbe)
   }

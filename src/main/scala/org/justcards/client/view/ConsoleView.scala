@@ -271,7 +271,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
           case (Some(number),Some(points),Some(hierarchy)) =>
             val newCardsSettings = cardSettings + (number -> (points, hierarchy))
             if (remainingCards == 1) {
-              val cardsHierarchyAndPoints = cardSettings.map(x => (x._1,x._2._1,x._2._2)).toList.sortBy(_._3).map(x => (x._1,x._2))
+              val cardsHierarchyAndPoints = newCardsSettings.map(x => (x._1,x._2._1,x._2._2)).toList.sortBy(_._3).map(x => (x._1,x._2))
               println(CARDS_ADDED)
               onComplete((Rule.CARDS_HIERARCHY_AND_POINTS, cardsHierarchyAndPoints))
             } else {
