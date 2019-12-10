@@ -69,25 +69,32 @@ object View {
     winnerTeam.name + " wins! " + teamPoints._1 + " - " + teamPoints._2
   val UNKNOWN_ERROR: AppError => String = "Unknown error: " + _
 
-  val ERROR_CONNECTION_LOST: String = "Error: Connection Lost"
-  val ERROR_CANNOT_CONNECT: String = "Error: I can't connect"
-  val ERROR_LAST_MESSAGE_LOST: String = "Error: Last message didn't arrive"
+  private val START_ERROR: String = "Error: "
 
-  val ERROR_USERNAME_ALREADY_USED: String = "Error: Username already used"
-  val ERROR_USER_NOT_LOGGED: String = "Error: You're not logged"
-  val ERROR_USER_ALREADY_LOGGED: String = "Error: You're already logged"
-  val ERROR_USER_ALREADY_IN_LOBBY: String = "Error: You're already in a lobby"
-  val ERROR_USER_WRONG_USERNAME: String = "Error: Action not allowed with this username"
+  val ERROR_CONNECTION_LOST: String = START_ERROR concat "Connection Lost"
+  val ERROR_CANNOT_CONNECT: String = START_ERROR concat "I can't connect"
+  val ERROR_LAST_MESSAGE_LOST: String = START_ERROR concat "Last message didn't arrive"
 
-  val ERROR_GAME_NOT_EXIST: String = "Error: Selected game doesn't exist"
-  val ERROR_LOBBY_NOT_EXIST: String = "Error: Selected lobby doesn't exist"
-  val ERROR_LOBBY_FULL: String = "Error: Selected lobby is already full"
+  val ERROR_USERNAME_ALREADY_USED: String = START_ERROR concat "Username already used"
+  val ERROR_USER_NOT_LOGGED: String = START_ERROR concat "You're not logged"
+  val ERROR_USER_ALREADY_LOGGED: String = START_ERROR concat "You're already logged"
+  val ERROR_USER_ALREADY_IN_LOBBY: String = START_ERROR concat "You're already in a lobby"
+  val ERROR_USER_WRONG_USERNAME: String = START_ERROR concat "Action not allowed with this username"
+
+  val ERROR_GAME_NOT_EXIST: String = START_ERROR concat "Selected game doesn't exist"
+  val ERROR_LOBBY_NOT_EXIST: String = START_ERROR concat "Selected lobby doesn't exist"
+  val ERROR_LOBBY_FULL: String = START_ERROR concat "Selected lobby is already full"
+
+  val ERROR_GAME_EMPTY_NAME: String = START_ERROR concat "The name of the game can't be empty!"
+  val ERROR_GAME_MISSING_RULES: String = START_ERROR concat "Some rules are missing! The game can't be created"
+  val ERROR_GAME_WRONG_RULES: String = START_ERROR concat "Some rules are wrong! Change them"
+  val ERROR_GAME_ALREADY_EXISTS: String = START_ERROR concat "The game already exists! Choose another name"
 
   val ERROR_WRONG_CARD: String = "You can't play this card"
   val ERROR_WRONG_BRISCOLA: String = "This Briscola doesn't exist"
 
-  val ERROR_SERVER: String = "Error: An error has occured server side, try again."
-  val ERROR_WRONG_CHOICE: String = "Error: The selected choice is not available"
+  val ERROR_SERVER: String = START_ERROR concat "An error has occured server side, try again."
+  val ERROR_WRONG_CHOICE: String = START_ERROR concat "The selected choice is not available"
 
   def errorMessage(error: AppError): String = error match {
     case CONNECTION_LOST => ERROR_CONNECTION_LOST
@@ -105,6 +112,10 @@ object View {
     case BRISCOLA_NOT_VALID => ERROR_WRONG_BRISCOLA
     case CARD_NOT_VALID => ERROR_WRONG_CARD
     case SERVER_ERROR => ERROR_SERVER
+    case GAME_EMPTY_NAME => ERROR_GAME_EMPTY_NAME
+    case GAME_MISSING_RULES => ERROR_GAME_MISSING_RULES
+    case GAME_RULES_NOT_VALID => ERROR_GAME_WRONG_RULES
+    case GAME_ALREADY_EXISTS => ERROR_GAME_ALREADY_EXISTS
     case _ => UNKNOWN_ERROR(error)
   }
 }

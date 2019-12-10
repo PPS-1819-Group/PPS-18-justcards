@@ -35,7 +35,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
     new JsonSubTypes.Type(value = classOf[GameWinner], name = "GameWinner"),
     new JsonSubTypes.Type(value = classOf[OutOfLobby], name = "OutOfLobby"),
     new JsonSubTypes.Type(value = classOf[ErrorOccurred], name = "ErrorOccurred"),
-    new JsonSubTypes.Type(value = classOf[CreateGame], name = "CreateGameSerialized"),
+    new JsonSubTypes.Type(value = classOf[CreateGame], name = "CreateGame"),
     new JsonSubTypes.Type(value = classOf[GameCreated], name = "GameCreated")
   ))
 sealed trait AppMessage extends JsonSerializable
@@ -204,6 +204,15 @@ case class GameWinner(team: TeamId) extends AppMessage
  */
 case class OutOfLobby(lobby: LobbyId) extends AppMessage
 
+/**
+ * Message to create a game
+ * @param name the name of the new game
+ * @param rules the rules of the new game
+ */
 case class CreateGame(name: String, rules: GameRulesSettings) extends AppMessage
 
+/**
+ * Message to indicate that the game has been created
+ * @param game the new game
+ */
 case class GameCreated(game: GameId) extends AppMessage

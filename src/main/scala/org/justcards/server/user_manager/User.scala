@@ -63,11 +63,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
     case Outer(_: LogOut) => userRef ==> ErrorOccurred(USER_WRONG_USERNAME)
     case Outer(msg) => userManager ! msg
     case msg: ErrorOccurred => userRef ==> msg
-    case message: AppMessage =>
-      println("received app message from inside the server")
-      println(message)
-      userRef ==> message
-    case m => println(m)
+    case message: AppMessage => userRef ==> message
   }
 
   protected def errorBehaviour(username: String): Receive = {
