@@ -97,7 +97,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       context >>> logged
     case AppControllerCreateGame(name,_) if name.isBlank =>
       viewActor ! ShowError(GAME_EMPTY_NAME)
-    case AppControllerCreateGame(_,rules) if (rules ++ correctRules).size != Rule.mandatoryRules.size =>
+    case AppControllerCreateGame(_,rules) if !(Rule.mandatoryRules subsetOf (rules ++ correctRules).keySet) =>
       viewActor ! ShowError(GAME_MISSING_RULES)
     case AppControllerCreateGame(name,rules) =>
       val wrongRules = nonValidRules(rules)
