@@ -30,7 +30,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
       firstPlayerMatch = (gameBoard.optionTurnPlayer get) toUserInfo
       val newTeams: List[(UserId, TeamId)] = gameBoard.turn.map(user => (
         UserId(1, user),
-        TeamId(teams.filterKeys(teams(_).players.contains(user.toUserInfo)).head._1 toString)
+        TeamId(teams.filterKeys(teams(_).players.contains(user)).head._1 toString)
       ))
       this broadcast GameStarted(newTeams)
       sendGameBoardInformation(gameBoard, allPlayers)
@@ -101,12 +101,12 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   }
 
   private def endMatch(gameBoard: GameBoard): Receive = {
-    case endMatchMessage(lastHandWinner: UserInfo) =>
+    case EndMatchMessage(lastHandWinner: UserInfo) =>
       var tookCardsTeam: Map[Team.Value, Set[Card]] = teams.keySet.map((_, Set[Card]())).toMap
       for (team <- Team.values; player <- teams(team).players) {
         tookCardsTeam = tookCardsTeam + (team -> (tookCardsTeam(team) ++ gameBoard.tookCardsOf(player)))
       }
-      val lastHandWinnerTeam = teams.find(_._2.players contains lastHandWinner).get._1
+      val lastHandWinnerTeam = teams.find(_._2.players contains lastHandWinner.username).get._1
       val matchPoints = gameKnowledge.matchPoints(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
       val pointsForSession = gameKnowledge.matchWinner(tookCardsTeam(TEAM_1), tookCardsTeam(TEAM_2), lastHandWinnerTeam)
       teams = teams + (TEAM_1 -> TeamPoints(teams(TEAM_1).players, teams(TEAM_1).points + pointsForSession._2))
@@ -127,7 +127,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
   private def turn(gameBoard: GameBoard, turnPlayer: UserInfo): Unit = {
     if (gameBoard.handCardsOfTurnPlayer.get.isEmpty) {
       context become endMatch(gameBoard)
-      self ! endMatchMessage(gameBoard.optionTurnPlayer.get.toUserInfo)
+      self ! EndMatchMessage(gameBoard.optionTurnPlayer.get.toUserInfo)
     } else {
       sendGameBoardInformation(gameBoard, allPlayers filter (_!=turnPlayer))
       turnPlayer.userRef ! Turn(gameBoard handCardsOf turnPlayer, gameBoard.fieldCards.map(_._1), TIMEOUT_TO_USER)
@@ -150,7 +150,7 @@ class SessionManager(val gameKnowledge: GameKnowledge, var teams: Map[Team.Value
       player.userRef ! appMessage
   }
 
-  private def allPlayers: List[UserInfo] = teams(TEAM_1).players ++ teams(TEAM_2).players
+  private def allPlayers: List[UserInfo] = players.values.toList
 
   private implicit class RichContext(context: ActorContext){
 
@@ -182,7 +182,7 @@ object SessionManager {
     import Lobby._
     val members = lobby.members.toList.splitAt(lobby.members.size/2)
     Props(classOf[SessionManager], gameKnowledge,
-      Map((Team.TEAM_1, TeamPoints(members._1, 0)), (Team.TEAM_2, TeamPoints(members._2, 0))),
+      Map((Team.TEAM_1, TeamPoints(members._1.map(_.username), 0)), (Team.TEAM_2, TeamPoints(members._2.map(_.username), 0))),
       lobbyToLobbyId(lobby),
       lobby.members.map(elem => (elem.username, elem)).toMap)
   }
@@ -194,7 +194,7 @@ private[this] object SessionManagerMessage {
   sealed trait SessionManagerMessage
 
   case class StartMatch(firstPlayer: Option[UserInfo]) extends SessionManagerMessage
-  case class endMatchMessage(lastHandWinner: UserInfo) extends SessionManagerMessage
+  case class EndMatchMessage(lastHandWinner: UserInfo) extends SessionManagerMessage
   case object Timeout extends SessionManagerMessage
   case object TimeoutId extends SessionManagerMessage
 

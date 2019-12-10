@@ -91,11 +91,11 @@ trait GameBoard {
 
 object GameBoard {
 
-  def apply(gameKnowledge: GameKnowledge, team1: List[UserInfo], team2: List[UserInfo], firstPlayer: Option[UserInfo]): GameBoard = {
+  def apply(gameKnowledge: GameKnowledge, team1: List[String], team2: List[String], firstPlayer: Option[UserInfo]): GameBoard = {
     import ListWithShift._
     val initialConfiguration = gameKnowledge.initialConfiguration//hand, draw, field
     var deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
-    val turn: List[String] = team1.map(_.username).zipAll(team2.map(_.username), null, null)
+    val turn: List[String] = team1.zipAll(team2, null, null)
       .flatMap {
         case (a, null) => Seq(a)
         case (null, b) => Seq(b)

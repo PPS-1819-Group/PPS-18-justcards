@@ -26,5 +26,5 @@ object Commons {
 
   case class PlayerCards(hand: Set[Card], took: Set[Card])
 
-  case class TeamPoints(players: List[UserInfo], points: Int)
+  case class TeamPoints(players: List[String], points: Int)
 }
