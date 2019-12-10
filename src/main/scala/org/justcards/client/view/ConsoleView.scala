@@ -312,9 +312,9 @@ class ConsoleView(controller: ActorRef) extends Actor {
   }
 
   private def yesOrNoResponse(rule: Rule.Value)(onComplete: ((Rule.Value, Boolean)) => Unit): Receive = {
-    case NewUserCommand(value) if value == "y" || value == "yes" => println("yesss"); onComplete((rule,true))
-    case NewUserCommand(value) if value == "n" || value == "no" => println("noooooo"); onComplete((rule,false))
-    case NewUserCommand(_) => println("wrong"); askToUser(WRONG_BOOLEAN)
+    case NewUserCommand(value) if value == "y" || value == "yes" => onComplete((rule,true))
+    case NewUserCommand(value) if value == "n" || value == "no" => onComplete((rule,false))
+    case NewUserCommand(_) => askToUser(WRONG_BOOLEAN)
   }
 
   private def starterCard(seeds: Set[String], cardsRestrictions: (Int,Int))(onComplete: ((Rule.Value, Card)) => Unit): Receive = {
