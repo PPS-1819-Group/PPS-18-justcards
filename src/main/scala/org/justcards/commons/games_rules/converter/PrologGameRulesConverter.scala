@@ -1,7 +1,7 @@
 package org.justcards.commons.games_rules.converter
 import alice.tuprolog.{Struct, Term}
-import org.justcards.commons.games_rules.{PointsConversion, Rule}
-import org.justcards.commons.games_rules.PointsConversion._
+import org.justcards.commons.games_rules.{GameRules, GameRulesSettings, PointsConversion, PointsConversionType, Rule}
+import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.commons.Card
 import org.justcards.server.Commons.BriscolaSetting
 import org.justcards.server.Commons.BriscolaSetting._
@@ -69,19 +69,11 @@ class PrologGameRulesConverter extends GameRulesConverter {
 
 
   private implicit object PointsConversionSerializable extends Serializable[PointsConversion] {
-    override def serialize(x: PointsConversion): String = PrologTuple(x toString,x value)
+    override def serialize(x: PointsConversion): String = PrologTuple(x.typology toString,x value)
 
     override def deserialize(x: String): Option[PointsConversion] = (Term createTerm x) toList match {
-      case Some(info) => info.head toPointsConversion match {
-        case Some(MATCH_POINTS) => Some(MATCH_POINTS)
-        case Some(EXACTLY) => info(1) toInt match {
-          case Some(v) => Some(EXACTLY.value(v))
-          case _ => None
-        }
-        case Some(DIVIDE) => info(1) toInt match {
-          case Some(v) => Some(DIVIDE.value(v))
-          case _ => None
-        }
+      case Some(info) => (info.head toPointsConversionType, info(1) toInt) match {
+        case (Some(conversion), Some(v)) => Some(PointsConversion(conversion, v))
         case _ => None
       }
       case _ => None
@@ -93,7 +85,7 @@ class PrologGameRulesConverter extends GameRulesConverter {
   private implicit def termToString(x: Term): String = x toString
   private implicit def structToString(x: Struct): String = x toString
 
-  override def serialize(rules: Map[Rule.Value, Any]): Map[String, String] = rules collect {
+  override def serialize(rules: GameRules): GameRulesSettings = rules collect {
     case (CARDS_DISTRIBUTION,(h:Int,d:Int,f:Int)) => (CARDS_DISTRIBUTION.toString,serializeToString((h,d,f)))
     case (PLAY_SAME_SEED,v: Boolean) => (PLAY_SAME_SEED.toString,serializeToString(v))
     case (CHOOSE_BRISCOLA,v: BriscolaSetting) => (CHOOSE_BRISCOLA.toString,serializeToString(v))
@@ -108,7 +100,7 @@ class PrologGameRulesConverter extends GameRulesConverter {
       (CARDS_HIERARCHY_AND_POINTS.toString, serializeToString(v collect { case (number: Int, points: Int) => (number, points) }))
   }
 
-  private def getRule[X: Serializable](rules: Map[String,String], rule: Rule[X]): Option[(Rule.Value,X)] = {
+  private def getRule[X: Serializable](rules: GameRulesSettings, rule: Rule[X]): Option[(Rule.Value,X)] = {
     rules get rule.toString match {
       case Some(value) =>
         val concreteValue: Option[X] = implicitly[Serializable[X]].deserialize(value)
@@ -117,7 +109,7 @@ class PrologGameRulesConverter extends GameRulesConverter {
     }
   }
 
-  override def deserialize(rules: Map[String, String]): Map[Rule.Value, Any] = {
+  override def deserialize(rules: GameRulesSettings): GameRules = {
     Set(
       getRule(rules,CARDS_DISTRIBUTION),
       getRule(rules,PLAY_SAME_SEED),
@@ -148,9 +140,9 @@ object PrologGameRulesConverter {
       } catch {
         case _: Exception => None
       }
-    def toPointsConversion: Option[PointsConversion] =
+    def toPointsConversionType: Option[PointsConversionType] =
       try {
-        Some(PointsConversion.withName(term.stringValue))
+        Some(PointsConversionType.withName(term.stringValue))
       } catch {
         case _: Exception => None
       }

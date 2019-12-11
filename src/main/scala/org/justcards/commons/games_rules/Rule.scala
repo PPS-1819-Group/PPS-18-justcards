@@ -1,29 +1,18 @@
 package org.justcards.commons.games_rules
 
 import org.justcards.commons.Card
+import org.justcards.commons.games_rules.PointsConversionType.PointsConversionType
 import org.justcards.commons.games_rules.knowledge.RuleKnowledge
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
-object PointsConversion extends Enumeration {
-  type PointsConversion = PointsConversionVal
-  val EXACTLY = PointsConversionVal()
-  val DIVIDE = PointsConversionVal()
-  val MATCH_POINTS = PointsConversionVal()
-
-  sealed case class PointsConversionVal(var value: Int = 0) extends Val(nextId, nextId toString) {
-    def value(v: Int): PointsConversion = {
-      value = v
-      this
-    }
-  }
-
-  implicit def valueToRule(x: Value): PointsConversion = x.asInstanceOf[PointsConversion]
-
+object PointsConversionType extends Enumeration {
+  type PointsConversionType = Value
+  val EXACTLY, DIVIDE, MATCH_POINTS = Value
 }
 
-object Rule extends Enumeration {
+case class PointsConversion(typology: PointsConversionType, value: Int = 0)
 
-  import PointsConversion._
+object Rule extends Enumeration {
 
   private val rulesKnowledge = RuleKnowledge()
 

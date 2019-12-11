@@ -4,9 +4,9 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.commons.AppError._
-import org.justcards.commons.games_rules.{GameRules, PointsConversion}
+import org.justcards.commons.games_rules.{GameRules, PointsConversion, PointsConversionType}
 import org.justcards.server.Commons
-import org.justcards.server.Commons.BriscolaSetting
+import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{CreateGameRequest, GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
@@ -71,13 +71,13 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
         POINTS_TO_WIN_SESSION -> 41,
         CARDS_DISTRIBUTION -> ((10,0,0)),
         CHOOSE_BRISCOLA -> BriscolaSetting.USER,
-        POINTS_OBTAINED_IN_A_MATCH -> PointsConversion.DIVIDE.value(3),
+        POINTS_OBTAINED_IN_A_MATCH -> PointsConversion(PointsConversionType.DIVIDE, 3),
         STARTER_CARD -> Card(4,"denara"),
         LAST_TAKE_WORTH_ONE_MORE_POINT -> true,
         CARDS_HIERARCHY_AND_POINTS -> List((3,1),(2,1),(1,3),(10,1),(9,1),(8,1),(7,0),(6,0),(5,0),(4,0)).reverse,
-        WINNER_POINTS -> PointsConversion.MATCH_POINTS,
-        LOSER_POINTS -> PointsConversion.MATCH_POINTS,
-        DRAW_POINTS -> PointsConversion.EXACTLY.value(0)
+        WINNER_POINTS -> PointsConversion(PointsConversionType.MATCH_POINTS),
+        LOSER_POINTS -> PointsConversion(PointsConversionType.MATCH_POINTS),
+        DRAW_POINTS -> PointsConversion(PointsConversionType.EXACTLY)
       )
       knowledgeEngine ! CreateGameRequest(ALLOWED_NAME, rules)
       me expectMsg GameCreated(GameId(ALLOWED_NAME))
@@ -118,13 +118,13 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
           POINTS_TO_WIN_SESSION -> 41,
           CARDS_DISTRIBUTION -> ((10,0,0)),
           CHOOSE_BRISCOLA -> BriscolaSetting.USER,
-          POINTS_OBTAINED_IN_A_MATCH -> PointsConversion.DIVIDE.value(3),
+          POINTS_OBTAINED_IN_A_MATCH -> PointsConversion(PointsConversionType.DIVIDE, 3),
           STARTER_CARD -> Card(4,"denara"),
           LAST_TAKE_WORTH_ONE_MORE_POINT -> true,
           CARDS_HIERARCHY_AND_POINTS -> List((3,1),(2,1),(1,3),(10,1),(9,1),(8,1),(7,0),(6,0),(5,0),(4,0)).reverse,
-          WINNER_POINTS -> PointsConversion.MATCH_POINTS,
-          LOSER_POINTS -> PointsConversion.MATCH_POINTS,
-          DRAW_POINTS -> PointsConversion.EXACTLY.value(0)
+          WINNER_POINTS -> PointsConversion(PointsConversionType.MATCH_POINTS),
+          LOSER_POINTS -> PointsConversion(PointsConversionType.MATCH_POINTS),
+          DRAW_POINTS -> PointsConversion(PointsConversionType.EXACTLY)
         )
         knowledgeEngine ! CreateGameRequest(ALLOWED_NAME, rules)
         me expectMsg ErrorOccurred(GAME_RULES_NOT_VALID)
@@ -139,13 +139,13 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
           POINTS_TO_WIN_SESSION -> 41,
           CARDS_DISTRIBUTION -> ((10,0,0)),
           CHOOSE_BRISCOLA -> BriscolaSetting.USER,
-          POINTS_OBTAINED_IN_A_MATCH -> PointsConversion.DIVIDE.value(3),
+          POINTS_OBTAINED_IN_A_MATCH -> PointsConversion(PointsConversionType.DIVIDE, 3),
           STARTER_CARD -> Card(4,"denara"),
           LAST_TAKE_WORTH_ONE_MORE_POINT -> true,
           CARDS_HIERARCHY_AND_POINTS -> List((3,1),(2,1),(1,3),(10,1),(9,1),(8,1),(7,0),(6,0),(5,0),(4,0)).reverse,
-          WINNER_POINTS -> PointsConversion.MATCH_POINTS,
-          LOSER_POINTS -> PointsConversion.MATCH_POINTS,
-          DRAW_POINTS -> PointsConversion.EXACTLY.value(0)
+          WINNER_POINTS -> PointsConversion(PointsConversionType.MATCH_POINTS),
+          LOSER_POINTS -> PointsConversion(PointsConversionType.MATCH_POINTS),
+          DRAW_POINTS -> PointsConversion(PointsConversionType.EXACTLY)
         )
         knowledgeEngine ! CreateGameRequest(ALLOWED_NAME, rules)
         me expectMsg ErrorOccurred(CANNOT_CREATE_GAME)
@@ -173,27 +173,27 @@ object KnowledgeEngineTest {
   def createGameKnowledge(): GameKnowledgeFactory = gameId => TestGameKnowledge(gameId)
   case class TestGameKnowledge(gameId: GameId) extends GameKnowledge {
 
-    override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = ???
+    override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = (0,0,0)
 
-    override def deckCards: Set[Card] = ???
+    override def deckCards: Set[Card] = Set()
 
-    override def hasToChooseBriscola: BriscolaSetting = ???
+    override def hasToChooseBriscola: BriscolaSetting = BriscolaSetting.USER
 
-    override def setBriscola(seed: Seed): Boolean = ???
+    override def setBriscola(seed: Seed): Boolean = true
 
-    override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = ???
+    override def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]] = None
 
-    override def handWinner(fieldCards: List[(Card, Commons.UserInfo)]): Commons.UserInfo = ???
+    override def handWinner(fieldCards: List[(Card, Commons.UserInfo)]): Commons.UserInfo = UserInfo("",null)
 
-    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = ???
+    override def matchWinner(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Team, Points, Points) = (Team.TEAM_1,0,0)
 
-    override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = ???
+    override def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team] = None
 
-    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = ???
+    override def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points, Points) = (0,0)
 
-    override def sessionStarterPlayer(playersHandCards: Set[(Commons.UserInfo, Set[Card])]): Option[Commons.UserInfo] = ???
+    override def sessionStarterPlayer(playersHandCards: Set[(Commons.UserInfo, Set[Card])]): Option[Commons.UserInfo] = None
 
-    override def seeds: Set[Seed] = ???
+    override def seeds: Set[Seed] = Set()
   }
 
   private val BECCACCINO_GAME = GameId("Beccaccino")

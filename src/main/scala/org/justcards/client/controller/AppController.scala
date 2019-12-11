@@ -15,8 +15,7 @@ import org.justcards.client.view.View._
 import org.justcards.client.view.MenuChoice._
 import org.justcards.client.view.FilterChoice._
 import org.justcards.client.view.OptionConnectionFailed._
-import org.justcards.commons.games_rules.PointsConversion.PointsConversion
-import org.justcards.commons.games_rules.Rule
+import org.justcards.commons.games_rules.{PointsConversion, Rule}
 import org.justcards.commons.games_rules.Rule._
 import org.justcards.commons.games_rules.converter.GameRulesConverter
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
@@ -111,7 +110,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
             val error = AppError.values.find(_.toString == message)
             if(error isDefined){
               viewActor ! ShowError(error.get)
-              context toGameCreation(correctRules)
+              context toGameCreation correctRules
             }
         }
       } else {
