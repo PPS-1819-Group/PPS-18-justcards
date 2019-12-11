@@ -1,5 +1,7 @@
 package org.justcards.client.view
 
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.concurrent.Executors
 
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
@@ -57,6 +59,9 @@ class ConsoleView(controller: ActorRef) extends Actor {
       showLobbyCreationOptions(gamesList)
       context >>> lobbyCreation(gamesList)
     case ShowLobbies(lobbies) => context toLobbyLookup lobbies
+    case ShowAvailableGames(games) =>
+      printGameList(games)
+      context >>> gamesList(games)
     case ShowGameCreation(rules, cards, seeds) =>
       val numberCards = cards.map(_.number)
       gameCreation(rules.toList)((numberCards.min, numberCards.max), seeds)
@@ -168,6 +173,10 @@ class ConsoleView(controller: ActorRef) extends Actor {
     case ShowError(`errorToIntercept`) =>
       println(errorMessage(errorToIntercept))
       context >>> inGame(myTeam, myCards, briscola)
+  }
+
+  private def gamesList(games: Set[(GameId, Long)]): Receive = {
+    case NewUserCommand(_) => askToUser("")
   }
 
   private def disconnected: Receive = {
@@ -495,6 +504,19 @@ class ConsoleView(controller: ActorRef) extends Actor {
     }
   }
 
+  private def printGameList(games: Set[(GameId, Long)]): Unit = {
+    import java.util.Calendar
+    import java.util.Locale
+    clearAndPrint(GAMES_TITLE)
+    implicit val format = new SimpleDateFormat("dd MMMM yyyy", Locale.ENGLISH)
+    val calendar = Calendar.getInstance
+    println(games map(tuple => {
+      calendar.setTimeInMillis(tuple._2)
+      printGames(tuple._1.name, calendar.getTime)
+    }) mkString(start="- ", sep="\n- ", end=""))
+    askToUser(GO_BACK)
+  }
+
   private def goodbye(): Unit = {
     println(LINE_DELIMETER)
     println(GOODBYE)
@@ -575,6 +597,7 @@ object ConsoleView {
   private val CHOOSE_NICKNAME = "Choose your nickname:"
   private val CHOOSE_BRISCOLA = "Choose the briscola you want"
   private val PLAYERS_ORDER = "Players order: "
+  private val GO_BACK = "Write \"" concat BACK concat "\" to return to the menu"
   private val CHOOSE_BRISCOLA_TIMEOUT = (time: FiniteDuration) => CHOOSE_BRISCOLA + ", you have " + time + ":"
   private val CHOOSE_CARD = (time: FiniteDuration) => "Insert the number of the card you want to play, you have " + time + ":"
   private val GOODBYE = "Bye"
@@ -642,6 +665,9 @@ object ConsoleView {
     for (index <- 1 to list.size)
       println(index + ")" + extractor(list(index - 1)))
   }
+
+  private def printGames(gameName: String, date: Date)(implicit format: SimpleDateFormat): String =
+    gameName concat " created on " concat format.format(date.getTime)
 
   private def parseToNumberAnd(choice: String, size: Int)(okThen: Int => Unit)(orElse: => Unit): Unit = {
     val numberChoice = parseNumberChoice(choice, size)

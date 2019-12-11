@@ -7,6 +7,7 @@ import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage._
+import org.justcards.server.user_manager.Utils.doLogIn
 
 class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
 
@@ -103,12 +104,6 @@ class UserManagerPlayerTest extends WordSpecLike with Matchers with BeforeAndAft
 
     }
 
-  }
-
-  private def doLogIn(userManager: ActorRef, username: String)(implicit me: TestProbe): Unit = {
-    implicit val sender = me.ref
-    userManager ! LogIn(username)
-    me receiveN(1)
   }
 
   private def expectUsers(userManager: ActorRef, users: UserInfo*)(implicit me: TestProbe): Unit = {
