@@ -1,7 +1,7 @@
 package org.justcards.commons.games_rules.knowledge
 
 import org.justcards.commons.Card
-import org.justcards.commons.games_rules.PointsConversion.PointsConversion
+import org.justcards.commons.games_rules.PointsConversion
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
 trait RuleKnowledge {

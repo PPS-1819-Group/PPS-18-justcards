@@ -7,8 +7,7 @@ import akka.actor.{Actor, Props}
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.commons.GameId
-import org.justcards.commons.games_rules.PointsConversion.PointsConversion
-import org.justcards.commons.games_rules.{GameRules, Rule}
+import org.justcards.commons.games_rules.{GameRules, PointsConversion, Rule}
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.justcards.server.knowledge_engine.rule_creator.RuleCreator

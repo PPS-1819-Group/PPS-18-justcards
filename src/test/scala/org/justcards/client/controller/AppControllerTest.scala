@@ -12,11 +12,10 @@ import org.justcards.client.view.View._
 import org.justcards.client.view.FilterChoice._
 import org.justcards.commons.AppError._
 import org.justcards.commons._
-import org.justcards.commons.games_rules.PointsConversion.PointsConversion
 import org.justcards.commons.games_rules.{PointsConversion, Rule}
+import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.commons.games_rules.Rule._
 import org.justcards.server.Commons.BriscolaSetting
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfterAll {
@@ -511,10 +510,10 @@ object AppControllerTest {
     Rule.CHOOSE_BRISCOLA -> BriscolaSetting.SYSTEM,
     POINTS_TO_WIN_SESSION -> 1,
     PLAY_SAME_SEED -> true,
-    POINTS_OBTAINED_IN_A_MATCH -> PointsConversion.MATCH_POINTS,
-    WINNER_POINTS -> PointsConversion.MATCH_POINTS,
-    LOSER_POINTS -> PointsConversion.MATCH_POINTS,
-    DRAW_POINTS -> PointsConversion.MATCH_POINTS,
+    POINTS_OBTAINED_IN_A_MATCH -> PointsConversion(MATCH_POINTS),
+    WINNER_POINTS -> PointsConversion(MATCH_POINTS),
+    LOSER_POINTS -> PointsConversion(MATCH_POINTS),
+    DRAW_POINTS -> PointsConversion(MATCH_POINTS),
     STARTER_CARD -> Card(1, "spade"),
     LAST_TAKE_WORTH_ONE_MORE_POINT -> false,
     CARDS_HIERARCHY_AND_POINTS -> List((1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0),(9,0),(10,0)),
@@ -525,10 +524,10 @@ object AppControllerTest {
     Rule.CHOOSE_BRISCOLA -> BriscolaSetting.SYSTEM,
     POINTS_TO_WIN_SESSION -> 1,
     PLAY_SAME_SEED -> true,
-    POINTS_OBTAINED_IN_A_MATCH -> PointsConversion.MATCH_POINTS,
-    WINNER_POINTS -> PointsConversion.MATCH_POINTS,
-    LOSER_POINTS -> PointsConversion.MATCH_POINTS,
-    DRAW_POINTS -> PointsConversion.MATCH_POINTS,
+    POINTS_OBTAINED_IN_A_MATCH -> PointsConversion(MATCH_POINTS),
+    WINNER_POINTS -> PointsConversion(MATCH_POINTS),
+    LOSER_POINTS -> PointsConversion(MATCH_POINTS),
+    DRAW_POINTS -> PointsConversion(MATCH_POINTS),
     STARTER_CARD -> Card(1, "spade"),
     LAST_TAKE_WORTH_ONE_MORE_POINT -> false,
     CARDS_HIERARCHY_AND_POINTS -> List((1,0),(2,0),(3,0),(4,0),(5,0),(6,0),(7,0),(8,0),(9,0),(10,0)),
