@@ -438,7 +438,7 @@ object SessionManagerTest {
 
       override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = configuration
 
-      override def deckCards: Set[Card] = for (i <- (1 to 8) toSet) yield Card(i, SEED)
+      override def deckCards: Set[Card] = (for (i <- 1 to 10; seed <- seeds) yield Card(i, seed)) toSet
 
       override def hasToChooseBriscola: BriscolaSetting = briscolaSetting
 
