@@ -206,7 +206,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef2: ActorRef = me2.ref
         val owner = UserInfo(OWNERNAME, myRef2)
         var lobby = Lobby(LOBBYID, owner, GAMEID)
-        for (i <- 1 to 2;
+        for (i <- 0 until 3;
              username = OWNERNAME + i;
              userInfo = UserInfo(username, myRef))
           lobby = lobby + userInfo
@@ -221,7 +221,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val meList: List[(TestProbe, ActorRef)] = for (i <- (1 to 4) toList; me = TestProbe()) yield (me, me.ref)
         val owner = UserInfo(OWNERNAME + 0, meList.head._2)
         var lobby = Lobby(LOBBYID, owner, GAMEID)
-        for (i <- 1 to 2;
+        for (i <- 1 to 3;
              username = OWNERNAME + i;
              userInfo = UserInfo(username, meList(i)._2))
           lobby = lobby + userInfo
