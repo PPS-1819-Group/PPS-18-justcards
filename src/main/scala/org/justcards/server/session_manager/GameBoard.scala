@@ -22,6 +22,12 @@ trait GameBoard {
 
   /**
    * Getter
+   * @return deck of match
+   */
+  def deck: List[Card]
+
+  /**
+   * Getter
    * @return turn order of all player
    */
   def turn: List[String]
@@ -157,15 +163,17 @@ object GameBoard {
     override def draw: Option[GameBoard] = {
       if (deck isEmpty) None
       else {
-        var tmpDeck: List[Card] = deck
+        val (drawCards, newDeck) = deck splitAt (nCardsDraw*4)
+        val splitDraw: List[List[Card]] = drawCards.sliding(nCardsDraw,nCardsDraw).toList
+        val listPlayer = playerCards.toList
+        val newPlayerCards: Map[String, PlayerCards] =
+          (for (elem  <- listPlayer)
+            yield elem._1 -> PlayerCards(elem._2.hand ++ splitDraw(listPlayer indexOf elem), elem._2.took)) toMap
+
         Some(this(
           fieldCards,
-          playerCards.mapValues( cards => {
-            val result = PlayerCards(cards.hand ++ tmpDeck.take(nCardsDraw), cards.took)
-            tmpDeck = tmpDeck drop nCardsDraw
-            result
-          }),
-          tmpDeck,
+          newPlayerCards,
+          newDeck,
           handTurn
         ))
       }
