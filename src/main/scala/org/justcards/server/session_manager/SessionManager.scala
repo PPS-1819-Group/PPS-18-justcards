@@ -25,7 +25,7 @@ class SessionManager(gameKnowledge: GameKnowledge, var teams: Map[Team.Value,Tea
   override def receive: Receive = preMatchBehaviour orElse defaultBehaviour
 
   private def defaultBehaviour: Receive = {
-    case LogOutAndExitFromGame(user) if user.userRef == sender => addFakeUser(user)
+    case LogOutAndExitFromGame(user) if user.userRef == sender() => addFakeUser(user)
   }
 
   private def preMatchBehaviour: Receive = {
