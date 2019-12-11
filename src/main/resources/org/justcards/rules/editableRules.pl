@@ -40,7 +40,7 @@ startHand(UserStartHand):-
   minStartHand(Min),
   UserStartHand > Min - 1.
 
-minStartHand(0).
+minStartHand(1).
 
 startField(0).
 

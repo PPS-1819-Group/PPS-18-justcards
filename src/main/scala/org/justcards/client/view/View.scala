@@ -56,7 +56,7 @@ object View {
   val LOBBY_CREATED_MESSAGE: LobbyId => String = "Your lobby has been created! ID = " + _.id
   val BRISCOLA_NO_CARD: String => String = "<< Current Briscola is " concat _ concat " >>"
   val BRISCOLA_WITH_CARD: Card => String = card =>
-    BRISCOLA_NO_CARD(card) concat " | Briscola card is " concat fromCardToString(card)
+    BRISCOLA_NO_CARD(card.seed) concat " | Briscola card is " concat fromCardToString(card)
   val LOBBY_JOINED_MESSAGE: LobbyId => String = "You joined lobby " + _.id
   val GAME_STARTED: (TeamId, Option[UserId]) => String = (team, mate) => {
    val msg = "The game has started! You're on team " + team.name

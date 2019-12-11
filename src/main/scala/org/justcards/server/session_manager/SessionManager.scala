@@ -25,7 +25,7 @@ class SessionManager(gameKnowledge: GameKnowledge, var teams: Map[Team.Value,Tea
   override def receive: Receive = preMatchBehaviour orElse defaultBehaviour
 
   private def defaultBehaviour: Receive = {
-    case LogOutAndExitFromGame(user) if user.userRef == sender => addFakeUser(user)
+    case LogOutAndExitFromGame(user) if user.userRef == sender() => addFakeUser(user)
   }
 
   private def preMatchBehaviour: Receive = {
@@ -43,13 +43,11 @@ class SessionManager(gameKnowledge: GameKnowledge, var teams: Map[Team.Value,Tea
         case BriscolaSetting.NOT_BRISCOLA =>
           context toMatch(gameBoard, firstPlayerMatch)
         case BriscolaSetting.SYSTEM =>
-          val briscolaSeed = if (gameBoard.optionLastCardDeck.isDefined) {
-            gameBoard.optionLastCardDeck.get.seed
-          } else {
-            gameBoard.handCardsOf(firstPlayerMatch).head.seed
-          }
-          gameKnowledge setBriscola briscolaSeed
-          this broadcast CorrectBriscola(briscolaSeed)
+          val briscola =
+            if (gameBoard.optionLastCardDeck.isDefined) gameBoard.optionLastCardDeck.get
+            else gameBoard.handCardsOf(firstPlayerMatch).head
+          gameKnowledge setBriscola briscola.seed
+          this broadcast CorrectBriscola(briscola.seed, Some(briscola.number))
           context toMatch(gameBoard,firstPlayerMatch)
         case BriscolaSetting.USER =>
           context >>> chooseBriscolaPhase(gameBoard, firstPlayerMatch)

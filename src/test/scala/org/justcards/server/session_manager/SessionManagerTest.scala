@@ -20,11 +20,11 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
 
   private implicit val system: ActorSystem = ActorSystem("SessionManagerTest")
 
-  val LOBBYID = 1
-  val OWNERNAME = "Owner"
-  val GAMEID = GameId("BECCACCINO")
-  val SEED = "bastoni"
-  val CARD = Card(1, SEED)
+  private val LOBBYID = 1
+  private val OWNERNAME = "Owner"
+  private val GAMEID = GameId("BECCACCINO")
+  private val SEED = "bastoni"
+  private val CARD = Card(1, SEED)
 
 
   override def afterAll: Unit = {
@@ -39,7 +39,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val me: TestProbe = TestProbe()
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
-        val sessionManager = system.actorOf(SessionManager(lobby, TestGameKnowledge()))
+        system.actorOf(SessionManager(lobby, TestGameKnowledge()))
         expectBroadcast(GameStarted(List((UserId(1, OWNERNAME), TEAM_1), (UserId(1, OWNERNAME + 1), TEAM_2), (UserId(1, OWNERNAME + 0), TEAM_1), (UserId(1, OWNERNAME + 2), TEAM_2))))
       }
 
@@ -48,7 +48,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge()
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 4
         expectBroadcast(Information(Set(), List()))
       }
@@ -58,9 +58,9 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.USER)
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
-        me.expectMsg(ChooseBriscola(gameKnowledge.seeds, SessionManager.TIMEOUT_TO_USER))
+        me expectMsg ChooseBriscola(gameKnowledge.seeds, SessionManager.TIMEOUT_TO_USER)
       }
 
       "communicate the briscola to all users after timeout for user decision" in {
@@ -68,7 +68,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.USER)
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 9
         me.within(SessionManager.TIMEOUT + 1 second) {
           expectBroadcast(CorrectBriscola(SEED))
@@ -102,9 +102,9 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge(briscolaSetting = BriscolaSetting.SYSTEM)
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
-        expectBroadcast(CorrectBriscola(SEED))
+        expectBroadcastClass(classOf[CorrectBriscola])
       }
 
     }
@@ -120,7 +120,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me receiveN 9
         me send(sessionManager, Briscola(SEED))
         me receiveN 4
-        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+        me expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
       }
 
       "communicate the information and the turn to users without briscola selection" in {
@@ -128,9 +128,9 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge((1, 0, 0))
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
-        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+        me expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
       }
 
       "notify the player that the card played is playable" in {
@@ -141,7 +141,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 12
         me send(sessionManager, Play(CARD))
-        me.expectMsg(Played(CARD))
+        me expectMsg Played(CARD)
       }
 
       "don't allow another player to play instead of turn player" in {
@@ -171,7 +171,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 12
         me send(sessionManager, Play(CARD))
-        me.expectMsg(ErrorOccurred(CARD_NOT_VALID))
+        me expectMsg ErrorOccurred(CARD_NOT_VALID)
       }
 
 
@@ -180,7 +180,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge((1, 0, 0))
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 12
         me.within(SessionManager.TIMEOUT + 1 second) {
           me.expectMsgType[Played]
@@ -196,7 +196,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         me receiveN 12
         me send(sessionManager, Play(CARD))
         me receiveN 1
-        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+        me expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
       }
 
       "communicate the information and the turn to the right user after first player play his card" in {
@@ -211,7 +211,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
              userInfo = UserInfo(username, myRef))
           lobby = lobby + userInfo
         val gameKnowledge = TestGameKnowledge((1, 0, 0), firstPlayerTurn = owner)
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 9
         me2 receiveN 2
         me2.expectMsgType[Turn]
@@ -251,7 +251,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
           me send(sessionManager, Play(CARD))
           me receiveN 1
         }
-        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Information])
+        me expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Information])
       }
 
       "notify players about who won the hand" in {
@@ -285,7 +285,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
           me receiveN 1
         }
         me receiveN 8
-        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+        me expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
       }
 
       "allow user to draw card after first hand" in {
@@ -302,7 +302,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
           me receiveN 1
         }
         me receiveN 8
-        me.expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
+        me expectMsgAllClassOf(classOf[Information], classOf[Information], classOf[Information], classOf[Turn])
       }
 
     }
@@ -331,7 +331,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge()
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 8
         expectBroadcast(MatchWinner(TestGameKnowledge.endInfo._1, (TestGameKnowledge.endInfo._2, TestGameKnowledge.endInfo._3), (TestGameKnowledge.endInfo._2, TestGameKnowledge.endInfo._3)))
       }
@@ -345,7 +345,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         implicit val myRef: ActorRef = me.ref
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge()
-        val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
+        system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 12
         expectBroadcast(GameWinner(TestGameKnowledge.endInfo._1))
       }
@@ -369,9 +369,9 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         val lobby = createLobby
         val gameKnowledge = TestGameKnowledge((1,0,0))
         val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
-        sessionManager ! LogOutAndExitFromGame(UserInfo(OWNERNAME, myRef))
         me receiveN 12
-        me.expectMsgAnyClassOf(classOf[Turn], classOf[Information])
+        sessionManager ! LogOutAndExitFromGame(UserInfo(OWNERNAME, myRef))
+        me expectMsgAnyClassOf(classOf[Turn], classOf[Information])
       }
 
       "replace him with a FakeUser while option selection" in {
@@ -389,10 +389,11 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
 
   private def createLobby(implicit myRef: ActorRef): Lobby = {
     var lobby = Lobby(LOBBYID, UserInfo(OWNERNAME, myRef), GAMEID)
-    (for (i <- 0 until 3; username = OWNERNAME + i)
-      yield UserInfo(username, myRef)) foreach {
-      userInfo => lobby = lobby + userInfo
-    }
+    for (
+      i <- 0 until 3;
+      username = OWNERNAME + i;
+      userInfo = UserInfo(username, myRef)
+    ) lobby = lobby + userInfo
     lobby
   }
 
@@ -406,6 +407,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
   }
 
   private def expectBroadcast(msg: AppMessage)(implicit me: TestProbe) = me expectMsgAllOf(msg,msg,msg,msg)
+  private def expectBroadcastClass[X](msg: Class[X])(implicit me: TestProbe) = me expectMsgAllClassOf(msg,msg,msg,msg)
 
 }
 

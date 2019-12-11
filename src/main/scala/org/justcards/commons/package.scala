@@ -21,5 +21,10 @@ package object commons {
       value == GAME_MISSING_RULES.toString ||
       value == GAME_ALREADY_EXISTS.toString
 
+    def firstLetterUppercase: String = {
+      val firstChar = value.charAt(0).toString
+      value.replaceFirst(firstChar, firstChar.toUpperCase)
+    }
+
   }
 }

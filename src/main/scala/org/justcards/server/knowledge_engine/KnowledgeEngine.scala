@@ -104,8 +104,9 @@ object GamesManager {
         val bw = new PrintWriter(newGame)
         rules foreach bw.println
         bw.close()
-        games = games + (GameId(name) -> Calendar.getInstance().getTimeInMillis)
-        Some(GameId(name))
+        val upperCaseName = name.firstLetterUppercase
+        games = games + (GameId(upperCaseName) -> Calendar.getInstance().getTimeInMillis)
+        Some(GameId(upperCaseName))
       } catch {
         case _: Exception => None
       }
@@ -115,10 +116,7 @@ object GamesManager {
       gameDirectory.listFiles.toSet
         .filter(!_.isDirectory)
         .map(file => file.getName.split('.')(0) -> file.lastModified)
-        .map(tuple => {
-          val firstChar = tuple._1.charAt(0).toString
-          tuple._1.replaceFirst(firstChar, firstChar.toUpperCase) -> tuple._2
-        })
+        .map(tuple => tuple._1.firstLetterUppercase -> tuple._2)
         .map(tuple => GameId(tuple._1) -> tuple._2)
     }
    }
