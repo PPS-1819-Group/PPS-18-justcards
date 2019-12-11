@@ -2,7 +2,7 @@ package org.justcards.client.controller
 
 import java.util.Calendar
 
-import akka.actor.{Actor, ActorContext, Props, Timers}
+import akka.actor.{Actor, ActorContext, ActorLogging, Props, Timers}
 
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
@@ -39,7 +39,8 @@ object AppController {
   case object CanGoBackToMenu
 }
 
-private[this] class AppControllerActor(connectionManager: ConnectionManager, view: View) extends Actor with Timers {
+private[this] class AppControllerActor(connectionManager: ConnectionManager, view: View) extends Actor
+              with Timers with ActorLogging {
 
   import AppController._
   import AppControllerActor._
@@ -85,35 +86,38 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
           connectionManagerActor ! JoinLobby(LobbyId(lobbyId.get))
           context >>> waitForLobbyJoined
         }
-      case CREATE_GAME =>
-        context toGameCreation
+      case CREATE_GAME => context toGameCreation
       case _ => viewActor ! ShowError(SELECTION_NOT_AVAILABLE)
     }
   }
 
-  private def gameCreation: Receive = {
+  private def gameCreation(correctRules: Map[Rule.Value, Any] = Map()): Receive = {
     case CanGoBackToMenu =>
       sender() ! GoBackToMenu(true)
       context >>> logged
     case AppControllerCreateGame(name,_) if name.isBlank =>
       viewActor ! ShowError(GAME_EMPTY_NAME)
-    case AppControllerCreateGame(_,rules) if rules.size != Rule.values.size =>
+    case AppControllerCreateGame(_,rules) if !(Rule.mandatoryRules subsetOf (rules ++ correctRules).keySet) =>
       viewActor ! ShowError(GAME_MISSING_RULES)
     case AppControllerCreateGame(name,rules) =>
       val wrongRules = nonValidRules(rules)
-      if (wrongRules.isEmpty) {
-        connectionManagerActor ! CreateGame(name, rulesConverter.serialize(rules))
+      if (wrongRules isEmpty) {
+        connectionManagerActor ! CreateGame(name, rulesConverter.serialize(rules ++ correctRules))
         context >>> {
           case GameCreated(_) =>
             viewActor ! ShowGameCreated
             context toLogged
-          case ErrorOccurred(error) if error == CANNOT_CREATE_GAME.toString =>
-            viewActor ! ShowError(CANNOT_CREATE_GAME)
-            context toGameCreation
+          case ErrorOccurred(message) if message.isGameError =>
+            val error = AppError.values.find(_.toString == message)
+            if(error isDefined){
+              viewActor ! ShowError(error.get)
+              context toGameCreation(correctRules)
+            }
         }
       } else {
         viewActor ! ShowError(GAME_RULES_NOT_VALID)
         viewActor ! ShowNotValidRules(wrongRules)
+        context >>> gameCreation(rules -- wrongRules)
       }
   }
 
@@ -130,7 +134,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     case (LAST_TAKE_WORTH_ONE_MORE_POINT,v: Boolean) => LAST_TAKE_WORTH_ONE_MORE_POINT isAllowed v
     case (CARDS_HIERARCHY_AND_POINTS,v: List[Any]) =>
       CARDS_HIERARCHY_AND_POINTS isAllowed (v collect { case (number: Int, points: Int) => (number, points) })
-    case _ => println("unexpected"); false
+    case msg => log.debug("unexpected rule: " + msg); false
   } keySet
 
   private def lobbyCreation: Receive = {
@@ -299,8 +303,8 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     def toGameCreation: Receive = {
       val (cards,seeds) = Rule.deckCards
       viewActor ! ShowGameCreation(Rule.values, cards, seeds)
-      context >>> gameCreation
-      gameCreation
+      context >>> gameCreation()
+      gameCreation()
     }
   }
 

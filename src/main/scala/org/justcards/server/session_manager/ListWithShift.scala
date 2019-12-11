@@ -6,11 +6,14 @@ object ListWithShift {
 
     def shiftTo(elem: A): Option[List[A]] = shift(list,elem)
 
-    @scala.annotation.tailrec
-    private def shift(list: List[A], elem: A): Option[List[A]] = list.head match {
-      case `elem` => Some(list)
-      case _ if list == this.list => None
-      case a => shift(list.tail :+ a, elem)
+    private def shift(list: List[A], elem: A): Option[List[A]] = {
+      @scala.annotation.tailrec
+      def _shift(list: List[A])(last: A): Option[List[A]] = list.head match {
+        case `elem` => Some(list)
+        case e if last == e => None
+        case a => _shift(list.tail :+ a)(last)
+      }
+      _shift(list)(list.last)
     }
 
   }
