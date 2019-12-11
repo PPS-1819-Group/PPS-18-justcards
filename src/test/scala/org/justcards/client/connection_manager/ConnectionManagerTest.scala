@@ -41,7 +41,7 @@ class ConnectionManagerTest extends WordSpecLike with Matchers with BeforeAndAft
     }
 
     "send an AvailableGames message to the application controller when received from the server" in {
-      checkIfTheApplicationManagerReceiveTheMessage(AvailableGames(Set(game)))
+      checkIfTheApplicationManagerReceiveTheMessage(AvailableGames(Set(game -> 1L)))
     }
 
     "send an LobbyCreated message to the application controller when received from the server" in {

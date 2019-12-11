@@ -72,7 +72,7 @@ case class RetrieveAvailableGames(options: String = "") extends AppMessage
  * Message that contains all the available games.
  * @param games all the available games
  */
-case class AvailableGames(games: Set[GameId]) extends AppMessage
+case class AvailableGames(games: Set[(GameId, Long)]) extends AppMessage
 
 /**
  * Message to create a lobby.

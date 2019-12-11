@@ -34,7 +34,8 @@ class KnowledgeEngineTest extends WordSpecLike with Matchers with BeforeAndAfter
       implicit val myRef = me.ref
       val knowledgeEngine = system.actorOf(KnowledgeEngine(gameManager, gameKnowledge))
       knowledgeEngine ! RetrieveAvailableGames()
-      me expectMsg AvailableGames(Set(BECCACCINO_GAME, BRISCOLA_GAME))
+      val message = (me receiveN 1).head
+      message.asInstanceOf[AvailableGames].games map(_._1) shouldBe Set(BECCACCINO_GAME, BRISCOLA_GAME)
     }
 
     "know if a game exists" in {
@@ -161,11 +162,11 @@ object KnowledgeEngineTest {
 
   def createGamesManager(hasToCreateAGameIfAllowed: Boolean = true): GamesManager = new GamesManager {
 
-    private val games = Set(BECCACCINO_GAME, BRISCOLA_GAME)
+    private val games = Set(BECCACCINO_GAME -> 1L, BRISCOLA_GAME -> 1L)
 
-    override def availableGames: Set[GameId] = games
+    override def availableGames: Set[(GameId, Long)] = games
 
-    override def gameExists(game: GameId): Boolean = games contains game
+    override def gameExists(game: GameId): Boolean = games exists (_._1 == game)
 
     override def createGame(name: String, rules: List[String]): Option[GameId] = if (name == ALLOWED_NAME && hasToCreateAGameIfAllowed) Some(GameId(name)) else None
   }

@@ -33,6 +33,7 @@ object View {
   case class ShowChosenBriscola(seed: String, number: Option[Int] = None) extends ViewMessage
   case class ShowGameCreation(rules: Set[Rule.Value], cards: Set[Card], seeds: Set[String]) extends ViewMessage
   case class ShowNotValidRules(rules: Set[Rule.Value]) extends ViewMessage
+  case class ShowAvailableGames(games: Set[(GameId, Long)]) extends ViewMessage
 
   private[this] val HAND_WON_FINAL = "taken all the cards in the field!"
 
@@ -44,6 +45,7 @@ object View {
   val LOBBY_CREATION_TITLE: String = "LOBBY CREATION - Choose the game you want to play"
   val LOBBY_LIST_TITLE: String = "LOBBY LIST - Choose the lobby you want to join"
   val MATCH_RESULTS_TITLE: String = "MATCH RESULTS"
+  val GAMES_TITLE: String = "AVAILABLE GAMES - These are all the available games on the platform"
   val EXIT: String = "exit"
   val DEFAULT_LOBBIES_MESSAGE = "<< Currently there are no available lobbies >>"
   val LOBBY_MESSAGE: String = "If you want to exit from the lobby, write " concat EXIT

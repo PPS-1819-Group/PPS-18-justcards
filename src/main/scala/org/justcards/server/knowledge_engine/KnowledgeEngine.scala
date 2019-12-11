@@ -1,6 +1,7 @@
 package org.justcards.server.knowledge_engine
 
 import java.io.{File, PrintWriter}
+import java.util.Calendar
 
 import akka.actor.{Actor, Props}
 import org.justcards.commons._
@@ -80,7 +81,7 @@ object KnowledgeEngine {
 }
 
 trait GamesManager {
-  def availableGames: Set[GameId]
+  def availableGames: Set[(GameId, Long)]
   def gameExists(game: GameId): Boolean
   def createGame(name: String, rules: List[String]): Option[GameId]
 }
@@ -92,11 +93,11 @@ object GamesManager {
 
     private[this] val GAMES_PATH = GameKnowledge.GAMES_PATH
 
-    private val games: Set[GameId] = readGames()
+    private var games: Set[(GameId, Long)] = readGames()
 
-    override def availableGames: Set[GameId] = games
+    override def availableGames: Set[(GameId, Long)] = games
 
-    override def gameExists(game: GameId): Boolean = games contains game
+    override def gameExists(game: GameId): Boolean = games exists (_._1 == game)
 
     override def createGame(name: String, rules: List[String]): Option[GameId] =
       try {
@@ -104,21 +105,22 @@ object GamesManager {
         val bw = new PrintWriter(newGame)
         rules foreach bw.println
         bw.close()
+        games = games + (GameId(name) -> Calendar.getInstance().getTimeInMillis)
         Some(GameId(name))
       } catch {
         case _: Exception => None
       }
 
-    private def readGames(): Set[GameId] = {
+    private def readGames(): Set[(GameId, Long)] = {
       val gameDirectory = new File(GAMES_PATH)
       gameDirectory.listFiles.toSet
         .filter(!_.isDirectory)
-        .map(_.getName.split('.')(0))
-        .map(name => {
-          val firstChar = name.charAt(0).toString
-          name.replaceFirst(firstChar, firstChar.toUpperCase)
+        .map(file => file.getName.split('.')(0) -> file.lastModified)
+        .map(tuple => {
+          val firstChar = tuple._1.charAt(0).toString
+          tuple._1.replaceFirst(firstChar, firstChar.toUpperCase) -> tuple._2
         })
-        .map(GameId)
+        .map(tuple => GameId(tuple._1) -> tuple._2)
     }
    }
 }

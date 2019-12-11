@@ -73,9 +73,9 @@ class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfter
 
       "inform the user about the available games when received" in {
         val (appController, testProbe) = retrieveAvailableGames
-        val games = Set(game)
+        val games = Set(game -> 1L)
         appController ! AvailableGames(games)
-        testProbe expectMsg ShowLobbyCreation(games)
+        testProbe expectMsg ShowLobbyCreation(games map (_._1))
       }
 
       "send a message to the connection manager to create a lobby, when the user ask for it" in {

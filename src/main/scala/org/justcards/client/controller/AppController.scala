@@ -87,14 +87,15 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
           context >>> waitForLobbyJoined
         }
       case CREATE_GAME => context toGameCreation
+      case SHOW_GAMES =>
+        connectionManagerActor ! RetrieveAvailableGames()
+        context >>> showGames
       case _ => viewActor ! ShowError(SELECTION_NOT_AVAILABLE)
     }
   }
 
   private def gameCreation(correctRules: Map[Rule.Value, Any] = Map()): Receive = {
-    case CanGoBackToMenu =>
-      sender() ! GoBackToMenu(true)
-      context >>> logged
+    case CanGoBackToMenu => context returnToLogged()
     case AppControllerCreateGame(name,_) if name.isBlank =>
       viewActor ! ShowError(GAME_EMPTY_NAME)
     case AppControllerCreateGame(_,rules) if !(Rule.mandatoryRules subsetOf (rules ++ correctRules).keySet) =>
@@ -138,10 +139,8 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   } keySet
 
   private def lobbyCreation: Receive = {
-    case CanGoBackToMenu =>
-      sender() ! GoBackToMenu(true)
-      context >>> logged
-    case AvailableGames(games) => viewActor ! ShowLobbyCreation(games)
+    case CanGoBackToMenu => context returnToLogged()
+    case AvailableGames(games) => viewActor ! ShowLobbyCreation(games map (_._1))
     case AppControllerCreateLobby(game) =>
       connectionManagerActor ! CreateLobby(game)
       context >>> {
@@ -152,9 +151,7 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
   }
 
   private def searchForLobby: Receive = {
-    case CanGoBackToMenu =>
-      sender() ! GoBackToMenu(true)
-      context >>> logged
+    case CanGoBackToMenu => context returnToLogged()
     case AvailableLobbies(lobbies) =>
       viewActor ! ShowLobbies(lobbies)
     case AppControllerJoinLobby(lobby) =>
@@ -229,6 +226,11 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
     case Timeout => context timeout()
   }
 
+  private def showGames: Receive = {
+    case CanGoBackToMenu => context returnToLogged()
+    case AvailableGames(games) => viewActor ! ShowAvailableGames(games)
+  }
+
   private def default: Receive = {
     case CanGoBackToMenu => sender() ! GoBackToMenu(false)
     case ErrorOccurred(message) =>
@@ -275,6 +277,11 @@ private[this] class AppControllerActor(connectionManager: ConnectionManager, vie
       context >>> inGame
       viewActor ! ShowTimeForMoveExceeded
       connectionManagerActor ! TimeoutExceeded()
+    }
+
+    def returnToLogged(): Unit = {
+      sender() ! GoBackToMenu(true)
+      context >>> logged
     }
 
     def toLogged: Receive = {

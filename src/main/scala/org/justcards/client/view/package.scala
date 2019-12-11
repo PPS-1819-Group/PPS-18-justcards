@@ -14,6 +14,7 @@ package object view {
     val LIST_LOBBY_WITH_FILTERS: Value = Value(3, "Search lobbies by filter")
     val JOIN_LOBBY_BY_ID: Value = Value(4, "Join lobby")
     val CREATE_GAME: Value = Value(5, "Create a new game")
+    val SHOW_GAMES: Value = Value(6, "Show all the available games")
   }
 
   object FilterChoice extends Enumeration {

@@ -9,10 +9,11 @@ import org.justcards.server.Commons
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.Commons.UserInfo
-import org.justcards.server.knowledge_engine.KnowledgeEngine.{GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
+import org.justcards.server.knowledge_engine.KnowledgeEngine._
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.justcards.server.session_manager.SessionCreator.CreateSession
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
+import org.justcards.server.user_manager.Utils.doLogIn
 
 import scala.util.Random
 
@@ -272,12 +273,6 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
 
     }
 
-  }
-
-  private def doLogIn(userManager: ActorRef, username: String)(implicit me: TestProbe): Unit = {
-    implicit val myRef = me.ref
-    userManager ! LogIn(username)
-    me receiveN 1
   }
 
   private def createJoinerAndLogIn(userManager: ActorRef, username: String)(implicit me: TestProbe): ActorRef = {
