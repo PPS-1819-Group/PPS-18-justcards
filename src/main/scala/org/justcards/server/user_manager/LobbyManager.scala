@@ -56,7 +56,7 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
           val newLobby = addUserToLobby(lobby, userInfo)
           if (newLobby isFull) {
             context become defaultBehaviour(lobbies - lobby)
-            sender() ! FullLobby(lobby)
+            sender() ! FullLobby(newLobby)
           } else context become defaultBehaviour(lobbies + newLobby)
         }
       }
