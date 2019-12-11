@@ -1,10 +1,10 @@
 package org.justcards.commons.games_rules.converter
 
-import org.justcards.commons.games_rules.Rule
+import org.justcards.commons.games_rules.{GameRules, GameRulesSettings, Rule}
 
 trait GameRulesConverter {
-  def serialize(rules: Map[Rule.Value,Any]): Map[String,String]
-  def deserialize(rules: Map[String,String]): Map[Rule.Value,Any]
+  def serialize(rules: GameRules): GameRulesSettings
+  def deserialize(rules: GameRulesSettings): GameRules
 }
 
 object GameRulesConverter {

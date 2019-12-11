@@ -2,7 +2,8 @@ package org.justcards.commons.games_rules.knowledge
 
 import alice.tuprolog.Prolog
 import org.justcards.commons.Card
-import org.justcards.commons.games_rules.PointsConversion._
+import org.justcards.commons.games_rules.PointsConversion
+import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
 class PrologRuleKnowledge(private val knowledge: Prolog) extends RuleKnowledge {

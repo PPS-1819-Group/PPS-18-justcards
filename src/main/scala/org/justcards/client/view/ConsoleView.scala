@@ -10,8 +10,8 @@ import MenuChoice._
 import FilterChoice._
 import org.justcards.commons._
 import org.justcards.commons.AppError._
-import org.justcards.commons.games_rules.{PointsConversion, Rule}
-import org.justcards.commons.games_rules.PointsConversion._
+import org.justcards.commons.games_rules.{PointsConversion, PointsConversionType, Rule}
+import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.commons.games_rules.Rule._
 import org.justcards.server.Commons.BriscolaSetting
 import org.justcards.server.Commons.BriscolaSetting._
@@ -231,7 +231,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
             }
           }
         case POINTS_OBTAINED_IN_A_MATCH =>
-          val pointsList = (PointsConversion.values - EXACTLY).toList
+          val pointsList = (PointsConversionType.values - EXACTLY).toList
           askPointConversion(POINTS_OBTAINED_MESSAGE, pointsList)
           context >>> pointsConversion(
             POINTS_OBTAINED_IN_A_MATCH,
@@ -290,16 +290,16 @@ class ConsoleView(controller: ActorRef) extends Actor {
       else askToUser(WRONG_PATTERN)
   }
 
-  private def pointsConversion(rule: Rule.Value, points: List[PointsConversion.Value] = PointsConversion.values.toList)
+  private def pointsConversion(rule: Rule.Value, points: List[PointsConversionType] = PointsConversionType.values.toList)
                               (onComplete: ((Rule.Value, PointsConversion)) => Unit)(onError: => Unit): Receive = {
     case NewUserCommand(choice) => parseToNumberAnd(choice, points.size)(num =>
       points(num - 1) match {
-        case MATCH_POINTS => onComplete((rule, MATCH_POINTS))
+        case MATCH_POINTS => onComplete((rule, PointsConversion(MATCH_POINTS)))
         case option =>
           askToUser(VALUE_CHOICE)
           context >>> {
             case NewUserCommand(value) => value.toOptionInt match {
-              case Some(v) => onComplete((rule,option.value(v)))
+              case Some(v) => onComplete((rule,PointsConversion(option,v)))
               case _ => askToUser(WRONG_VALUE)
             }
           }
@@ -406,7 +406,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
     askToUser(CARD_INSERT_MESSAGE)
   }
 
-  private def askPointConversion(msg: String, list: List[PointsConversion.Value] = PointsConversion.values.toList): Unit = {
+  private def askPointConversion(msg: String, list: List[PointsConversionType] = PointsConversionType.values.toList): Unit = {
     println(msg)
     printNumberAndOption(list)(printPoints)
     askToUser("")
@@ -636,7 +636,7 @@ object ConsoleView {
   private val GAME_CREATED_MESSAGE = "Your game has been successfully created!!!"
   private val ERROR_RULES = "Some of the rules you've created are wrong, change them!"
 
-  def printPoints(points: PointsConversion.Value): String = points match {
+  def printPoints(points: PointsConversionType): String = points match {
     case EXACTLY => "The amount of points that you indicate"
     case DIVIDE => "The amount of points obtained in the match divided by a value that you indicate"
     case MATCH_POINTS => "The amount of points obtained in the match"
