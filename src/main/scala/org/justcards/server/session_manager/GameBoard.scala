@@ -22,6 +22,12 @@ trait GameBoard {
 
   /**
    * Getter
+   * @return deck of match
+   */
+  def deck: List[Card]
+
+  /**
+   * Getter
    * @return turn order of all player
    */
   def turn: List[String]
@@ -94,30 +100,27 @@ object GameBoard {
   def apply(gameKnowledge: GameKnowledge, team1: List[String], team2: List[String], firstPlayer: Option[UserInfo]): GameBoard = {
     import ListWithShift._
     val initialConfiguration = gameKnowledge.initialConfiguration//hand, draw, field
-    var deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
+    val deck: List[Card] = Random.shuffle (gameKnowledge.deckCards toList)
     val turn: List[String] = team1.zipAll(team2, null, null)
       .flatMap {
         case (a, null) => Seq(a)
         case (null, b) => Seq(b)
         case (a, b) => Seq(a, b)
       }
-    val players: Map[String, PlayerCards] = turn.map( a => {
-      val player = (a , PlayerCards(deck take initialConfiguration._1 toSet, Set()))
-      deck = deck drop initialConfiguration._1
-      player
-    }).toMap
+    val (newDeck, playerCards) = drawCards(initialConfiguration._1, deck, turn.map((_,PlayerCards(Set(),Set()))).toMap, turn)
     val handTurn: List[String] = if (firstPlayer isEmpty) {
-      val first = gameKnowledge.sessionStarterPlayer(players.map(x => (UserInfo(x._1, null), x._2.hand)).toSet)
+      val first = gameKnowledge.sessionStarterPlayer(playerCards.map(x => (UserInfo(x._1, null), x._2.hand)).toSet)
       if (first isDefined)
         (turn shiftTo first.get.username) get
       else
         turn
     } else (turn shiftTo firstPlayer.get.username) get
 
+    val (drawCards2, deckRemaining) = newDeck splitAt initialConfiguration._3
     GameBoardImpl(
-      deck take initialConfiguration._3 map(a=>(a,handTurn.head)),
-      players,
-      deck drop initialConfiguration._3,
+      drawCards2 map(a=>(a,handTurn.head)),
+      playerCards,
+      deckRemaining,
       handTurn,
       turn,
       initialConfiguration._2)
@@ -155,17 +158,13 @@ object GameBoard {
     override def tookCardsOf(player: String): Set[Card] = playerCards(player).took
 
     override def draw: Option[GameBoard] = {
-      if (deck isEmpty) None
+      if (deck.isEmpty || nCardsDraw == 0) None
       else {
-        var tmpDeck: List[Card] = deck
-        Some(this(
+        val (newDeck, newPlayerCards) = drawCards(nCardsDraw, deck, playerCards, turn)
+        Some(this (
           fieldCards,
-          playerCards.mapValues( cards => {
-            val result = PlayerCards(cards.hand ++ tmpDeck.take(nCardsDraw), cards.took)
-            tmpDeck = tmpDeck drop nCardsDraw
-            result
-          }),
-          tmpDeck,
+          newPlayerCards,
+          newDeck,
           handTurn
         ))
       }
@@ -194,6 +193,17 @@ object GameBoard {
         turn.shiftTo(winner).get
       )
 
+  }
+
+  private def drawCards(nCard: Int, deck: List[Card], playerCards: Map[String, PlayerCards], turn: List[String]): (List[Card], Map[String, PlayerCards]) = {
+    val (drawCards, newDeck) = deck splitAt (nCard * 4)
+    val splitDraw: List[List[Card]] = drawCards.sliding(nCard, nCard).toList
+    val newPlayerCards: Map[String, PlayerCards] = (for(
+      index <- turn.indices;
+      username = turn(index);
+      user = playerCards(username)
+    ) yield username -> PlayerCards(user.hand ++ splitDraw(index), user.took)).toMap
+    (newDeck, newPlayerCards)
   }
 
 }
