@@ -83,7 +83,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
         val sessionManager = system.actorOf(SessionManager(lobby, gameKnowledge))
         me receiveN 9
         me send(sessionManager, Briscola(SEED))
-        expectBroadcast(CorrectBriscola(SEED))
+        expectBroadcastClass(classOf[CorrectBriscola])
       }
 
       "communicate that chosen briscola is not valid" in {
@@ -407,6 +407,7 @@ class SessionManagerTest extends WordSpecLike with Matchers with BeforeAndAfterA
   }
 
   private def expectBroadcast(msg: AppMessage)(implicit me: TestProbe) = me expectMsgAllOf(msg,msg,msg,msg)
+  private def expectBroadcastClass[X](msg: Class[X])(implicit me: TestProbe) = me expectMsgAllClassOf(msg,msg,msg,msg)
 
 }
 
