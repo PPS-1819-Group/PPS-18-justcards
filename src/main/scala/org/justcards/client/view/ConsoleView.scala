@@ -278,7 +278,10 @@ class ConsoleView(controller: ActorRef) extends Actor {
           case (Some(number),Some(points),Some(hierarchy)) =>
             val newCardsSettings = cardSettings + (number -> (points, hierarchy))
             if (remainingCards == 1) {
-              val cardsHierarchyAndPoints = newCardsSettings.map(x => (x._1,x._2._1,x._2._2)).toList.sortBy(_._3).map(x => (x._1,x._2))
+              val cardsHierarchyAndPoints =
+                newCardsSettings.map(x => (x._1,x._2._1,x._2._2)).toList.sortWith { (card1, card2) =>
+                  card1._3 > card2._3
+                }.map(x => (x._1,x._2))
               println(CARDS_ADDED)
               onComplete((Rule.CARDS_HIERARCHY_AND_POINTS, cardsHierarchyAndPoints))
             } else {
@@ -403,7 +406,7 @@ class ConsoleView(controller: ActorRef) extends Actor {
 
   private def askCardsHierarchyAndPoints(cards: (Int, Int)): Unit = {
     println(CARD_NUMBER_RANGE + ((cards._1 to cards._2) mkString " | "))
-    askToUser(CARD_INSERT_MESSAGE)
+    askToUser(CARD_INSERT_MESSAGE(cards._1, cards._2))
   }
 
   private def askPointConversion(msg: String, list: List[PointsConversionType] = PointsConversionType.values.toList): Unit = {
@@ -610,8 +613,9 @@ object ConsoleView {
   private val WRONG_CARD = "This card doesn't exist, try again"
   private val NEXT_CARD = "Next card"
   private val CARDS_ADDED = "All cards added!"
-  private val CARD_INSERT_MESSAGE = "Insert for each card in the previous range its number, its value" +
-    " and its position in the hierarchy in the form of \n number|value|hierarchy"
+  private val CARD_INSERT_MESSAGE = (min: Int, max:Int) => "Insert for each card in the previous range its number, its value" +
+    " and its position in the hierarchy in the form of \n number|value|hierarchy where " + min +
+    " is the highest value of hierarchy and " + max + " is the lowest"
   private val CARD_DISTRIBUTION_MESSAGE = "Insert how many cards each player has to have when the game starts," +
     " how many cards you can draw after each hand turn and how many cards will be on the field in the form of \n" +
     "handCards|drawCards|fieldCards"
