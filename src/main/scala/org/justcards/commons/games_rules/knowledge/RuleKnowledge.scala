@@ -1,8 +1,8 @@
 package org.justcards.commons.games_rules.knowledge
 
 import org.justcards.commons.Card
+import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
 import org.justcards.commons.games_rules.PointsConversion
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
 trait RuleKnowledge {
   def cardsDistribution(cardsInHand: Int, cardsToDrawPerTurn: Int, cardsOnField: Int): Boolean
@@ -21,5 +21,5 @@ trait RuleKnowledge {
 
 object RuleKnowledge {
   def apply(): RuleKnowledge = PrologRuleKnowledge()
-  val RULES_PATH: String = "src/main/resources/org/justcards/rules/"
+  val RULES_PATH: String = "/org/justcards/rules/"
 }

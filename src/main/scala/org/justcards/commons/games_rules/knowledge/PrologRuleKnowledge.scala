@@ -4,7 +4,7 @@ import alice.tuprolog.Prolog
 import org.justcards.commons.Card
 import org.justcards.commons.games_rules.PointsConversion
 import org.justcards.commons.games_rules.PointsConversionType._
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
 
 class PrologRuleKnowledge(private val knowledge: Prolog) extends RuleKnowledge {
 
@@ -71,5 +71,5 @@ object PrologRuleKnowledge {
 
   private[this] val editableRules = "editableRules.pl"
 
-  def apply(): PrologRuleKnowledge = new PrologRuleKnowledge(prolog(RULES_PATH + editableRules))
+  def apply(): PrologRuleKnowledge = new PrologRuleKnowledge(prolog(getClass.getResourceAsStream(RULES_PATH + editableRules)))
 }

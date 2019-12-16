@@ -128,7 +128,7 @@ object User {
     context.watch(userRef)
 
     override def errorBehaviour(username: String): Receive = {
-      case Terminated(`userRef`) =>
+      case Terminated(_) =>
         log.debug(CONNECTION_CLOSED)
         if (!username.isEmpty) self ! Outer(LogOut(username))
         else context stop self

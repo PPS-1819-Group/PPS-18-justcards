@@ -1,9 +1,11 @@
 package org.justcards.server.knowledge_engine.game_knowledge
 
+import java.io.FileInputStream
+
 import alice.tuprolog.{Prolog, Term, Var}
 import org.justcards.commons.{Card, GameId}
 import org.justcards.server.Commons.{Team, UserInfo}
-import org.justcards.server.Commons.BriscolaSetting._
+import org.justcards.commons.games_rules.BriscolaSetting._
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge._
 
@@ -30,7 +32,6 @@ class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
   private val totalPoints = "totalPoints"
   private val sessionWinner = "sessionWinner"
   private val sessionStarter = "sessionStarterPlayer"
-  private val variableStart = "VAR"
   private val knowledge: Prolog = createKnowledge(game)
 
   override def initialConfiguration: (CardsNumber, CardsNumber, CardsNumber) = {
@@ -162,7 +163,8 @@ object PrologGameKnowledge {
 
   def apply(): GameKnowledgeFactory = (game: GameId) => new PrologGameKnowledge(game)
 
-  private def createKnowledge(game: GameId): Prolog =
-    prolog(COMMON_RULES_PATH,GAMES_PATH concat game.name.toLowerCase concat ".pl")
-
+  private def createKnowledge(game: GameId): Prolog = prolog(
+    getClass.getResourceAsStream(COMMON_RULES),
+    new FileInputStream(GAMES_PATH concat game.name.toLowerCase concat ".pl")
+  )
 }

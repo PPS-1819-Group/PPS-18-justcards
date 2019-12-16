@@ -1,7 +1,8 @@
 package org.justcards.server.knowledge_engine.game_knowledge
 
 import org.justcards.commons.{Card, GameId}
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
+import org.justcards.commons.games_rules.knowledge.RuleKnowledge
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.Commons.UserInfo
 
@@ -99,7 +100,6 @@ object GameKnowledge {
 
   def apply(): GameKnowledgeFactory = PrologGameKnowledge()
 
-  private[this] val COMMON_PATH: String = "src/main/resources/org/justcards/rules/"
-  val COMMON_RULES_PATH: String = COMMON_PATH concat "commonRules.pl"
-  val GAMES_PATH: String = COMMON_PATH + "games/"
+  val COMMON_RULES: String = RuleKnowledge.RULES_PATH concat "commonRules.pl"
+  val GAMES_PATH: String = "games/"
 }

@@ -10,11 +10,10 @@ import MenuChoice._
 import FilterChoice._
 import org.justcards.commons._
 import org.justcards.commons.AppError._
-import org.justcards.commons.games_rules.{PointsConversion, PointsConversionType, Rule}
+import org.justcards.commons.games_rules.{BriscolaSetting, PointsConversion, PointsConversionType, Rule}
 import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.commons.games_rules.Rule._
-import org.justcards.server.Commons.BriscolaSetting
-import org.justcards.server.Commons.BriscolaSetting._
+import org.justcards.commons.games_rules.BriscolaSetting._
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}

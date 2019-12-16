@@ -3,7 +3,6 @@ package org.justcards.commons.games_rules
 import org.justcards.commons.Card
 import org.justcards.commons.games_rules.PointsConversionType.PointsConversionType
 import org.justcards.commons.games_rules.knowledge.RuleKnowledge
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
 object PointsConversionType extends Enumeration {
   type PointsConversionType = Value
@@ -12,7 +11,14 @@ object PointsConversionType extends Enumeration {
 
 case class PointsConversion(typology: PointsConversionType, value: Int = 0)
 
+object BriscolaSetting extends Enumeration {
+  type BriscolaSetting = Value
+  val USER, SYSTEM, NOT_BRISCOLA = Value
+}
+
 object Rule extends Enumeration {
+
+  import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
 
   private val rulesKnowledge = RuleKnowledge()
 

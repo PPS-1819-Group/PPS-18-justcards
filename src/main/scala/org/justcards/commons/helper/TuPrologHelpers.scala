@@ -1,6 +1,6 @@
 package org.justcards.commons.helper
 
-import java.io.FileInputStream
+import java.io.{FileInputStream, InputStream}
 
 import alice.tuprolog.{Prolog, Struct, Term, Theory, Var}
 import org.justcards.commons.Card
@@ -15,9 +15,15 @@ object TuPrologHelpers {
   implicit def fromVarToString(variable: Var): String = variable getName
   implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = PrologStruct(traversable toArray)
 
-  def prolog(files: String*): Prolog = {
+  /*def prolog(files: String*): Prolog = {
     val engine = new Prolog()
     files foreach {f => engine addTheory PrologTheory(f)}
+    engine
+  }*/
+
+  def prolog(theories: InputStream*): Prolog = {
+    val engine = new Prolog()
+    theories foreach { f => engine addTheory PrologTheory(f)}
     engine
   }
 
@@ -117,6 +123,7 @@ object TuPrologHelpers {
   object PrologTheory {
     def apply(clauses: Term*): Theory = new Theory(clauses.foldRight(PrologStruct())((i,acc) => PrologStruct(i,acc)))
     def apply(path: String): Theory = new Theory(new FileInputStream(path))
+    def apply(inputStream: InputStream): Theory = new Theory(inputStream)
   }
 
   object PrologTuple {

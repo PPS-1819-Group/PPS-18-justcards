@@ -8,7 +8,9 @@ import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.commons.GameId
 import org.justcards.commons.games_rules.{GameRules, PointsConversion, Rule}
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
+import org.justcards.server.Commons.exportGames
+import org.justcards.server.knowledge_engine.GamesManager.DefaultGame
 import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
 import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 
@@ -88,7 +90,9 @@ trait GamesManager {
 object GamesManager {
   def apply(): GamesManager = new FileGamesManager()
 
-   private[this] class FileGamesManager extends GamesManager {
+  private[this] class FileGamesManager extends GamesManager {
+
+    exportGames(DefaultGame.values.toSeq: _*)
 
     private[this] val GAMES_PATH = GameKnowledge.GAMES_PATH
 
@@ -111,13 +115,22 @@ object GamesManager {
         case _: Exception => None
       }
 
-    private def readGames(): Set[(GameId, Long)] = {
-      val gameDirectory = new File(GAMES_PATH)
-      gameDirectory.listFiles.toSet
-        .filter(!_.isDirectory)
-        .map(file => file.getName.split('.')(0) -> file.lastModified)
-        .map(tuple => tuple._1.firstLetterUppercase -> tuple._2)
-        .map(tuple => GameId(tuple._1) -> tuple._2)
-    }
-   }
+    private def readGames(): Set[(GameId, Long)] =
+      try {
+        val gameDirectory = new File(GAMES_PATH)
+        gameDirectory.listFiles.toSet
+          .filter(_.isFile)
+          .map(file => file.getName.split('.')(0) -> file.lastModified)
+          .map(tuple => tuple._1.firstLetterUppercase -> tuple._2)
+          .map(tuple => GameId(tuple._1) -> tuple._2)
+      } catch {
+        case _: Exception => Set()
+      }
+  }
+
+  object DefaultGame extends Enumeration {
+    type DefaultGame = Value
+    val BECCACCINO = Value("beccaccino")
+    val BRISCOLA = Value("briscola")
+  }
 }

@@ -15,10 +15,10 @@ import org.justcards.client.view.View._
 import org.justcards.client.view.MenuChoice._
 import org.justcards.client.view.FilterChoice._
 import org.justcards.client.view.OptionConnectionFailed._
+import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
 import org.justcards.commons.games_rules.{PointsConversion, Rule}
 import org.justcards.commons.games_rules.Rule._
 import org.justcards.commons.games_rules.converter.GameRulesConverter
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 
 object AppController {
 

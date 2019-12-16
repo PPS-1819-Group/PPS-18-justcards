@@ -3,9 +3,10 @@ package org.justcards.server.session_manager
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import org.justcards.commons._
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting
 import org.justcards.server.Commons.Team._
-import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
+import org.justcards.server.Commons.{Team, UserInfo}
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.justcards.server.session_manager.SessionManager.LogOutAndExitFromGame
 import org.justcards.server.user_manager.Lobby

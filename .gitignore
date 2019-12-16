@@ -252,5 +252,6 @@ gradle-app.setting
 # Start JustCards exclusions
 
 .directory
+games/
 
 # End JustCards exlusions

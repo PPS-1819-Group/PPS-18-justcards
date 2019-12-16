@@ -6,7 +6,7 @@ import akka.testkit.TestProbe
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.server.Commons
-import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.knowledge_engine.KnowledgeEngine._

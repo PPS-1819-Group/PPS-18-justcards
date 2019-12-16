@@ -3,8 +3,8 @@ import alice.tuprolog.{Struct, Term}
 import org.justcards.commons.games_rules.{GameRules, GameRulesSettings, PointsConversion, PointsConversionType, Rule}
 import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.commons.Card
-import org.justcards.server.Commons.BriscolaSetting
-import org.justcards.server.Commons.BriscolaSetting._
+import org.justcards.commons.games_rules.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting._
 
 class PrologGameRulesConverter extends GameRulesConverter {
 

@@ -4,7 +4,7 @@ import alice.tuprolog.{Prolog, Term}
 import org.justcards.commons.Card
 import org.justcards.commons.games_rules.PointsConversionType.{DIVIDE, EXACTLY, MATCH_POINTS}
 import org.justcards.commons.games_rules.{GameRules, PointsConversion}
-import org.justcards.server.Commons.BriscolaSetting.{BriscolaSetting, NOT_BRISCOLA, SYSTEM, USER}
+import org.justcards.commons.games_rules.BriscolaSetting.{BriscolaSetting, NOT_BRISCOLA, SYSTEM, USER}
 
 class PrologRuleCreator extends RuleCreator {
 

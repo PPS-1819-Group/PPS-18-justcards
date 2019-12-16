@@ -1,10 +1,14 @@
 package org.justcards.server.knowledge_engine.game_knowledge
 
 import org.justcards.commons.{Card, GameId}
-import org.justcards.server.Commons.{BriscolaSetting, Team, UserInfo}
+import org.justcards.server.Commons.{Team, UserInfo, exportGames}
+import org.justcards.commons.games_rules.BriscolaSetting
+import org.justcards.server.knowledge_engine.GamesManager.DefaultGame.BECCACCINO
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class GameKnowledgeTest extends WordSpecLike with Matchers with BeforeAndAfterAll {
+
+  exportGames(BECCACCINO)
 
   private val gameName = "beccaccino"
   private val bastoni = "bastoni"

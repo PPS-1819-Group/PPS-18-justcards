@@ -15,7 +15,7 @@ import org.justcards.commons._
 import org.justcards.commons.games_rules.{PointsConversion, Rule}
 import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.commons.games_rules.Rule._
-import org.justcards.server.Commons.BriscolaSetting
+import org.justcards.commons.games_rules.BriscolaSetting
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class AppControllerTest() extends WordSpecLike with Matchers with BeforeAndAfterAll {
