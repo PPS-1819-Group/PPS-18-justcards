@@ -9,17 +9,32 @@ import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConne
 import org.justcards.commons.{AppError, AppMessage, ErrorOccurred}
 import org.justcards.commons.actor_connection.{ActorWithConnection, Outer}
 
-trait ConnectionManager extends (ActorRef => Props)
-
 object ConnectionManager {
+  /**
+   * Factory to create a ConnectionManager given reference of an AppController.
+   */
+  type ConnectionManagerFactory = ActorRef => Props
   case object InitializeConnection
   case object TerminateConnection
   case object Connected
   case class DetailedErrorOccurred(error: AppError.Value, message: AppMessage)
 
-  def apply(host: String, port: Int): ConnectionManager = ConnectionManager(host, port, REMOTES)
+  /**
+   * Create a ConnectionManagerFactory.
+   * @param host the server hostname
+   * @param port the server port
+   * @return a ConnectionManagerFactory
+   */
+  def apply(host: String, port: Int): ConnectionManagerFactory = ConnectionManager(host, port, REMOTES)
 
-  def apply(host: String, port: Int, mode: ActorWithConnectionOptions): ConnectionManager =
+  /**
+   * Create a ConnectionManagerFactory.
+   * @param host the server hostname
+   * @param port the server port
+   * @param mode the connection technology to be used
+   * @return a ConnectionManagerFactory
+   */
+  def apply(host: String, port: Int, mode: ActorWithConnectionOptions): ConnectionManagerFactory =
     mode match {
       case TCP => TcpConnectionManager(host, port)
       case REMOTES => RemoteConnectionManager(host, port)
@@ -27,12 +42,25 @@ object ConnectionManager {
 
 }
 
+/**
+ * Partial implementation of a ConnectionManager that encapsulate all the logic.
+ * @param appController the AppController actor reference
+ */
 abstract class AbstractConnectionManager(appController: ActorRef) extends ActorWithConnection with Actor with Stash {
 
-  override def init: Receive = parse orElse waitForInit
+  override final def init: Receive = waitForInit
 
+  /**
+   * The behaviour to initialize a connection and get connected.
+   * @return the behaviour to initialize a connection
+   */
   protected def initConnection: Receive
 
+  /**
+   * The behaviour to handle connection errors due to the specific implementation.
+   * @param server the server whose the connection is established
+   * @return the behaviour to handle connection errors
+   */
   protected def connectionErrorHandling(server: ActorRef): Receive
 
   private def waitForInit: Receive = {
@@ -51,17 +79,33 @@ abstract class AbstractConnectionManager(appController: ActorRef) extends ActorW
     case _ => stash()
   }
 
+  /**
+   * Procedure to start the connection process.
+   */
   protected def initializeConnection(): Unit
 
+  /**
+   * Procedure to terminate the connection with the server.
+   * @param server the server whose the connection is established
+   */
   protected def terminateConnection(server: ActorRef): Unit
 
-  protected def connected(server: ActorRef): Unit = {
+  /**
+   * Procedure to call once the connection is established.
+   * @param server the server whose the connection is established
+   */
+  protected final def connected(server: ActorRef): Unit = {
     unstashAll()
     this become (work(server) orElse connectionErrorHandling(server) orElse stashUnhandled)
     appController ! Connected
   }
 
-  protected def error(message: AppError.Value, data: AppMessage*): Unit = message match {
+  /**
+   * Notify an error occurred.
+   * @param message the error
+   * @param data messages that caused that error
+   */
+  protected final def error(message: AppError.Value, data: AppMessage*): Unit = message match {
     case CONNECTION_LOST =>
       unstashAll()
       initializeConnection()

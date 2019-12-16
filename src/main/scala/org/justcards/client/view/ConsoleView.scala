@@ -8,6 +8,7 @@ import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import org.justcards.client.controller.AppController._
 import MenuChoice._
 import FilterChoice._
+import org.justcards.client.view.View.ViewFactory
 import org.justcards.commons._
 import org.justcards.commons.AppError._
 import org.justcards.commons.games_rules.{BriscolaSetting, PointsConversion, PointsConversionType, Rule}
@@ -581,9 +582,12 @@ class ConsoleView(controller: ActorRef) extends Actor {
 
 }
 
+/**
+ * A View using a Console.
+ */
 object ConsoleView {
 
-  def apply(): View = controller => Props(classOf[ConsoleView], controller)
+  def apply(): ViewFactory = controller => Props(classOf[ConsoleView], controller)
 
   private val BACK = "back"
   private val NUMBER_CHOICE = "Insert number of your choice or \"" concat BACK concat "\" to return to the menu:"
@@ -651,7 +655,6 @@ object ConsoleView {
     case NOT_BRISCOLA => "Briscola is not present"
   }
 
-  //my messages
   private case class NewUserCommand(command: String)
 
   private def clearAndPrint(message: String = ""): Unit = {

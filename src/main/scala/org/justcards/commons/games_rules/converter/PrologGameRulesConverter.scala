@@ -6,6 +6,9 @@ import org.justcards.commons.Card
 import org.justcards.commons.games_rules.BriscolaSetting
 import org.justcards.commons.games_rules.BriscolaSetting._
 
+/**
+ * A GameRulesConverter using Prolog.
+ */
 class PrologGameRulesConverter extends GameRulesConverter {
 
   import org.justcards.commons.games_rules.Rule._

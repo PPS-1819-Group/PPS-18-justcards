@@ -8,9 +8,7 @@ import scala.concurrent.duration._
 import scala.reflect.ClassTag
 import org.justcards.commons._
 import org.justcards.commons.AppError._
-import org.justcards.client.connection_manager.ConnectionManager
-import org.justcards.client.connection_manager.ConnectionManager.{Connected, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
-import org.justcards.client.view.View
+import org.justcards.client.connection_manager.ConnectionManager.{Connected, ConnectionManagerFactory, DetailedErrorOccurred, InitializeConnection, TerminateConnection}
 import org.justcards.client.view.View._
 import org.justcards.client.view.MenuChoice._
 import org.justcards.client.view.FilterChoice._
@@ -20,9 +18,18 @@ import org.justcards.commons.games_rules.{PointsConversion, Rule}
 import org.justcards.commons.games_rules.Rule._
 import org.justcards.commons.games_rules.converter.GameRulesConverter
 
+/**
+ * An AppController that encapsulate the client application logic.
+ */
 object AppController {
 
-  def apply(connectionManager: ConnectionManager, view: View) =
+  /**
+   * Create an AppController.
+   * @param connectionManager the ConnectionManagerFactory
+   * @param view the ViewFactory
+   * @return
+   */
+  def apply(connectionManager: ConnectionManagerFactory, view: ViewFactory) =
     Props(classOf[AppControllerActor], connectionManager, view)
 
   case class ChosenUsername(username: String)
@@ -38,7 +45,7 @@ object AppController {
   case object CanGoBackToMenu
 }
 
-private[this] class AppControllerActor(connectionManager: ConnectionManager, view: View) extends Actor
+private[this] class AppControllerActor(connectionManager: ConnectionManagerFactory, view: ViewFactory) extends Actor
               with Timers with ActorLogging {
 
   import AppController._

@@ -6,6 +6,9 @@ import alice.tuprolog.{Prolog, Struct, Term, Theory, Var}
 import org.justcards.commons.Card
 import org.justcards.commons._
 
+/**
+ * Helper facilities to improve TuProlog quality.
+ */
 object TuPrologHelpers {
 
   import alice.tuprolog.SolveInfo
@@ -15,12 +18,11 @@ object TuPrologHelpers {
   implicit def fromVarToString(variable: Var): String = variable getName
   implicit def fromTraversableToPrologList(traversable: Traversable[Term]): Term = PrologStruct(traversable toArray)
 
-  /*def prolog(files: String*): Prolog = {
-    val engine = new Prolog()
-    files foreach {f => engine addTheory PrologTheory(f)}
-    engine
-  }*/
-
+  /**
+   * Create a Prolog engine with the specified theories
+   * @param theories the Prolog theories
+   * @return the Prolog engine
+   */
   def prolog(theories: InputStream*): Prolog = {
     val engine = new Prolog()
     theories foreach { f => engine addTheory PrologTheory(f)}
@@ -126,8 +128,17 @@ object TuPrologHelpers {
     def apply(inputStream: InputStream): Theory = new Theory(inputStream)
   }
 
+  /**
+   * Simple way to build tuple in TuProlog format
+   */
   object PrologTuple {
     private[this] val elementSeparator = ","
+
+    /**
+     * Factory to create a tuple with the specified elements in a Term representation
+     * @param values the elements
+     * @return the Term representation of tuple
+     */
     def apply(values: Term*): Term = Term createTerm values.map(_.toString).mkString(elementSeparator)
   }
 
@@ -135,6 +146,11 @@ object TuPrologHelpers {
     private[this] val variableName = "VAR"
     def apply(name: String): Var = new Var(name)
     def apply(): Var = PrologVar(variableName)
+    /**
+     * Create the specified amount of Prolog variables
+     * @param amount the amount of variables to create
+     * @return the created variables
+     */
     def apply(amount: Int): List[Var] =
       (for (variableNumber <- 0 until amount) yield PrologVar(variableName + variableNumber)).toList
   }
@@ -150,12 +166,23 @@ object TuPrologHelpers {
 
   object PrologOperation {
     import PrologOperator.PrologOperator
+
+    /**
+     * Binary operator for Prolog operation.
+     */
     object PrologOperator extends Enumeration {
       type PrologOperator = Value
       val DIVISION = Value(nextId,"/")
       val IS = Value(nextId,"is")
     }
 
+    /**
+     * Create a Struct representing a binary Prolog operation
+     * @param op the operator
+     * @param operand1 the first operand
+     * @param operand2 the second operand
+     * @return
+     */
     def apply(op: PrologOperator, operand1: Term, operand2: Term): Struct = PrologStruct(op.toString,operand1,operand2)
   }
 

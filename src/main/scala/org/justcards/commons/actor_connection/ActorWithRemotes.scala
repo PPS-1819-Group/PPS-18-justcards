@@ -3,6 +3,9 @@ package org.justcards.commons.actor_connection
 import akka.actor.{ActorLogging, ActorRef}
 import org.justcards.commons.{AppMessage, JsonSerializable}
 
+/**
+ * ActorWithConnection that works with Akka Remotes.
+ */
 trait ActorWithRemotes extends ActorWithConnection with ActorLogging {
 
   import ActorWithRemotes._
@@ -20,7 +23,7 @@ trait ActorWithRemotes extends ActorWithConnection with ActorLogging {
 
 object ActorWithRemotes {
 
-  case class Remote(message: AppMessage) extends JsonSerializable
+  private case class Remote(message: AppMessage) extends JsonSerializable
   case class Connect(options: String = "") extends JsonSerializable
   case class Connected(actorRef: ActorRef) extends JsonSerializable
 

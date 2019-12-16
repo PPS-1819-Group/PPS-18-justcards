@@ -6,6 +6,10 @@ import org.justcards.commons.games_rules.PointsConversion
 import org.justcards.commons.games_rules.PointsConversionType._
 import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
 
+/**
+ * A RuleKnowledge using Prolog.
+ * @param knowledge the Prolog knowledge with theories
+ */
 class PrologRuleKnowledge(private val knowledge: Prolog) extends RuleKnowledge {
 
   import org.justcards.commons.helper.TuPrologHelpers._

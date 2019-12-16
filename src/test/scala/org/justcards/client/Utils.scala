@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.io.{IO, Tcp}
-import org.justcards.client.connection_manager.ConnectionManager
-import org.justcards.client.view.View
+import org.justcards.client.connection_manager.ConnectionManager.ConnectionManagerFactory
+import org.justcards.client.view.View.ViewFactory
 import org.justcards.commons.{AppError, Card, GameId, LobbyId, TeamId, UserId}
 
 import scala.concurrent.duration._
@@ -30,11 +30,11 @@ object Utils {
 }
 
 object TestConnectionManager {
-  def apply(testActor: ActorRef): ConnectionManager = _ => EchoActor(testActor)
+  def apply(testActor: ActorRef): ConnectionManagerFactory = _ => EchoActor(testActor)
 }
 
 object TestView {
-  def apply(testActor: ActorRef): View = _ => EchoActor(testActor)
+  def apply(testActor: ActorRef): ViewFactory = _ => EchoActor(testActor)
 }
 
 object EchoActor {

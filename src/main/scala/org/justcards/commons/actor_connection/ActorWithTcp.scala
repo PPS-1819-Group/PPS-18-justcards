@@ -7,6 +7,9 @@ import akka.util.ByteString
 import org.justcards.commons._
 import play.api.libs.json.{Json, OFormat}
 
+/**
+ * ActorWithConnection that works with Tcp.
+ */
 trait ActorWithTcp extends ActorWithConnection with ActorLogging {
 
   import org.justcards.commons.actor_connection.ActorWithTcp._
