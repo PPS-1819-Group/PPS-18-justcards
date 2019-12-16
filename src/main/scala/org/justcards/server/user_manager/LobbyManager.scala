@@ -11,6 +11,11 @@ import org.justcards.server.user_manager.UserManagerMessage._
 import Lobby._
 import org.justcards.server.Commons.UserInfo
 
+/**
+ * Actor that deals with lobbies.
+ * @param knowledgeEngine the KnowledgeEngine
+ * @param lobbyDatabase the LobbyDatabase
+ */
 private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase) extends Actor {
 
   import org.justcards.commons.AppError._
@@ -107,8 +112,20 @@ private[user_manager] class LobbyManager(knowledgeEngine: ActorRef, lobbyDatabas
 }
 
 private[user_manager] object LobbyManager {
+  /**
+   * Create a new LobbyManager with default values.
+   * @param knowledgeEngine the KnowledgeEngine
+   * @return a new LobbyManager
+   */
   def apply(knowledgeEngine: ActorRef): Props =
     Props(classOf[LobbyManager], knowledgeEngine, LobbyDatabase.createMapLobbyDatabase())
+
+  /**
+   * Create a new LobbyManager with the given values
+   * @param knowledgeEngine the KnowledgeEngine
+   * @param lobbyDatabase the LobbyDatabase
+   * @return a new LobbyManager
+   */
   def apply(knowledgeEngine: ActorRef, lobbyDatabase: LobbyDatabase): Props =
     Props(classOf[LobbyManager], knowledgeEngine, lobbyDatabase)
 }

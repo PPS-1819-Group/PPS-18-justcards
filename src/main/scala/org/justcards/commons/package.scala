@@ -3,7 +3,15 @@ package org.justcards
 import org.justcards.commons.AppError._
 
 package object commons {
+
+  /**
+   * The name of the system where the server is placed.
+   */
   val SERVER_SYSTEM_NAME: String = "justCardsServer"
+
+  /**
+   * The name of the server.
+   */
   val SERVER_NAME: String = SERVER_SYSTEM_NAME
 
   implicit class RichString(value: String) {

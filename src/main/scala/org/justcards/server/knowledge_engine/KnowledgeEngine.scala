@@ -9,9 +9,16 @@ import org.justcards.commons.AppError._
 import org.justcards.commons.GameId
 import org.justcards.commons.games_rules.{GameRules, PointsConversion, Rule}
 import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
-import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge.GameKnowledgeFactory
 import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 
+/**
+ * Actor that deals with the system knowledge.
+ * @param gameManager the GameManager the actor has to interact with
+ * @param gameKnowledge a factory for creating specific types of GameKnowledge
+ * @param rulesCreator the RuleCreator
+ */
 class KnowledgeEngine(private val gameManager: GamesManager,
                       private val gameKnowledge: GameKnowledgeFactory,
                       private val rulesCreator: RuleCreator) extends Actor {
@@ -64,12 +71,30 @@ class KnowledgeEngine(private val gameManager: GamesManager,
 }
 
 object KnowledgeEngine {
+  /**
+   * Create a new KnowledgeEngine with given values.
+   * @param gameManager the GameManager the KnowledgeEngine has to interact with
+   * @param gameKnowledge a factory for creating specific types of GameKnowledge
+   * @param rulesCreator the RuleCreator
+   * @return a new KnowledgeEngine
+   */
   def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory, rulesCreator: RuleCreator): Props =
     Props(classOf[KnowledgeEngine], gameManager, gameKnowledge, rulesCreator)
 
+  /**
+   * Create a new KnowledgeEngine with given values.
+   * @param gameManager the GameManager the KnowledgeEngine has to interact with
+   * @param gameKnowledge a factory for creating specific types of GameKnowledge
+   * @return a new KnowledgeEngine
+   */
   def apply(gameManager: GamesManager, gameKnowledge: GameKnowledgeFactory): Props =
     KnowledgeEngine(gameManager, gameKnowledge, RuleCreator())
 
+  /**
+   * Create a new KnowledgeEngine with default values.
+   * @param gameManager the GameManager the KnowledgeEngine has to interact with
+   * @return a new KnowledgeEngine
+   */
   def apply(gameManager: GamesManager): Props = KnowledgeEngine(gameManager, GameKnowledge(), RuleCreator())
 
   case class GameExistenceRequest(gameId: GameId)
@@ -79,9 +104,29 @@ object KnowledgeEngine {
   case class CreateGameRequest(name: String, rules: GameRules)
 }
 
+/**
+ * Trait for classes that can deal with games.
+ */
 trait GamesManager {
+  /**
+   * Retrieve the available games.
+   * @return the available games
+   */
   def availableGames: Set[(GameId, Long)]
+
+  /**
+   * Know if a given game exists.
+   * @param game the game
+   * @return if the game exists
+   */
   def gameExists(game: GameId): Boolean
+
+  /**
+   * Create a new game.
+   * @param name the new game name
+   * @param rules the new game rules
+   * @return the new gameId if created, None otherwise
+   */
   def createGame(name: String, rules: List[String]): Option[GameId]
 }
 

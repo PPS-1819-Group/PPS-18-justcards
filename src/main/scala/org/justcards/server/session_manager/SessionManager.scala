@@ -7,10 +7,15 @@ import org.justcards.commons._
 import org.justcards.server.Commons._
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.justcards.server.user_manager.Lobby
+import SessionManager.TeamPoints
 
 
 /**
- * Actor that manages a game session
+ * Actor that manages a game session.
+ * @param gameKnowledge the knowledge of the game to play
+ * @param teams the teams
+ * @param lobby the lobby
+ * @param players the players
  */
 class SessionManager(gameKnowledge: GameKnowledge, var teams: Map[Team.Value,TeamPoints], lobby: LobbyId, var players: Map[String, UserInfo]) extends Actor with Timers with ActorLogging{
   import Team._
@@ -190,9 +195,17 @@ object SessionManager {
 
   case class LogOutAndExitFromGame(user: UserInfo)
 
+  private[session_manager] case class TeamPoints(players: List[String], points: Int)
+
   val TIMEOUT: Int = 40
   val TIMEOUT_TO_USER: Int = 30
 
+  /**
+   * Create a new SessionManager
+   * @param lobby the lobby
+   * @param gameKnowledge the knowledge about the game to play
+   * @return a new SessionManager
+   */
   def apply(lobby: Lobby, gameKnowledge: GameKnowledge): Props = {
     import Lobby._
     val members = lobby.members.toList.splitAt(lobby.members.size/2)

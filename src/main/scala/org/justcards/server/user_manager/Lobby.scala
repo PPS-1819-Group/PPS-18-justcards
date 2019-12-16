@@ -4,29 +4,29 @@ import org.justcards.commons.{GameId, LobbyId}
 import org.justcards.server.Commons.UserInfo
 
 /**
-  * Class that represents all the information of a lobby
+  * Trait for classes that represent all the information of a lobby.
   */
 sealed trait Lobby {
   /**
-    * Getter
-    * @return the lobby is
+    * Getter.
+    * @return the lobby id
     */
   def id: Long
 
   /**
-    * Getter
+    * Getter.
     * @return the lobby owner
     */
   def owner: UserInfo
 
   /**
-   * Getter
+   * Getter.
    * @return the lobby game
    */
   def game: GameId
 
   /**
-    * Add a new owner to the lobby
+    * Add a new owner to the lobby.
     * @param newOwner the new owner of the lobby
     * @return a new lobby with the new lobby
     */
@@ -39,22 +39,22 @@ sealed trait Lobby {
   def members: Set[UserInfo]
 
   /**
-    * Add a member to the lobby
+    * Add a member to the lobby.
     * @param member the new member
     * @return a new lobby that contains the new member
     */
   def +(member: UserInfo): Lobby
 
   /**
-    * Remove a member from the lobby
+    * Remove a member from the lobby.
     * @param member the member to remove
     * @return a new lobby where the member is not present if the lobby contains more than a user,
-    *         nothing otherwise
+    *         None otherwise
     */
   def -(member: UserInfo): Option[Lobby]
 
   /**
-    * Know if the lobby is full
+    * Know if the lobby is full.
     * @return if the lobby is full
     */
   def isFull: Boolean
@@ -63,7 +63,7 @@ sealed trait Lobby {
 object Lobby {
 
   /**
-    * Creates a new lobby
+    * Creates a new lobby.
     * @param id the lobby id
     * @param owner the owner of the lobby
     * @param game the game
@@ -99,12 +99,35 @@ object Lobby {
 }
 
 /**
-  * Trait for classes that should realise the database of the lobby
+  * Trait for classes that should contain informations about the lobbies
   */
 trait LobbyDatabase extends Set[Lobby] {
+  /**
+   * Add a new lobby.
+   * @param value the new lobby
+   * @return a new LobbyDatabase with the new lobby
+   */
   def +(value: Lobby): LobbyDatabase
+
+  /**
+   * Remove a lobby.
+   * @param value the lobby to remove
+   * @return a new LobbyDatabase without the given lobby
+   */
   def -(value: Lobby): LobbyDatabase
-  def contains(elem: Long): Boolean
+
+  /**
+   * Know if a lobby is present
+   * @param value the lobby id
+   * @return if the lobby is present
+   */
+  def contains(value: Long): Boolean
+
+  /**
+   * Returns the lobby with the given id.
+   * @param value the lobby id
+   * @return the lobby found
+   */
   def apply(value: Long): Lobby
 }
 
