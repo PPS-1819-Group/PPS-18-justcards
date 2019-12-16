@@ -304,9 +304,10 @@ class UserManagerLobbyTest extends WordSpecLike with Matchers with BeforeAndAfte
   private def fillLobby(lobbyInfo: LobbyId)(userManager: ActorRef)(implicit me: TestProbe): Seq[ActorRef] = {
     for(
       n <- 0 until Lobby.MAX_LOBBY_MEMBERS - 1;
-      joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + n);
+      testProbe = TestProbe();
+      joiner = createJoinerAndLogIn(userManager, JOINER_USERNAME + n)(testProbe);
       _ = joiner ! JoinLobby(lobbyInfo);
-      _ = me receiveN n + 2
+      _ = me receiveN 1
     ) yield joiner
   }
 

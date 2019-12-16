@@ -4,7 +4,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
     java
     scala
+    id("com.github.maiflai.scalatest") version "0.25"
     id("com.github.johnrengelman.shadow") version "5.1.0"
+    id("org.scoverage") version "4.0.1"
 }
 
 repositories {
@@ -14,6 +16,7 @@ repositories {
 dependencies {
     compile(group = "org.scala-lang", name = "scala-library", version = "2.12.2")
     testCompile(group = "org.scalatest", name = "scalatest_2.12", version = "3.0.8")
+    testRuntime(group = "org.pegdown", name = "pegdown", version = "1.4.2")
 
     compile(group = "com.typesafe.akka", name = "akka-actor_2.12", version = "2.6.0")
     compile(group = "com.typesafe.akka", name = "akka-remote_2.12", version = "2.6.0")
@@ -39,15 +42,6 @@ tasks.withType<ScalaCompile> {
     sourceCompatibility = "11"
     targetCompatibility = "11"
 }
-
-task<JavaExec>("scalaTest") {
-    dependsOn("testClasses")
-    main = "org.scalatest.tools.Runner"
-    args(listOf("-R", "build/classes/scala/test", "-o"))
-    classpath = sourceSets.test.get().runtimeClasspath
-}
-
-tasks.test.get().dependsOn("scalaTest")
 
 task<JavaExec>("runServer") {
     classpath = sourceSets.main.get().runtimeClasspath
