@@ -11,7 +11,7 @@ import scala.util.Success
 class RemoteConnectionManager(address: (String, Int), appController: ActorRef)
                               extends AbstractConnectionManager(appController) with ActorWithRemotes with ActorLogging {
 
-  override protected def init: Receive = {
+  override protected def initConnection: Receive = {
     case Connected(server) =>
       context watch server
       connected(server)

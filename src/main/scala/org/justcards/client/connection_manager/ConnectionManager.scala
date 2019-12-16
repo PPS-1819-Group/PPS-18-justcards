@@ -29,16 +29,16 @@ object ConnectionManager {
 
 abstract class AbstractConnectionManager(appController: ActorRef) extends ActorWithConnection with Actor with Stash {
 
-  override def receive: Receive = parse orElse waitForInit
+  override def init: Receive = parse orElse waitForInit
 
-  protected def init: Receive
+  protected def initConnection: Receive
 
   protected def connectionErrorHandling(server: ActorRef): Receive
 
   private def waitForInit: Receive = {
     case InitializeConnection =>
       initializeConnection()
-      this become (init orElse stashUnhandled)
+      this become (initConnection orElse stashUnhandled)
   }
 
   private def work(server: ActorRef): Receive = {

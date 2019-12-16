@@ -23,7 +23,7 @@ object TcpConnectionManager {
 
     override protected def initializeConnection(): Unit = IO(Tcp) ! Connect(address)
 
-    override protected def init: Receive = {
+    override protected def initConnection: Receive = {
       case CommandFailed(_: Connect) => error(CANNOT_CONNECT)
       case _ @ Connected(_, _) =>
         val server = sender()

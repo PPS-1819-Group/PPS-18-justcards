@@ -6,9 +6,9 @@ In order to start the application via Gradle you have to digit on a CLI the foll
 **Client application**
 `gradle runClient -q --console=plain`
 
-The client must know server IP address or URL and must set it on `org.justcards.client.ClientApp`
+With optional param -Pserver="serverAddress" if the server address is known
 
 **Server application**
 `gradle runServer -q --console=plain`
 
-The server must know it's IP address or URL and must be set at the voice `canonical.hostname` on server.conf in the resource files
+With optional param -Paddress="serverAddress" if the address is known
