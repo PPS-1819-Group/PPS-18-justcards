@@ -10,7 +10,8 @@ import org.justcards.server.Commons.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.knowledge_engine.KnowledgeEngine._
-import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge.GameKnowledgeFactory
 import org.justcards.server.session_manager.SessionCreator.CreateSession
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 import org.justcards.server.user_manager.Utils.doLogIn

@@ -5,6 +5,9 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.justcards.server.session_manager.SessionCreator.CreateSession
 import org.justcards.server.user_manager.Lobby
 
+/**
+ * An actor that has to create new SessionManagers.
+ */
 class SessionCreator extends Actor {
 
   override def receive: Receive = {

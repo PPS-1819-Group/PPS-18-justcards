@@ -5,6 +5,10 @@ import org.justcards.commons.{ErrorOccurred, Logged}
 import org.justcards.server.Commons.UserInfo
 import org.justcards.server.user_manager.UserManagerMessage._
 
+/**
+ * Actor that deals with players.
+ * @param playerDatabase the PlayerDatabase
+ */
 private[user_manager] class PlayerManager(playerDatabase: PlayerDatabase) extends Actor {
 
   import org.justcards.commons.AppError._
@@ -44,11 +48,28 @@ private[user_manager] object PlayerManager {
 }
 
 /**
-  * Trait for classes that should realise the players database
+  * Trait for classes that should contain informations about the players.
   */
 trait PlayerDatabase extends Set[(String, ActorRef)] {
+  /**
+   * Add a new player.
+   * @param value the new player information
+   * @return the new PlayerDatabase created
+   */
   def +(value: (String, ActorRef)): PlayerDatabase
-  def -(elem: (String, ActorRef)): PlayerDatabase
+
+  /**
+   * Remove a player
+   * @param value the player information
+   * @return the new PlayerDatabase without the given player
+   */
+  def -(value: (String, ActorRef)): PlayerDatabase
+
+  /**
+   * Remove a player knowing only its username
+   * @param value the player username
+   * @return the new PlayerDatabase without the given player
+   */
   def -(value: String): PlayerDatabase
 }
 

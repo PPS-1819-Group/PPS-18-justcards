@@ -1,65 +1,69 @@
 package org.justcards.server.session_manager
 
 import org.justcards.commons.Card
-import org.justcards.server.Commons.{PlayerCards, UserInfo}
+import org.justcards.server.Commons.UserInfo
+import GameBoard.PlayerCards
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 
 import scala.util.Random
 
+/**
+ * Trait for classes that want to contain all the information about a match.
+ */
 trait GameBoard {
 
   /**
-   * Getter
+   * Getter.
    * @return cards on field
    */
   def fieldCards: List[(Card, String)]
 
   /**
-   * Getter
+   * Getter.
    * @return cards of all player
    */
   def playerCards: Map[String, PlayerCards]
 
   /**
-   * Getter
+   * Getter.
    * @return deck of match
    */
   def deck: List[Card]
 
   /**
-   * Getter
+   * Getter.
    * @return turn order of all player
    */
   def turn: List[String]
 
   /**
-   * Getter
+   * Getter.
    * @return last card of deck
    */
   def optionLastCardDeck: Option[Card]
 
   /**
-   * Getter
+   * Getter.
    * @return User that must play
    */
   def optionTurnPlayer: Option[String]
 
   /**
-   * Getter
+   * Getter.
    * @return player after given player
    */
   def playerAfter(player: String): Option[String]
 
   /**
-   * Getter
+   * Getter.
    * @param player player
-   * @return cards in the player hand
+   * @return cards held by the user
    */
   def handCardsOf(player: String): Set[Card]
 
   /**
-   * Getter
-   * @return cards in the hand of player have to play
+   * Getter.
+   * @return cards held by the player that has to play
    */
   def handCardsOfTurnPlayer: Option[Set[Card]] = this optionTurnPlayer match {
     case Some(player) => Some(this handCardsOf player)
@@ -67,29 +71,29 @@ trait GameBoard {
   }
 
   /**
-   * Getter
+   * Getter.
    * @param player player
-   * @return cards that player won
+   * @return cards that player has taken from the field
    */
   def tookCardsOf(player: String): Set[Card]
 
   /**
-   * Players draw
-   * @return GameBoard after the players draw
+   * Draw new cards.
+   * @return a new GameBoard with the new cards drawn.
    */
   def draw: Option[GameBoard]
 
   /**
-   * Player play a card
-   * @param card card that player play
-   * @return GameBoard after player play the card
+   * Play a new card.
+   * @param card card that turn player plays
+   * @return the new GameBoard after the move
    */
   def playerPlays(card: Card): GameBoard
 
   /**
-   * Give fieldCards to turn winner and reset turn
+   * Handle all the moves at the and of a hand.
    * @param player turn winner
-   * @return GameBoard with empty field and reset turn
+   * @return a new default GameBoard
    */
   def handWinner(player: String): GameBoard
 
@@ -97,6 +101,14 @@ trait GameBoard {
 
 object GameBoard {
 
+  /**
+   * Create a new GameBoard.
+   * @param gameKnowledge the knowledge of the game
+   * @param team1 the first team members
+   * @param team2 the second team members
+   * @param firstPlayer the first player the match
+   * @return a new GameBoard
+   */
   def apply(gameKnowledge: GameKnowledge, team1: List[String], team2: List[String], firstPlayer: Option[UserInfo]): GameBoard = {
     import ListWithShift._
     val initialConfiguration = gameKnowledge.initialConfiguration//hand, draw, field
@@ -126,7 +138,7 @@ object GameBoard {
       initialConfiguration._2)
   }
 
-
+  case class PlayerCards(hand: Set[Card], took: Set[Card])
 
   private[this] case class GameBoardImpl(fieldCards: List[(Card, String)],
                                          playerCards: Map[String, PlayerCards],

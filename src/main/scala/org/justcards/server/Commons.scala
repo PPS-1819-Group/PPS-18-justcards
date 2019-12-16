@@ -11,6 +11,9 @@ object Commons {
     val USER, SYSTEM, NOT_BRISCOLA = Value
   }
 
+  /**
+   * Teams that play a session.
+   */
   object Team extends Enumeration {
     type Team = Value
     val TEAM_1: Value = Value(1,"team 1")
@@ -21,11 +24,12 @@ object Commons {
   }
 
 
+  /**
+   * Information about a user.
+   * @param username the username
+   * @param userRef the reference to the actor that deals with the user
+   */
   case class UserInfo(username: String, userRef: ActorRef)
 
   implicit def toUserId(userInfo: UserInfo): UserId = UserId(1, userInfo.username)
-
-  case class PlayerCards(hand: Set[Card], took: Set[Card])
-
-  case class TeamPoints(players: List[String], points: Int)
 }
