@@ -1,15 +1,15 @@
 package org.justcards.server
 
+import java.io.File
+import java.nio.file.{Files, StandardCopyOption}
+
 import akka.actor.ActorRef
-import org.justcards.commons.games_rules.GameRules
+import org.justcards.commons.games_rules.knowledge.RuleKnowledge.RULES_PATH
 import org.justcards.commons.{Card, TeamId, UserId}
+import org.justcards.server.knowledge_engine.GamesManager.DefaultGame.DefaultGame
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge.GAMES_PATH
 
 object Commons {
-
-  object BriscolaSetting extends Enumeration {
-    type BriscolaSetting = Value
-    val USER, SYSTEM, NOT_BRISCOLA = Value
-  }
 
   /**
    * Teams that play a session.
@@ -32,4 +32,24 @@ object Commons {
   case class UserInfo(username: String, userRef: ActorRef)
 
   implicit def toUserId(userInfo: UserInfo): UserId = UserId(1, userInfo.username)
+
+  private[this] def filesInDirectory(directory: File):List[File] = directory match {
+    case d if d.exists && d.isDirectory => d.listFiles.filter(_.isFile).toList
+    case _ => List()
+  }
+
+  def exportGames(defaultGames: DefaultGame*): Unit = {
+    val defaultGamesNames = defaultGames.map(_.toString + ".pl")
+    val gamesDirectory = new File(GAMES_PATH)
+    gamesDirectory mkdir
+    val games = filesInDirectory(gamesDirectory) map(_.getName.toLowerCase)
+
+    defaultGamesNames filter (g => !games.contains(g.toLowerCase)) foreach { f =>
+      Files.copy(
+        getClass.getResourceAsStream(RULES_PATH + "games/" + f),
+        new File(gamesDirectory.getAbsolutePath + "/" + f).toPath
+      )
+    }
+  }
+
 }

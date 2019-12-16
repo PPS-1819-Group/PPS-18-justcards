@@ -1,6 +1,7 @@
 package org.justcards.client.connection_manager
 
 import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
+import org.justcards.client.connection_manager.ConnectionManager.ConnectionManagerFactory
 import org.justcards.commons.AppError.CONNECTION_LOST
 import org.justcards.commons.actor_connection.ActorWithRemotes
 import org.justcards.commons.actor_connection.ActorWithRemotes._
@@ -38,11 +39,14 @@ class RemoteConnectionManager(address: (String, Int), appController: ActorRef)
   override protected def terminateConnection(server: ActorRef): Unit = {}
 }
 
+/**
+ * A ConnectionManager using Akka Remotes.
+ */
 object RemoteConnectionManager {
 
-  def apply(address: (String, Int)): ConnectionManager =
+  def apply(address: (String, Int)): ConnectionManagerFactory =
     Props(classOf[RemoteConnectionManager], address, _)
 
-  def apply(serverName: String, host: String, port: Int): ConnectionManager =
+  def apply(serverName: String, host: String, port: Int): ConnectionManagerFactory =
     RemoteConnectionManager((host, port))
 }

@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, Props, Timers}
 
 import scala.concurrent.duration._
 import org.justcards.commons._
+import org.justcards.commons.games_rules.BriscolaSetting
 import org.justcards.server.Commons._
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
 import org.justcards.server.user_manager.Lobby

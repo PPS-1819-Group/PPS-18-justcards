@@ -7,6 +7,9 @@ import scala.util.Success
 
 package object view {
 
+  /**
+   * Menu options shown in main menu.
+   */
   object MenuChoice extends Enumeration {
     type MenuChoice = MenuChoice.Value
     val CREATE_LOBBY: Value = Value(1, "Create a new lobby")
@@ -17,6 +20,9 @@ package object view {
     val SHOW_GAMES: Value = Value(6, "Show all the available games")
   }
 
+  /**
+   * Filters available for the lobby lookup.
+   */
   object FilterChoice extends Enumeration {
     type FilterChoice = FilterChoice.Value
     val BY_OWNER: Value = Value(1, "Owner")
@@ -24,6 +30,9 @@ package object view {
     val BY_ID: Value = Value(3, "")
   }
 
+  /**
+   * Options shown when there is not connection.
+   */
   object OptionConnectionFailed extends Enumeration {
     type OptionConnectionFailed = OptionConnectionFailed.Value
     val TRY_TO_RECONNECT: Value = Value(1, "Try to reconnect")

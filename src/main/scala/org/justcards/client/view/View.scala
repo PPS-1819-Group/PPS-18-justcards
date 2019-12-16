@@ -5,11 +5,18 @@ import org.justcards.commons.AppError._
 import org.justcards.commons.games_rules.Rule
 import org.justcards.commons.{Card, GameId, LobbyId, TeamId, UserId}
 
-trait View extends (ActorRef => Props)
-
 object View {
 
-  def apply(): View = ConsoleView()
+  /**
+   * Factory to create a View given reference of an AppController.
+   */
+  type ViewFactory = ActorRef => Props
+
+  /**
+   * Create a ViewFactory
+   * @return the ViewFactory
+   */
+  def apply(): ViewFactory = ConsoleView()
 
   sealed trait ViewMessage
   case class ShowError(error: AppError) extends ViewMessage

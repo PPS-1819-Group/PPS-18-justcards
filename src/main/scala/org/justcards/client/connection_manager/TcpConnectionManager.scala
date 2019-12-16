@@ -9,12 +9,17 @@ import org.justcards.commons.AppError._
 import org.justcards.commons.actor_connection.ActorWithTcp
 import org.justcards.commons.actor_connection.ActorWithTcp._
 
+/**
+ * A ConnectionManager using TCP.
+ */
 object TcpConnectionManager {
 
-  def apply(address: InetSocketAddress): ConnectionManager =
+  import org.justcards.client.connection_manager.ConnectionManager.ConnectionManagerFactory
+
+  def apply(address: InetSocketAddress): ConnectionManagerFactory =
     (appController: ActorRef) => Props(classOf[TcpConnectionManager], address, appController)
 
-  def apply(host: String, port: Int): ConnectionManager = TcpConnectionManager(new InetSocketAddress(host, port))
+  def apply(host: String, port: Int): ConnectionManagerFactory = TcpConnectionManager(new InetSocketAddress(host, port))
 
   private[this] class TcpConnectionManager(address: InetSocketAddress, appController: ActorRef)
     extends AbstractConnectionManager(appController) with ActorWithTcp {
