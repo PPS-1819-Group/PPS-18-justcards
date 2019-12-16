@@ -11,7 +11,8 @@ import org.justcards.commons.games_rules.BriscolaSetting
 import org.justcards.commons.games_rules.BriscolaSetting.BriscolaSetting
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.KnowledgeEngine.{CreateGameRequest, GameExistenceRequest, GameExistenceResponse, GameKnowledgeRequest, GameKnowledgeResponse}
-import org.justcards.server.knowledge_engine.game_knowledge.{GameKnowledge, GameKnowledgeFactory}
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge
+import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge.GameKnowledgeFactory
 import org.justcards.server.knowledge_engine.rule_creator.RuleCreator
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Matchers, WordSpecLike}
 

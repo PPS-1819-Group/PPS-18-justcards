@@ -13,9 +13,9 @@ import org.justcards.server.session_manager.SessionCreator.CreateSession
 import scala.util.Success
 
 /**
-  * Actor that manages all the users in the system
-  * @param sessionCreator the system sessionCreator
-  * @param knowledgeEngine the system knowledgeEngine
+  * Actor that manages all the users in the system.
+  * @param sessionCreator the sessionCreator
+  * @param knowledgeEngine the knowledgeEngine
   */
 class UserManager(private val sessionCreator: ActorRef, private val knowledgeEngine: ActorRef) extends Actor {
 
@@ -77,6 +77,12 @@ class UserManager(private val sessionCreator: ActorRef, private val knowledgeEng
 }
 
 object UserManager {
+  /**
+   * Create a new UserManager.
+   * @param sessionCreator the sessionCreator
+   * @param knowledgeEngine the knowledgeEngine
+   * @return a new UserManager
+   */
   def apply(sessionCreator: ActorRef, knowledgeEngine: ActorRef): Props =
     Props(classOf[UserManager], sessionCreator, knowledgeEngine)
 }

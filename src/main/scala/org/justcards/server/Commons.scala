@@ -11,6 +11,9 @@ import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge.GAMES_
 
 object Commons {
 
+  /**
+   * Teams that play a session.
+   */
   object Team extends Enumeration {
     type Team = Value
     val TEAM_1: Value = Value(1,"team 1")
@@ -21,13 +24,14 @@ object Commons {
   }
 
 
+  /**
+   * Information about a user.
+   * @param username the username
+   * @param userRef the reference to the actor that deals with the user
+   */
   case class UserInfo(username: String, userRef: ActorRef)
 
   implicit def toUserId(userInfo: UserInfo): UserId = UserId(1, userInfo.username)
-
-  case class PlayerCards(hand: Set[Card], took: Set[Card])
-
-  case class TeamPoints(players: List[String], points: Int)
 
   private[this] def filesInDirectory(directory: File):List[File] = directory match {
     case d if d.exists && d.isDirectory => d.listFiles.filter(_.isFile).toList

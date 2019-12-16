@@ -6,8 +6,9 @@ import org.justcards.commons.games_rules.knowledge.RuleKnowledge
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.Commons.UserInfo
 
-trait GameKnowledgeFactory extends (GameId => GameKnowledge)
-
+/**
+ * Trait for classes that have to represent a knowledge on a specific game.
+ */
 trait GameKnowledge {
   type CardsNumber = Int
   type Points = Int
@@ -26,7 +27,7 @@ trait GameKnowledge {
   def deckCards: Set[Card]
 
   /**
-   * Retrieve all the available seeds to use in the game
+   * Retrieve all the available seeds to use in the game.
    * @return the available seeds.
    */
   def seeds: Set[Seed]
@@ -38,7 +39,7 @@ trait GameKnowledge {
   def hasToChooseBriscola: BriscolaSetting
 
   /**
-   * Determine if a seed can be used as Briscola in the game.
+   * Set a new seed as Briscola.
    * @param seed the seed
    * @return if the Briscola is valid or not
    */
@@ -49,12 +50,12 @@ trait GameKnowledge {
    * @param card the card to be played
    * @param fieldCards the cards on the field
    * @param handCards the cards in the hand of the player playing the card
-   * @return Optionally the cards on the field after the requested card was played or else None
+   * @return The cards on the field after the requested card was played, None otherwise
    */
   def play(card: Card, fieldCards: List[Card], handCards: Set[Card]): Option[List[Card]]
 
   /**
-   * Determine who win the current hand.
+   * Determine who won the current hand.
    * @param fieldCards the cards on the field
    * @return the winner
    */
@@ -73,13 +74,12 @@ trait GameKnowledge {
    * Determine the winner team of the session.
    * @param firstTeamPoints the first team points gained in the session
    * @param secondTeamPoints the second team points gained in the session
-   * @return the winner team
+   * @return the winner team if present, None otherwise.
    */
   def sessionWinner(firstTeamPoints: Points, secondTeamPoints: Points): Option[Team]
 
   /**
    * Determine the points obtained by the teams in a match.
-   *
    * @param firstTeamCards the first team cards
    * @param secondTeamCards the second team cards
    * @param lastHandWinner the team who won the last hand
@@ -88,15 +88,17 @@ trait GameKnowledge {
   def matchPoints(firstTeamCards: Set[Card], secondTeamCards: Set[Card], lastHandWinner: Team): (Points,Points)
 
   /**
-   * Determine, if specified by the game, the user that has to play the first turn
+   * Determine the user that has to play the first turn
    * in the first match of a  the session.
    * @param playersHandCards the players and their hand cards
-   * @return the user that has has to play the first turn in the first match of a the session
+   * @return the user that has has to play the first turn in the first match of a the session if present, None otherwise.
    */
   def sessionStarterPlayer(playersHandCards: Set[(UserInfo, Set[Card])]): Option[UserInfo]
 }
 
 object GameKnowledge {
+
+  type GameKnowledgeFactory = GameId => GameKnowledge
 
   def apply(): GameKnowledgeFactory = PrologGameKnowledge()
 

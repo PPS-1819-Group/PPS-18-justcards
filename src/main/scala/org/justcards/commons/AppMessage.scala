@@ -41,7 +41,7 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 sealed trait AppMessage extends JsonSerializable
 
 /**
- * Message to indicate that an error occurred
+ * Message to indicate that an error occurred.
  * @param error the error
  */
 case class ErrorOccurred(error: String) extends AppMessage
@@ -94,7 +94,7 @@ case class LobbyCreated(lobby: LobbyId) extends AppMessage
 case class RetrieveAvailableLobbies(gameName: String = "", ownerName: String = "") extends AppMessage
 
 /**
- * Message that contains all the available lobbies
+ * Message that contains all the available lobbies.
  * @param lobbies all the available lobbies
  */
 case class AvailableLobbies(lobbies: Set[(LobbyId, Set[UserId])]) extends AppMessage
@@ -126,21 +126,21 @@ case class LobbyUpdate(lobby: LobbyId, members: Set[UserId]) extends AppMessage
 case class GameStarted(players: List[(UserId, TeamId)]) extends AppMessage
 
 /**
- * Message to communicate information of current hand and field
+ * Message to communicate information of current hand and field.
  * @param handCards cards in your hand
  * @param fieldCards cards on the field
  */
 case class Information(handCards: Set[Card], fieldCards: List[Card]) extends AppMessage
 
 /**
- * Message to indicate to choose the Briscola
+ * Message to indicate to choose the Briscola.
  * @param seeds the available seeds
  * @param timeout the timeout given to choose the Briscola
  */
 case class ChooseBriscola(seeds: Set[String], timeout: Int) extends AppMessage
 
 /**
- * Message to indicate the chosen Briscola
+ * Message to indicate the chosen Briscola.
  * @param seed the chosen Briscola
  */
 case class Briscola(seed: String) extends AppMessage
@@ -153,8 +153,7 @@ case class Briscola(seed: String) extends AppMessage
 case class CorrectBriscola(seed: String, number: Option[Int] = None) extends AppMessage
 
 /**
- * Message to indicate that is your turn
- *
+ * Message to indicate that is your turn.
  * @param handCards cards in your hand
  * @param fieldCards cards on the field
  * @param timeout time limit to play your card
@@ -162,30 +161,30 @@ case class CorrectBriscola(seed: String, number: Option[Int] = None) extends App
 case class Turn(handCards: Set[Card], fieldCards: List[Card], timeout: Int) extends AppMessage
 
 /**
- * Message to indicate the card you want to play
+ * Message to indicate the card you want to play.
  * @param card the card you want to play
  */
 case class Play(card: Card) extends AppMessage
 
 /**
- * Message to indicate that your turn is over
+ * Message to indicate that your turn is over.
  * @param card the card you played
  */
 case class Played(card: Card) extends AppMessage
 
 /**
- * Message to indicate that the timeout has exceeded
+ * Message to indicate that the timeout has exceeded.
  */
 case class TimeoutExceeded(option: String = "") extends AppMessage
 
 /**
- * Message to indicate who won the hand
+ * Message to indicate who won the hand.
  * @param player the winner
  */
 case class HandWinner(player: UserId) extends AppMessage
 
 /**
- * Message to indicate the team who won the match
+ * Message to indicate the team who won the match.
  * @param team the winner
  * @param matchPoints the points of the current match
  * @param totalPoints the total points of the current session
@@ -193,26 +192,26 @@ case class HandWinner(player: UserId) extends AppMessage
 case class MatchWinner(team: TeamId, matchPoints: (Int, Int), totalPoints: (Int, Int)) extends AppMessage
 
 /**
- * Message to indicate the team who won the game
+ * Message to indicate the team who won the game.
  * @param team the winner
  */
 case class GameWinner(team: TeamId) extends AppMessage
 
 /**
- * Message to get out of a lobby
+ * Message to get out of a lobby.
  * @param lobby the lobby to leave
  */
 case class OutOfLobby(lobby: LobbyId) extends AppMessage
 
 /**
- * Message to create a game
+ * Message to create a game.
  * @param name the name of the new game
  * @param rules the rules of the new game
  */
 case class CreateGame(name: String, rules: GameRulesSettings) extends AppMessage
 
 /**
- * Message to indicate that the game has been created
+ * Message to indicate that the game has been created.
  * @param game the new game
  */
 case class GameCreated(game: GameId) extends AppMessage

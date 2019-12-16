@@ -9,6 +9,10 @@ import org.justcards.commons.games_rules.BriscolaSetting._
 import org.justcards.server.Commons.Team.Team
 import org.justcards.server.knowledge_engine.game_knowledge.GameKnowledge._
 
+/**
+ * GameKnowledge that works with Prolog.
+ * @param game the game he has the knowledge about
+ */
 class PrologGameKnowledge(private val game: GameId) extends GameKnowledge {
 
   import PrologGameKnowledge._

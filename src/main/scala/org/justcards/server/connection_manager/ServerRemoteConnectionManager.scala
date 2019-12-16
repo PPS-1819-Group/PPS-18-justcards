@@ -4,6 +4,10 @@ import akka.actor.{Actor, ActorRef, Props}
 import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConnectionOptions
 import org.justcards.server.user_manager.User
 
+/**
+ * Connection manager that works with remotes
+ * @param userManager the userManager that the users will talk to
+ */
 private[connection_manager] class ServerRemoteConnectionManager(private val userManager: ActorRef) extends Actor {
 
   import org.justcards.commons.actor_connection.ActorWithRemotes._

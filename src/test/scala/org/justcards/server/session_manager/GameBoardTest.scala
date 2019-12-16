@@ -6,11 +6,10 @@ import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
 
 class GameBoardTest extends WordSpecLike with Matchers with BeforeAndAfter {
 
-  val USERNAME = "username"
-  val HAND_CARDS = 1
-  val DRAW_CARD = 1
-  var gameBoard: GameBoard = _
-  val gameKnowledge = TestGameKnowledge((HAND_CARDS, DRAW_CARD, 0))
+  private val USERNAME = "username"
+  private val HAND_CARDS = 1
+  private val DRAW_CARD = 1
+  private val gameKnowledge = TestGameKnowledge((HAND_CARDS, DRAW_CARD, 0))
 
 
   "The GameBoard" when {
@@ -18,7 +17,7 @@ class GameBoardTest extends WordSpecLike with Matchers with BeforeAndAfter {
     "initialize" should {
 
       "give the cards to all users" in {
-        gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None)
+        val gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None)
         (gameBoard.handCardsOf(USERNAME).size,
           gameBoard.handCardsOf(USERNAME + 1).size,
           gameBoard.handCardsOf(USERNAME + 2).size,
@@ -26,7 +25,7 @@ class GameBoardTest extends WordSpecLike with Matchers with BeforeAndAfter {
       }
 
       "deck have all cards except cards in the hand of players" in {
-        gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None)
+        val gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None)
         gameBoard.deck.size + HAND_CARDS*4 shouldBe gameKnowledge.deckCards.size
       }
 
@@ -35,7 +34,7 @@ class GameBoardTest extends WordSpecLike with Matchers with BeforeAndAfter {
     "all user draw" should {
 
       "give the cards to all users" in {
-        gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None).draw.get
+        val gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None).draw.get
         (gameBoard.handCardsOf(USERNAME).size,
           gameBoard.handCardsOf(USERNAME + 1).size,
           gameBoard.handCardsOf(USERNAME + 2).size,
@@ -44,7 +43,7 @@ class GameBoardTest extends WordSpecLike with Matchers with BeforeAndAfter {
 
 
       "deck have all cards except cards in the hand of players" in {
-        gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None).draw.get
+        val gameBoard = GameBoard(gameKnowledge, List(USERNAME, USERNAME + 1), List(USERNAME + 2, USERNAME + 3), None).draw.get
         gameBoard.deck.size + (HAND_CARDS+DRAW_CARD)*4 shouldBe gameKnowledge.deckCards.size
       }
     }

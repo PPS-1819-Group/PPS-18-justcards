@@ -3,7 +3,10 @@ package org.justcards.server.session_manager
 import akka.actor.{Actor, Props}
 import org.justcards.commons.{ChooseBriscola, OutOfLobby, TimeoutExceeded, Turn}
 
-class FakeUser() extends Actor {
+/**
+ * Class that represents a user that has logged out.
+ */
+class FakeUser extends Actor {
 
   override def receive: Receive = {
     case ChooseBriscola => sender ! TimeoutExceeded()

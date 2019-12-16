@@ -11,6 +11,11 @@ import org.justcards.server.knowledge_engine.KnowledgeEngine.CreateGameRequest
 import org.justcards.server.session_manager.SessionManager.LogOutAndExitFromGame
 import org.justcards.server.user_manager.UserManagerMessage.{LogOutAndExitFromLobby, UserExitFromLobby, UserRemoved}
 
+/**
+ * Actor that represents the user.
+ * @param userRef the reference of the remote user
+ * @param userManager the userManager to communicate with
+ */
 abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends ActorWithConnection with ActorLogging {
 
   import org.justcards.commons.AppError._
@@ -93,8 +98,21 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
 
 object User {
 
+  /**
+   * Create a new User of a default type.
+   * @param userRef the reference of the remote user
+   * @param userManager the userManager to communicate with
+   * @return a new User
+   */
   def apply(userRef: ActorRef, userManager: ActorRef): Props = User(userRef, userManager, REMOTES)
 
+  /**
+   * Create a new User.
+   * @param userRef the reference of the remote user
+   * @param userManager the userManager to communicate with
+   * @param mode the type of the connection
+   * @return a new User
+   */
   def apply(userRef: ActorRef, userManager: ActorRef, mode: ActorWithConnectionOptions): Props = mode match {
     case TCP => Props(classOf[UserActorWithTcp], userRef, userManager)
     case REMOTES =>  Props(classOf[UserActorWithRemotes], userRef, userManager)

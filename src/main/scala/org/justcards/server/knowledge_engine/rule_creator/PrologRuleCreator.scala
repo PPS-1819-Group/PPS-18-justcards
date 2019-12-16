@@ -6,6 +6,9 @@ import org.justcards.commons.games_rules.PointsConversionType.{DIVIDE, EXACTLY, 
 import org.justcards.commons.games_rules.{GameRules, PointsConversion}
 import org.justcards.commons.games_rules.BriscolaSetting.{BriscolaSetting, NOT_BRISCOLA, SYSTEM, USER}
 
+/**
+ * Rule creator that works with Prolog.
+ */
 class PrologRuleCreator extends RuleCreator {
 
   import org.justcards.commons.games_rules.Rule._
