@@ -14,9 +14,13 @@ import org.justcards.server.user_manager.UserManager
   */
 object ServerApp extends App {
 
+  val serverAddress = if(args.length > 0) args(0) else "127.0.0.1"
   val port = 6789
 
-  val system = ActorSystem(SERVER_SYSTEM_NAME, ConfigFactory.load("server"))
+  val defaultConfig = ConfigFactory.load("server")
+  val config = ConfigFactory.parseString(s"akka.remote.artery.canonical.hostname = $serverAddress").withFallback(defaultConfig)
+
+  val system = ActorSystem(SERVER_SYSTEM_NAME, config)
   val sessionCreator = system.actorOf(SessionCreator())
   val knowledgeEngine = system.actorOf(KnowledgeEngine(GamesManager()))
   val userManager = system.actorOf(UserManager(sessionCreator, knowledgeEngine))

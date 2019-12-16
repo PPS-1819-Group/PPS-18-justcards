@@ -8,8 +8,7 @@ import org.justcards.client.view.{ConsoleView, View}
 import org.justcards.commons.actor_connection.ActorWithConnection.ActorWithConnectionOptions
 
 object ClientApp extends App {
-
-  val host = "127.0.0.1"
+  val host = if(args.length > 0) args(0) else "127.0.0.1"
   val port = 6789
 
   val system = ActorSystem("justcards-client", ConfigFactory.load("client"))

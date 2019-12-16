@@ -17,7 +17,7 @@ abstract class BasicUserActor(userRef: ActorRef, userManager: ActorRef) extends 
 
   private val rulesConverter = GameRulesConverter()
 
-  override def receive: Receive = parse orElse completeBehaviour(notLogged)
+  override def init: Receive = completeBehaviour(notLogged)
 
   private def notLogged: Receive = {
     case Outer(msg: LogIn) => userManager ! msg

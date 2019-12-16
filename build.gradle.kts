@@ -51,11 +51,17 @@ tasks.test.get().dependsOn("scalaTest")
 
 task<JavaExec>("runServer") {
     classpath = sourceSets.main.get().runtimeClasspath
+    if(project.hasProperty("address")){
+        args(project.properties["address"])
+    }
     main = "org.justcards.server.ServerApp"
 }
 
 task<JavaExec>("runClient") {
     classpath = sourceSets.main.get().runtimeClasspath
+    if(project.hasProperty("server")){
+        args(project.properties["server"])
+    }
     main = "org.justcards.client.ClientApp"
     standardInput = System.`in`
 }
